@@ -20,7 +20,7 @@ Código do app (`android/launcher/src/main/java/app/rumo/`):
 
 ## Decisões tomadas (não reabrir sem o dono pedir)
 
-- **Navegação fica no Android Auto** (ZLINK5, `com.zjinnova.zlink`). O mapa da tela inicial é **passivo**: rua atual, placa de limite da via e, acima do limite, a velocidade em vermelho. Tocar no mapa abre o ZLINK.
+- **Navegação fica no Android Auto** (ZLINK5, `com.zjinnova.zlink`). O mapa da tela inicial é **passivo**: rua atual, placa de limite da via (na direita, onde a mão do motorista não tampa) e radar; acima do limite, a velocidade fica em vermelho só no cartão Viagem (o indicador vermelho do mapa saiu na 0.5.x, por excesso de indicadores). Tocar no mapa abre o ZLINK.
 - **Radares:** aviso curto ao entrar na zona; acima do limite do radar, bipes que aceleram e sobem de tom conforme se aproxima. Param ao reduzir ou passar.
 - **Alertas sonoros só com o launcher na tela.** Nada por cima do Android Auto: sem balão/overlay e sem serviço em segundo plano.
 - **Dados:** limites pelo OpenStreetMap offline + padrões do CTB quando faltar (marcados "estimado"); radares por fontes de uso permitido (OSM, ANTT, dados abertos de prefeituras; HERE como opção paga). Não embutir a base do Maparadar sem autorização.

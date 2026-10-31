@@ -356,7 +356,8 @@ private fun HomeCards(s: HomeState, a: HomeActions, night: Boolean) {
 }
 
 /**
- * Mapa passivo: rua atual, placa de limite, velocidade em vermelho acima dele e radar à frente.
+ * Mapa passivo: rua atual, placa de limite (à direita) e radar à frente. A velocidade acima do limite fica em
+ * vermelho só no cartão Viagem.
  * Tocar em qualquer ponto abre o Android Auto. Sem a pasta Rumo, fica a seta no rumo do GPS.
  */
 @Composable
@@ -441,17 +442,13 @@ private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, modifier: Modi
             Ico(Icons.cast, 24.dp, p.text)
             Txt("Android Auto", 18, weight = FontWeight.SemiBold)
         }
-        Row(
-            Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        // A placa de limite fica na direita (a mão do motorista tampava a da esquerda); o radar, na esquerda
+        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(14.dp)) {
             if (g.status != GpsStatus.OK) {
-                GpsChip(g, a, Modifier)
+                GpsChip(g, a, Modifier.align(Alignment.CenterStart))
             } else {
-                road?.let { LimitSign(it.limit, it.estimated) }
-                if (s.over) OverPill(g.speedKmh ?: 0)
-                s.radar?.let { RadarPill(it, Modifier.weight(1f, fill = false)) }
+                s.radar?.let { RadarPill(it, Modifier.align(Alignment.CenterStart).padding(end = SIGN_SIZE + 12.dp)) }
+                road?.let { LimitSign(it.limit, it.estimated, Modifier.align(Alignment.CenterEnd)) }
             }
         }
         if (mapFile != null) {
@@ -461,34 +458,18 @@ private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, modifier: Modi
 }
 
 private val SIGN_RED = Color(0xFFD7262E)
+private val SIGN_SIZE = 96.dp
 
 /** Placa R-19 (velocidade máxima). Estimado = padrão do CTB para o tipo de via, sem o limite no OSM. */
 @Composable
-private fun LimitSign(limit: Int, estimated: Boolean) {
+private fun LimitSign(limit: Int, estimated: Boolean, modifier: Modifier = Modifier) {
     Column(
-        Modifier.size(96.dp).clip(CircleShape).background(Color.White).border(10.dp, SIGN_RED, CircleShape),
+        modifier.size(SIGN_SIZE).clip(CircleShape).background(Color.White).border(10.dp, SIGN_RED, CircleShape),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Txt(limit.toString(), 40, color = Color(0xFF111111), weight = FontWeight.Bold, numeric = true, lineHeight = 1f)
         Txt(if (estimated) "estimado" else "km/h", 12, color = Color(0xFF111111), weight = FontWeight.SemiBold, lineHeight = 1f)
-    }
-}
-
-@Composable
-private fun OverPill(speedKmh: Int) {
-    Column(
-        Modifier
-            .height(96.dp)
-            .widthIn(min = 96.dp)
-            .clip(RoundedCornerShape(48.dp))
-            .background(LocalPalette.current.danger)
-            .padding(horizontal = 18.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Txt(speedKmh.toString(), 44, color = Color.White, weight = FontWeight.Bold, numeric = true, lineHeight = 1f)
-        Txt("km/h", 13, color = Color.White, weight = FontWeight.SemiBold)
     }
 }
 
