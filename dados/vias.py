@@ -6,8 +6,10 @@ Tabelas:
   ways(id, name, ref, kind, oneway, fwd, bwd, est)
                                    limite em km/h por sentido (fwd = sentido do desenho da via);
                                    est: bit 1 = fwd estimado, bit 2 = bwd estimado (padrão do CTB)
-  segs(cell, way, pts)             trechos da via dentro de uma célula de 0,01°; pts = pares int32 LE
-                                   (lat, lon) em microgaus
+  segs(cell, way, n, pts)          trechos da via dentro de uma célula de 0,01° (n numera os trechos da via na
+                                   célula); pts = pontos (lat, lon) em micrograus, cada um como diferença para o
+                                   anterior, em zigue-zague e varint (encode_points). info.versao = 2; a versão 1
+                                   guardava pares int32 LE, sem n
   radars(id, lat, lon, lim, bearing)
                                    bearing = sentido fiscalizado em graus (0 = norte), -1 = os dois
 
@@ -37,6 +39,42 @@ UNPAVED = {
 PAVED = {"paved", "asphalt", "concrete", "concrete:plates", "paving_stones", "sett", "cobblestone", "chipseal"}
 # Célula com pelo menos tantas ruas residenciais conta como área urbana (para os padrões do CTB)
 URBAN_RESIDENTIAL = 6
+
+
+def encode_points(points):
+    """Pontos (lat, lon em micrograus inteiros) -> bytes: diferença para o ponto anterior (o primeiro, para 0,0) de cada
+    coordenada, em zigue-zague e varint (7 bits por byte, bit alto = tem mais). core/Points.kt decodifica."""
+    out = bytearray()
+    prev_lat = prev_lon = 0
+    for lat, lon in points:
+        for d in (lat - prev_lat, lon - prev_lon):
+            z = (d << 1) ^ (d >> 63)
+            while z >= 0x80:
+                out.append((z & 0x7F) | 0x80)
+                z >>= 7
+            out.append(z)
+        prev_lat, prev_lon = lat, lon
+    return bytes(out)
+
+
+def decode_points(blob):
+    """Inverso de encode_points (usado nos testes)."""
+    nums = []
+    z = shift = 0
+    for b in blob:
+        z |= (b & 0x7F) << shift
+        if b & 0x80:
+            shift += 7
+        else:
+            nums.append((z >> 1) ^ -(z & 1))
+            z = shift = 0
+    points = []
+    lat = lon = 0
+    for i in range(0, len(nums), 2):
+        lat += nums[i]
+        lon += nums[i + 1]
+        points.append((lat, lon))
+    return points
 
 
 def cell_of(lat, lon):
@@ -190,13 +228,15 @@ def build(src, dst, region):
         CREATE TABLE info(k TEXT PRIMARY KEY, v TEXT);
         CREATE TABLE ways(id INTEGER PRIMARY KEY, name TEXT, ref TEXT, kind INTEGER, oneway INTEGER,
                           fwd INTEGER, bwd INTEGER, est INTEGER);
-        CREATE TABLE segs(cell INTEGER, way INTEGER, pts BLOB);
+        -- Sem rowid e sem índice à parte: a chave (cell, way, n) já atende "WHERE cell = ?" e poupa ~15 MB
+        CREATE TABLE segs(cell INTEGER, way INTEGER, n INTEGER, pts BLOB, PRIMARY KEY(cell, way, n)) WITHOUT ROWID;
         CREATE TABLE radars(id INTEGER PRIMARY KEY, lat REAL, lon REAL, lim INTEGER, bearing INTEGER);
     """)
 
     grid = {}       # cell -> [(way index, lats, lons)] para achar a via dos radares soltos
     on_way = {}     # node id do radar -> (way index, bearing da via no ponto)
     limits = []     # por via: (fwd, bwd)
+    segs = []       # (cell, way, n, pts): gravados em ordem da chave, que é bem mais rápido
     n_est = 0
     for wi, (wid, name, ref, kind, link, oneway, tags, lats, lons, ids) in enumerate(c.ways):
         m = len(lats) // 2
@@ -232,14 +272,11 @@ def build(src, dst, region):
                 else:
                     lst.append([i, i + 1])
         for cc, lst in runs.items():
-            for i0, i1 in lst:
-                pts = array("i")
-                for i in range(i0, i1 + 1):
-                    pts.append(int(round(lats[i] * 1e6)))
-                    pts.append(int(round(lons[i] * 1e6)))
-                if sys.byteorder != "little":
-                    pts.byteswap()
-                db.execute("INSERT INTO segs VALUES (?,?,?)", (cc, wi, pts.tobytes()))
+            for n, (i0, i1) in enumerate(lst):
+                pts = encode_points(
+                    (int(round(lats[i] * 1e6)), int(round(lons[i] * 1e6))) for i in range(i0, i1 + 1)
+                )
+                segs.append((cc, wi, n, pts))
                 grid.setdefault(cc, []).append((wi, i0, i1))
 
         for i, nid in enumerate(ids):
@@ -279,9 +316,10 @@ def build(src, dst, region):
         db.execute("INSERT INTO radars VALUES (?,?,?,?,?)", (nid, lat, lon, lim, int(round(b)) if b >= 0 else -1))
         n_radar += 1
 
-    db.execute("CREATE INDEX segs_cell ON segs(cell)")
+    segs.sort(key=lambda r: r[:3])
+    db.executemany("INSERT INTO segs VALUES (?,?,?,?)", segs)
     info = {
-        "versao": "1",
+        "versao": "2",
         "regiao": region,
         "gerado": time.strftime("%Y-%m-%d"),
         "vias": str(len(c.ways)),

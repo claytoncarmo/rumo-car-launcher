@@ -7,9 +7,9 @@ import app.rumo.core.Geo
 import app.rumo.core.Radar
 import app.rumo.core.Run
 import app.rumo.core.Way
+import app.rumo.core.decodePoints
+import app.rumo.core.decodePointsV1
 import java.io.File
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 /**
  * Pasta "Rumo" copiada para o aparelho (gerada pelo GitHub Actions, ver dados/): mapa.pmtiles, vias.db e fontes/.
@@ -21,6 +21,8 @@ class MapData private constructor(val dir: File, private val db: SQLiteDatabase?
     val radars: List<Radar> = db?.let(::loadRadars) ?: emptyList()
     val info: Map<String, String> = db?.let(::loadInfo) ?: emptyMap()
 
+    // vias.db versão 1 guardava os pontos em pares int32; a 2 (dados/vias.py) em diferenças com varint
+    private val legacyPoints = (info["versao"] ?: "1") == "1"
     private val ways = HashMap<Long, Way>()
     // Poucas células por vez: o carro anda ~1 célula por minuto a 60 km/h
     private val cells = object : LinkedHashMap<Long, List<Run>>(64, 0.75f, true) {
@@ -43,15 +45,9 @@ class MapData private constructor(val dir: File, private val db: SQLiteDatabase?
         db.rawQuery("SELECT way, pts FROM segs WHERE cell = ?", arrayOf(cell.toString())).use { c ->
             while (c.moveToNext()) {
                 val way = wayOf(c.getLong(0)) ?: continue
-                val buf = ByteBuffer.wrap(c.getBlob(1)).order(ByteOrder.LITTLE_ENDIAN)
-                val n = buf.remaining() / 8
-                val lat = IntArray(n)
-                val lon = IntArray(n)
-                for (i in 0 until n) {
-                    lat[i] = buf.int
-                    lon[i] = buf.int
-                }
-                out += Run(way, lat, lon)
+                val blob = c.getBlob(1)
+                val p = if (legacyPoints) decodePointsV1(blob) else decodePoints(blob)
+                out += Run(way, p.lat, p.lon)
             }
         }
         return out

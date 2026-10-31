@@ -1,6 +1,6 @@
 import unittest
 
-from vias import CELL, KIND, cell_of, ctb_default, parse_speed, seg_cells, seg_dist_m
+from vias import CELL, KIND, cell_of, ctb_default, decode_points, encode_points, parse_speed, seg_cells, seg_dist_m
 
 
 class ViasTest(unittest.TestCase):
@@ -40,6 +40,16 @@ class ViasTest(unittest.TestCase):
         # segmento longo passa pelas células do meio
         cells = seg_cells(-27.0, -49.0, -27.0, -49.0 + 5 * CELL)
         self.assertGreaterEqual(len(cells), 6)
+
+    def test_pontos_ida_e_volta(self):
+        pts = [(-27595100, -48548000), (-27595000, -48547900), (-27594000, -48549500), (0, 0), (2_000_000_000, -2_000_000_000)]
+        self.assertEqual(decode_points(encode_points(pts)), pts)
+        self.assertEqual(decode_points(encode_points([])), [])
+
+    def test_pontos_formato_fixo(self):
+        # O mesmo vetor está em core/PointsTest.kt: os dois lados têm de concordar byte a byte
+        blob = encode_points([(-27595100, -48548000), (-27595000, -48547900)])
+        self.assertEqual(blob.hex(), "b7c5a81abfa2a62ec801c801")
 
     def test_distancia_ao_segmento(self):
         # ponto 0,0001° ao norte de um segmento leste-oeste: ~11 m
