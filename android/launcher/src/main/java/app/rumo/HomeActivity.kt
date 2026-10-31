@@ -149,8 +149,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
         alerts = Alerts(this)
         state.favorites = Favorites.decode(prefs.getString(PREF_FAVORITES, null))
         state.radioMuted = prefs.getBoolean(PREF_RADIO_MUTED, false)
-        radioNames.load(prefs.getString(PREF_RADIO_NAMES, null), System.currentTimeMillis())
-        state.radioNames = radioNames.valid(System.currentTimeMillis())
+        radioNames.load(prefs.getString(PREF_RADIO_NAMES, null))
+        state.radioNames = radioNames.valid()
         prefs.getString(PREF_SCAN, null)?.split(',')?.mapNotNull { it.trim().toIntOrNull() }
             ?.takeIf { it.isNotEmpty() }?.let { state.radioScan = RadioScan(false, it) }
         state.theme = prefs.getString(PREF_THEME, null)
@@ -683,10 +683,13 @@ class HomeActivity : ComponentActivity(), HomeActions {
         onRadio(now)
         if (radioStation.namesChanged) {
             radioStation.namesChanged = false
-            val t = System.currentTimeMillis()
-            state.radioNames = radioNames.valid(t)
-            prefs.edit().putString(PREF_RADIO_NAMES, radioNames.encode(t)).apply()
+            saveRadioNames()
         }
+    }
+
+    private fun saveRadioNames() {
+        state.radioNames = radioNames.valid()
+        prefs.edit().putString(PREF_RADIO_NAMES, radioNames.encode()).apply()
     }
 
     /**
@@ -907,6 +910,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
             alerts.stop()
             return
         }
+        // Nomes das rádios valem até 50 km do lugar onde foram vistos: longe disso a lista zera
+        if (radioNames.onPosition(lat, lon)) saveRadioNames()
         // O carro desliga sem aviso: guarda a posição de tempos em tempos, não só ao sair da tela
         if (SystemClock.elapsedRealtime() - savedAt > SAVE_EVERY_MS) savePosition(info)
         if (driveJob?.isActive == true) return

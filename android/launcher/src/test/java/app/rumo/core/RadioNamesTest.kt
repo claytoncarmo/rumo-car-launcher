@@ -7,33 +7,77 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RadioNamesTest {
-    private val hour = 3_600_000L
+    // Jaraguá do Sul; Florianópolis fica a ~170 km
+    private val lat = -26.486
+    private val lon = -49.067
 
     @Test
-    fun valePorSeisHoras() {
+    fun naoExpiraPorTempo() {
         val n = RadioNames()
-        assertTrue(n.put(95900, " Penha ", 0))
-        assertEquals("Penha", n.get(95900, 5 * hour))
-        assertNull(n.get(95900, 6 * hour))
-        assertNull(n.get(88100, 0))
+        n.onPosition(lat, lon)
+        assertTrue(n.put(95900, " Penha "))
+        assertEquals("Penha", n.get(95900))
+        assertNull(n.get(88100))
     }
 
     @Test
     fun soAvisaQuandoMuda() {
         val n = RadioNames()
-        assertTrue(n.put(95900, "Penha", 0))
-        assertFalse(n.put(95900, "Penha", 10))
-        assertTrue(n.put(95900, "Araquari", 20))
-        assertFalse(n.put(95900, "  ", 30))
+        assertTrue(n.put(95900, "Penha"))
+        assertFalse(n.put(95900, "Penha"))
+        assertTrue(n.put(95900, "Araquari"))
+        assertFalse(n.put(95900, "  "))
     }
 
     @Test
-    fun guardaELeSoOsValidos() {
+    fun pertoDoCentroMantemELongeZera() {
         val n = RadioNames()
-        n.put(95900, "Penha", 0)
-        n.put(102700, "Indaial", 5 * hour)
+        n.onPosition(lat, lon)
+        n.put(95900, "Penha")
+        assertFalse(n.onPosition(lat + 0.18, lon)) // ~20 km
+        assertEquals(mapOf(95900 to "Penha"), n.valid())
+        assertTrue(n.onPosition(-27.595, -48.548)) // Florianópolis
+        assertTrue(n.valid().isEmpty())
+    }
+
+    @Test
+    fun depoisDeZerarORecomecoUsaOLugarNovo() {
+        val n = RadioNames()
+        n.onPosition(lat, lon)
+        n.put(95900, "Penha")
+        n.onPosition(-27.595, -48.548)
+        n.put(95900, "Floripa")
+        assertFalse(n.onPosition(-27.6, -48.55))
+        assertEquals("Floripa", n.get(95900))
+    }
+
+    @Test
+    fun nomeGuardadoSemGpsGanhaOCentroNoPrimeiroFix() {
+        val n = RadioNames()
+        n.put(95900, "Penha")
+        assertTrue(n.onPosition(lat, lon))
+        assertFalse(n.onPosition(lat, lon))
+        assertTrue(n.onPosition(-27.595, -48.548))
+        assertTrue(n.valid().isEmpty())
+    }
+
+    @Test
+    fun guardaERecuperaComOCentro() {
+        val n = RadioNames()
+        n.onPosition(lat, lon)
+        n.put(95900, "Penha")
+        n.put(102700, "Indaial")
         val back = RadioNames()
-        back.load(n.encode(5 * hour), 7 * hour)
-        assertEquals(mapOf(102700 to "Indaial"), back.valid(7 * hour))
+        back.load(n.encode())
+        assertEquals(mapOf(95900 to "Penha", 102700 to "Indaial"), back.valid())
+        assertTrue(back.onPosition(-27.595, -48.548))
+        assertTrue(back.valid().isEmpty())
+    }
+
+    @Test
+    fun formatoAntigoComHoraEDescartado() {
+        val back = RadioNames()
+        back.load("95900\tPenha\t1793391816000")
+        assertTrue(back.valid().isEmpty())
     }
 }

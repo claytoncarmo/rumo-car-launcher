@@ -15,7 +15,7 @@ data class RadioNow(val khz: Int, val preset: Int?, val text: String?)
  *   nem no mRTtype, então o ouvinte fica ligado com o Rumo na tela, só para ler.
  *
  * Logo após a troca o mRTtype ainda é o da estação anterior: pelo getRadioInfo o texto só vale quando muda depois da
- * troca. Os textos vão para [names], que guarda por frequência (todas as estações) por algumas horas.
+ * troca. Os textos vão para [names], que guarda por frequência (todas as estações) enquanto o carro não sair do raio de 50 km.
  */
 class RadioStation(private val names: RadioNames) {
     private var binder: IBinder? = null
@@ -73,7 +73,7 @@ class RadioStation(private val names: RadioNames) {
         if (khz == lastKhz) return
         lastKhz = khz
         staleText = staleRt
-        text = names.get(khz, System.currentTimeMillis())
+        text = names.get(khz)
     }
 
     @Synchronized
@@ -83,7 +83,7 @@ class RadioStation(private val names: RadioNames) {
         // Vazio só quer dizer "sem texto agora": fica o último
         if (t.isEmpty()) return
         text = t
-        if (names.put(khz, t, System.currentTimeMillis())) namesChanged = true
+        if (names.put(khz, t)) namesChanged = true
     }
 
     private fun service(): IBinder? =
