@@ -507,7 +507,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     private var keyTestStart = 0L
     private var keyTestReceiver: BroadcastReceiver? = null
-    private var getevent: Process? = null
+    private var getevent: java.lang.Process? = null
 
     override fun keyTest(on: Boolean) {
         stopKeyTest()
