@@ -1,0 +1,2 @@
+# O CSV do MapaRadar tem de ir byte a byte como veio (a licença CC BY-NC-ND não deixa alterações), inclusive os finais de linha
+dados/maparadar.csv -text
