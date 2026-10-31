@@ -1,0 +1,49 @@
+package app.rumo.core
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+
+class FavoritesTest {
+    private val list = listOf(Favorite(88700, "Atlântida"), Favorite(95900, "CBN"), Favorite(102700))
+
+    @Test
+    fun guardaELe() {
+        assertEquals(list, Favorites.decode(Favorites.encode(list)))
+        assertEquals(emptyList<Favorite>(), Favorites.decode(null))
+        assertEquals(listOf(Favorite(90500)), Favorites.decode("90500\n\nlixo\t?"))
+    }
+
+    @Test
+    fun favoritaEmOrdemDeFrequenciaETira() {
+        assertEquals(listOf(88700, 90500, 95900, 102700), Favorites.toggle(list, 90500).map { it.khz })
+        assertEquals(listOf(Favorite(88700, "Atlântida"), Favorite(102700)), Favorites.toggle(list, 95900))
+        // Lista antiga fora de ordem volta ordenada
+        assertEquals(listOf(88700, 102700), Favorites.decode("102700\tX\n88700").map { it.khz })
+    }
+
+    @Test
+    fun renomeia() {
+        assertEquals("Itapema", Favorites.rename(list, 102700, " Itapema ").last().name)
+    }
+
+    @Test
+    fun ajusteFinoPelosImpares() {
+        assertEquals(88300, fineStep(88100, true))
+        assertEquals(87900, fineStep(88100, false))
+        assertEquals(90700, fineStep(90600, true))
+        assertEquals(90500, fineStep(90600, false))
+        assertEquals(87500, fineStep(107900, true))
+        assertEquals(107900, fineStep(87500, false))
+    }
+
+    @Test
+    fun anteriorEProximaDaoAVolta() {
+        assertEquals(102700, Favorites.step(list, 95900, true)?.khz)
+        assertEquals(88700, Favorites.step(list, 102700, true)?.khz)
+        assertEquals(102700, Favorites.step(list, 88700, false)?.khz)
+        assertEquals(88700, Favorites.step(list, 91100, true)?.khz)
+        assertEquals(102700, Favorites.step(list, null, false)?.khz)
+        assertNull(Favorites.step(emptyList(), 95900, true))
+    }
+}
