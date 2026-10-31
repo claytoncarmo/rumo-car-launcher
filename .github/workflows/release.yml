@@ -28,6 +28,8 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: rumo-apk
@@ -37,13 +39,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.build.outputs.version_name }}
+          CODE: ${{ needs.build.outputs.version_code }}
         run: |
           cp dist/rumo.apk "dist/rumo-${VERSION}.apk"
+          bash .github/scripts/rumo-json.sh dist/rumo.apk "$VERSION" "$CODE" \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/rumo.apk" dist/rumo.json
           case "$VERSION" in
             *-*) FLAG="--prerelease" ;;
             *)   FLAG="--latest" ;;
           esac
-          gh release create "$GITHUB_REF_NAME" dist/rumo.apk "dist/rumo-${VERSION}.apk" \
+          gh release create "$GITHUB_REF_NAME" dist/rumo.apk dist/rumo.json "dist/rumo-${VERSION}.apk" \
             --repo "$GITHUB_REPOSITORY" \
             --title "Rumo $VERSION" \
             --generate-notes \

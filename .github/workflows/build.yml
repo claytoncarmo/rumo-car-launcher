@@ -14,12 +14,16 @@ on:
       version_name:
         description: "versionName usado no APK"
         value: ${{ jobs.apk.outputs.version_name }}
+      version_code:
+        description: "versionCode usado no APK"
+        value: ${{ jobs.apk.outputs.version_code }}
 
 jobs:
   apk:
     runs-on: ubuntu-latest
     outputs:
       version_name: ${{ steps.versao.outputs.nome }}
+      version_code: ${{ steps.versao.outputs.codigo }}
     steps:
       - uses: actions/checkout@v4
         with:

@@ -8,6 +8,7 @@ on:
       - "android/**"
       - ".github/workflows/build.yml"
       - ".github/workflows/nightly.yml"
+      - ".github/scripts/**"
   workflow_dispatch:
 
 concurrency:
@@ -26,6 +27,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: rumo-apk
@@ -35,9 +38,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.build.outputs.version_name }}
+          CODE: ${{ needs.build.outputs.version_code }}
         run: |
+          bash .github/scripts/rumo-json.sh dist/rumo.apk "$VERSION" "$CODE" \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/nightly/rumo.apk" dist/rumo.json
           gh release delete nightly --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" || true
-          gh release create nightly dist/rumo.apk \
+          gh release create nightly dist/rumo.apk dist/rumo.json \
             --repo "$GITHUB_REPOSITORY" \
             --prerelease \
             --target "$GITHUB_SHA" \

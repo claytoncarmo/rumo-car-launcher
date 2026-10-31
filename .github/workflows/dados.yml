@@ -90,7 +90,10 @@ jobs:
             echo "Região: $REGIAO · gerado em $(date -u +%Y-%m-%d) · mapa: $BUILD"
           } > Rumo/LEIAME.txt
           zip -0 -r rumo-dados-sc.zip Rumo
-          ls -la Rumo rumo-dados-sc.zip
+          # Arquivos avulsos + dados.json: o app baixa direto para a pasta Rumo, só o que mudou (o zip é para copiar à mão)
+          python3 dados/manifesto.py Rumo publicar \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/rumo-dados" sc "$REGIAO"
+          ls -la Rumo rumo-dados-sc.zip publicar
 
       - name: Tamanhos
         run: |
@@ -109,9 +112,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete rumo-dados --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" || true
-          gh release create rumo-dados rumo-dados-sc.zip \
+          gh release create rumo-dados rumo-dados-sc.zip publicar/* \
             --repo "$GITHUB_REPOSITORY" \
             --prerelease \
             --target "$GITHUB_SHA" \
             --title "Rumo · dados do mapa (SC)" \
-            --notes "Mapa, vias, limites e radares de $REGIAO, do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL). Descompacte e copie a pasta Rumo para a memória interna do aparelho. Instruções em dados/README.md."
+            --notes "Mapa, vias, limites e radares de $REGIAO, do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL). O app baixa e atualiza estes dados sozinho (painel Rumo: 7 toques no relógio); para copiar à mão, descompacte rumo-dados-sc.zip e leve a pasta Rumo para a memória interna do aparelho. Instruções em dados/README.md."
