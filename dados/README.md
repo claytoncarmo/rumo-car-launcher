@@ -6,9 +6,17 @@ Hoje o pacote cobre **Santa Catarina**. Ele é refeito todo dia 1 do mês e a ca
 
 ## Instalar no aparelho
 
+**Pelo app (recomendado):** abra o painel Rumo (7 toques no relógio, com o carro parado, ou toque em "Sem dados do mapa" no card do mapa) e use **Baixar** em "Dados do mapa". O app baixa cada arquivo direto para `/sdcard/Rumo`, com retomada, confere o SHA-256 e depois só baixa de novo o que mudou. Arquivos copiados à mão são reconhecidos pelo hash.
+
+**À mão:**
+
 1. Baixe `rumo-dados-sc.zip` e descompacte no computador: sai uma pasta `Rumo`.
 2. Copie a pasta `Rumo` inteira para a **memória interna** do aparelho (a raiz, ficando `/sdcard/Rumo`). O Rumo também acha a pasta na raiz de um pendrive ou cartão, mas o mapa fica mais rápido na memória interna.
 3. Abra o Rumo e permita o acesso aos arquivos. Se a pasta for copiada com o Rumo aberto, basta apertar Início.
+
+## Manifesto (`dados.json`)
+
+O workflow publica, ao lado do zip, cada arquivo como asset solto e um `dados.json` (`manifesto.py`) com a lista de regiões: para cada arquivo, `destino` dentro da pasta Rumo, `tamanho`, `sha256` e `url`. O app só aceita https e destinos dentro da pasta Rumo. O formato já prevê várias regiões, mas hoje há uma só (SC).
 
 ## O que tem na pasta
 

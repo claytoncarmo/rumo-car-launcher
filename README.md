@@ -19,7 +19,11 @@ Foi desenvolvido e testado num aparelho HCN com Android 9 ([detalhes](docs/estud
 1. Em [Releases](../../releases), baixe o `rumo.apk`: da **última versão estável** ou do **nightly** (pré-release compilada a cada mudança, pode ser instável).
 2. Copie para o aparelho (por exemplo num pendrive), abra e instale; permita "instalar apps desconhecidos" se pedir.
 3. Aperte Início e escolha o Rumo como tela inicial ("Sempre").
-4. Para o mapa, os limites e os radares, copie os dados offline: veja [`dados/README.md`](dados/README.md).
+4. Para o mapa, os limites e os radares, abra o **painel Rumo** (7 toques no relógio, com o carro parado) ou toque em "Sem dados do mapa" no card do mapa e baixe os dados pelo wi-fi. Também dá para copiá-los à mão: veja [`dados/README.md`](dados/README.md).
+
+## Atualizar
+
+O **painel Rumo** (7 toques no relógio, só abaixo de 5 km/h) mostra a versão instalada e as últimas publicadas nos canais **estável** e **nightly**. **Instalar** baixa o APK (com retomada se a conexão cair), confere o hash e abre o instalador do Android. O mesmo painel baixa e atualiza os dados do mapa. O Android não deixa instalar uma versão mais antiga que a instalada: de nightly só se volta para a estável quando ela for mais nova.
 
 ## Compilar
 
