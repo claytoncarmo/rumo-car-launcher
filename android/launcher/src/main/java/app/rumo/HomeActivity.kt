@@ -999,6 +999,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             }
             state.mapFiles = found?.mapFiles.orEmpty()
             state.fontsDir = found?.fontsDir
+            state.radars = found?.radars.orEmpty()
             state.mapStatus = if (found == null) MapStatus.MISSING else MapStatus.READY
             state.road = null
             state.radar = null
@@ -1041,7 +1042,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             state.road = road
             state.radar = radar
             state.over = overSpeed.update(info.speedKmh, road?.limit)
-            if (entered) alerts.chime()
+            if (entered && radar?.radar?.chimes == true) alerts.chime()
             alerts.alarm(radar?.takeIf { it.alarm }?.closeness(radars.zoneM))
         }
     }

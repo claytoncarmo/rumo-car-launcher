@@ -5,6 +5,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.os.Environment
 import app.rumo.core.Geo
 import app.rumo.core.Radar
+import app.rumo.core.RadarKind
 import app.rumo.core.Run
 import app.rumo.core.Way
 import app.rumo.core.decodePoints
@@ -135,8 +136,16 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
 
         private fun loadRadars(db: SQLiteDatabase): List<Radar> {
             val out = ArrayList<Radar>()
-            db.rawQuery("SELECT id, lat, lon, lim, bearing FROM radars", null).use { c ->
-                while (c.moveToNext()) out += Radar(c.getLong(0), c.getDouble(1), c.getDouble(2), c.getInt(3), c.getInt(4))
+            // vias.db antigo não tem a coluna kind (tipo do ponto)
+            val hasKind = db.rawQuery("PRAGMA table_info(radars)", null).use { c ->
+                generateSequence { if (c.moveToNext()) c.getString(1) else null }.any { it == "kind" }
+            }
+            val sql = if (hasKind) "SELECT id, lat, lon, lim, bearing, kind FROM radars" else "SELECT id, lat, lon, lim, bearing FROM radars"
+            db.rawQuery(sql, null).use { c ->
+                while (c.moveToNext()) {
+                    val kind = if (hasKind) c.getInt(5) else RadarKind.OSM
+                    out += Radar(c.getLong(0), c.getDouble(1), c.getDouble(2), c.getInt(3), c.getInt(4), kind)
+                }
             }
             return out
         }

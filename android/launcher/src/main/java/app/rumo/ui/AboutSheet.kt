@@ -213,7 +213,7 @@ private fun DataSection(s: HomeState, a: HomeActions) {
             ) { a.applyData() }
         }
         Txt(
-            "Use o wi-fi do carro ou o ponto de acesso do celular. Se a conexão cair, o download continua de onde parou. Dados do OpenStreetMap (© colaboradores).",
+            "Use o wi-fi do carro ou o ponto de acesso do celular. Se a conexão cair, o download continua de onde parou. Mapa e vias do OpenStreetMap (© colaboradores); radares do MapaRadar (CC BY-NC-ND 4.0).",
             14, color = p.text3, maxLines = 4,
         )
     }

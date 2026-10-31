@@ -10,12 +10,17 @@ Tabelas:
                                    célula); pts = pontos (lat, lon) em micrograus, cada um como diferença para o
                                    anterior, em zigue-zague e varint (encode_points). info.versao = 2; a versão 1
                                    guardava pares int32 LE, sem n
-  radars(id, lat, lon, lim, bearing)
-                                   bearing = sentido fiscalizado em graus (0 = norte), -1 = os dois
+  radars(id, lat, lon, lim, bearing, kind)
+                                   bearing = sentido fiscalizado em graus (0 = norte), -1 = os dois; lim = limite
+                                   fiscalizado (0 = ponto sem fiscalização de velocidade); kind = tipo (maparadar.py:
+                                   0 radar do OSM sem tipo, 1 fixo, 2 semáforo com radar, 3 móvel, 4 lombada,
+                                   5 lombada eletrônica, 6 semáforo com câmera, 7 polícia rodoviária, 8 pedágio)
 
-Uso: python3 vias.py entrada.osm.pbf saida.db "Santa Catarina"
+Uso: python3 vias.py entrada.osm.pbf saida.db "Santa Catarina" [--maparadar dados/maparadar.csv --contorno dados/regioes/sc.geojson]
+Com --maparadar, os radares e demais pontos do CSV dentro do contorno entram junto com os do OSM (maparadar.py).
 """
 
+import argparse
 import math
 import re
 import sqlite3
@@ -198,7 +203,7 @@ COMPASS = {"N": 0, "NNE": 22, "NE": 45, "ENE": 67, "E": 90, "ESE": 112, "SE": 13
            "S": 180, "SSW": 202, "SW": 225, "WSW": 247, "W": 270, "WNW": 292, "NW": 315, "NNW": 337}
 
 
-def build(src, dst, region):
+def build(src, dst, region, maparadar=None, contorno=None):
     import osmium
 
     started = time.time()
@@ -230,7 +235,7 @@ def build(src, dst, region):
                           fwd INTEGER, bwd INTEGER, est INTEGER);
         -- Sem rowid e sem índice à parte: a chave (cell, way, n) já atende "WHERE cell = ?" e poupa ~15 MB
         CREATE TABLE segs(cell INTEGER, way INTEGER, n INTEGER, pts BLOB, PRIMARY KEY(cell, way, n)) WITHOUT ROWID;
-        CREATE TABLE radars(id INTEGER PRIMARY KEY, lat REAL, lon REAL, lim INTEGER, bearing INTEGER);
+        CREATE TABLE radars(id INTEGER PRIMARY KEY, lat REAL, lon REAL, lim INTEGER, bearing INTEGER, kind INTEGER);
     """)
 
     grid = {}       # cell -> [(way index, lats, lons)] para achar a via dos radares soltos
@@ -284,8 +289,8 @@ def build(src, dst, region):
                 j0, j1 = (i, i + 1) if i + 1 < len(ids) else (i - 1, i)
                 on_way[nid] = (wi, bearing(lats[j0], lons[j0], lats[j1], lons[j1]))
 
-    # Radares: limite da placa ou da via; sentido pela tag direction, pela mão única ou "os dois"
-    n_radar = 0
+    # Radares do OSM: limite da placa ou da via; sentido pela tag direction, pela mão única ou "os dois"
+    osm_radars = []
     for nid, (lat, lon, maxspeed, direction) in c.cameras.items():
         hit = on_way.get(nid) or nearest_way(c.ways, grid, lat, lon)
         if hit is None:
@@ -313,8 +318,26 @@ def build(src, dst, region):
             else:
                 ahead = abs((b - way_bearing + 180) % 360 - 180) <= 90
                 lim = fwd if ahead else bwd
-        db.execute("INSERT INTO radars VALUES (?,?,?,?,?)", (nid, lat, lon, lim, int(round(b)) if b >= 0 else -1))
-        n_radar += 1
+        osm_radars.append((nid, lat, lon, lim, int(round(b)) if b >= 0 else -1))
+
+    # Radares e outros pontos do MapaRadar (pedágio, polícia, lombada…) dentro do contorno do estado
+    pontos = []
+    if maparadar:
+        import maparadar as mr
+
+        todos = mr.ler(maparadar)
+        pontos = mr.dentro(todos, contorno) if contorno else todos
+        print(f"MapaRadar: {len(pontos)} de {len(todos)} pontos dentro do contorno", flush=True)
+
+    def via_em(lat, lon):
+        hit = nearest_way(c.ways, grid, lat, lon)
+        return None if hit is None else (hit[1], c.ways[hit[0]][5])
+
+    import maparadar as mr
+
+    radar_rows = mr.mesclar(osm_radars, pontos, via_em, CELL)
+    db.executemany("INSERT INTO radars VALUES (?,?,?,?,?,?)", radar_rows)
+    n_radar = len(radar_rows)
 
     segs.sort(key=lambda r: r[:3])
     db.executemany("INSERT INTO segs VALUES (?,?,?,?)", segs)
@@ -325,6 +348,7 @@ def build(src, dst, region):
         "vias": str(len(c.ways)),
         "vias_com_limite": str(len(c.ways) - n_est),
         "radares": str(n_radar),
+        "radares_maparadar": str(len(pontos)),
     }
     db.executemany("INSERT INTO info VALUES (?,?)", info.items())
     db.commit()
@@ -358,4 +382,11 @@ def seg_dist_m(lat, lon, a_lat, a_lon, b_lat, b_lon):
 
 
 if __name__ == "__main__":
-    build(sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "")
+    ap = argparse.ArgumentParser(description="Gera o vias.db do Rumo.")
+    ap.add_argument("entrada")
+    ap.add_argument("saida")
+    ap.add_argument("regiao", nargs="?", default="")
+    ap.add_argument("--maparadar", help="CSV do MapaRadar (dados/maparadar.csv)")
+    ap.add_argument("--contorno", help="GeoJSON do estado, para recortar o CSV")
+    args = ap.parse_args()
+    build(args.entrada, args.saida, args.regiao, args.maparadar, args.contorno)

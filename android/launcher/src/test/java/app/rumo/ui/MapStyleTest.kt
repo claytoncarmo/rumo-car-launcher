@@ -18,7 +18,8 @@ class MapStyleTest {
     fun umaFontePorEstadoEOsCaminhosCertos() {
         val style = JSONObject(mapStyle(listOf(sc, pr), fonts, night = false))
         val sources = style.getJSONObject("sources")
-        assertEquals(2, sources.length())
+        // um mapa por estado, mais a fonte dos radares
+        assertEquals(3, sources.length())
         assertEquals("pmtiles://file://" + sc.absolutePath, sources.getJSONObject("osm0").getString("url"))
         assertEquals("pmtiles://file://" + pr.absolutePath, sources.getJSONObject("osm1").getString("url"))
         assertTrue(style.getString("glyphs").startsWith("file://" + fonts.absolutePath))
@@ -44,5 +45,20 @@ class MapStyleTest {
     fun todosOsIdsSaoUnicos() {
         val layers = ids(mapStyle(listOf(sc, pr), fonts, night = false))
         assertEquals(layers.size, layers.toSet().size)
+    }
+
+    @Test
+    fun osRadaresFicamPorCimaDasRuasEDosNomes() {
+        val layers = ids(mapStyle(listOf(sc, pr), fonts, night = false))
+        val dot = layers.indexOf("radar-dot")
+        val text = layers.indexOf("radar-text")
+        assertTrue(dot > layers.indexOfLast { it.startsWith("names") })
+        assertTrue(text > dot)
+    }
+
+    @Test
+    fun aFonteDosRadaresExisteMesmoSemMapa() {
+        val style = JSONObject(mapStyle(emptyList(), fonts, night = true))
+        assertEquals("geojson", style.getJSONObject("sources").getJSONObject(RADAR_SOURCE).getString("type"))
     }
 }

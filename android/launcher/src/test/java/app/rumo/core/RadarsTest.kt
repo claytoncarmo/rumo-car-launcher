@@ -85,4 +85,46 @@ class RadarsTest {
         assertEquals(226777100L, Geo.cellOf(-27.0005, -48.9995))
         assertTrue(Geo.cellsAround(-27.0, -49.0, 40.0).size in 1..4)
     }
+
+    @Test
+    fun semLimiteNuncaDisparaOAlarme() {
+        val w = RadarWatch(500)
+        val pedagio = Radar(4, lat0, lon0 + 200 * dLon, 0, -1, RadarKind.TOLL)
+        assertTrue(w.update(lat0, lon0, 90f, 110, listOf(pedagio)))
+        assertFalse(w.current!!.alarm)
+        assertFalse(pedagio.enforcesSpeed)
+        assertFalse(pedagio.chimes)
+    }
+
+    @Test
+    fun quemFiscalizaEPoliciaAvisamComSom() {
+        assertTrue(Radar(5, lat0, lon0, 60, -1, RadarKind.FIXED).chimes)
+        assertTrue(Radar(6, lat0, lon0, 0, -1, RadarKind.POLICE).chimes)
+        assertFalse(Radar(7, lat0, lon0, 0, -1, RadarKind.BUMP).chimes)
+    }
+
+    @Test
+    fun lombadaEPedagioAvisamMaisPerto() {
+        val w = RadarWatch(500)
+        val lombada = Radar(8, lat0, lon0 + 400 * dLon, 0, -1, RadarKind.BUMP)
+        assertFalse(w.update(lat0, lon0, 90f, 50, listOf(lombada)))  // 400 m: fora da zona de 300 m
+        assertNull(w.current)
+        assertTrue(w.update(lat0, lon0 + 150 * dLon, 90f, 50, listOf(lombada)))  // 250 m
+    }
+
+    @Test
+    fun pontosLongeNemEntramNaConta() {
+        val w = RadarWatch(500)
+        val longe = Radar(9, lat0 + 0.5, lon0, 60, -1, RadarKind.FIXED)
+        assertFalse(w.update(lat0, lon0, 90f, 50, listOf(longe)))
+        assertNull(w.current)
+    }
+
+    @Test
+    fun nomesDosTipos() {
+        assertEquals("Radar", radarLabel(RadarKind.OSM))
+        assertEquals("Radar", radarLabel(RadarKind.FIXED))
+        assertEquals("Pedágio", radarLabel(RadarKind.TOLL))
+        assertEquals("Lombada", radarLabel(RadarKind.BUMP))
+    }
 }

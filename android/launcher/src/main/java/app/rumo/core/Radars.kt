@@ -1,7 +1,50 @@
 package app.rumo.core
 
-/** Radar do vias.db: limite fiscalizado e sentido (graus, ou -1 para os dois). */
-class Radar(val id: Long, val lat: Double, val lon: Double, val limit: Int, val bearing: Int)
+import kotlin.math.abs
+
+/** Tipos de ponto do vias.db (`radars.kind`, os mesmos de dados/maparadar.py). 0: radar do OSM sem tipo. */
+object RadarKind {
+    const val OSM = 0
+    const val FIXED = 1
+    const val TRAFFIC_LIGHT_RADAR = 2
+    const val MOBILE = 3
+    const val BUMP = 4
+    const val ELECTRONIC_BUMP = 5
+    const val RED_LIGHT_CAMERA = 6
+    const val POLICE = 7
+    const val TOLL = 8
+}
+
+/**
+ * Radar (ou outro ponto de atenção) do vias.db: limite fiscalizado (0 = não fiscaliza velocidade: pedágio, lombada
+ * comum, polícia, câmera de semáforo), sentido (graus, ou -1 para os dois) e tipo.
+ */
+class Radar(
+    val id: Long,
+    val lat: Double,
+    val lon: Double,
+    val limit: Int,
+    val bearing: Int,
+    val kind: Int = RadarKind.OSM,
+) {
+    /** Só quem fiscaliza velocidade tem "acima do limite" e bipes. */
+    val enforcesSpeed: Boolean get() = limit > 0
+
+    /** Aviso sonoro de entrada na zona: os que fiscalizam e a polícia; lombada, pedágio e câmera de semáforo só aparecem. */
+    val chimes: Boolean get() = enforcesSpeed || kind == RadarKind.POLICE
+}
+
+/** Nome do tipo para o aviso na tela. */
+fun radarLabel(kind: Int): String = when (kind) {
+    RadarKind.TRAFFIC_LIGHT_RADAR -> "Semáforo com radar"
+    RadarKind.MOBILE -> "Radar móvel"
+    RadarKind.BUMP -> "Lombada"
+    RadarKind.ELECTRONIC_BUMP -> "Lombada eletrônica"
+    RadarKind.RED_LIGHT_CAMERA -> "Semáforo com câmera"
+    RadarKind.POLICE -> "Polícia rodoviária"
+    RadarKind.TOLL -> "Pedágio"
+    else -> "Radar"
+}
 
 /** Radar à frente, dentro da zona de aviso. [alarm]: acima do limite dele. */
 data class RadarAlert(val radar: Radar, val distanceM: Int, val alarm: Boolean) {
@@ -28,8 +71,10 @@ class RadarWatch(var zoneM: Int = 500) {
         var best: Radar? = null
         var bestD = Double.MAX_VALUE
         for (r in radars) {
+            // Com dezenas de milhares de pontos (vários estados), descarta os longe antes da conta de distância
+            if (abs(r.lat - lat) > MAX_DEG || abs(r.lon - lon) > MAX_DEG) continue
             val d = Geo.distanceM(lat, lon, r.lat, r.lon)
-            if (d > zoneM || d >= bestD) continue
+            if (d > zoneOf(r) || d >= bestD) continue
             // Já em cima do radar o rumo até ele fica instável: aceita mais
             val maxOff = if (d < NEAR_M) 70.0 else 30.0
             if (Geo.angleDiff(bearing.toDouble(), Geo.bearing(lat, lon, r.lat, r.lon)) > maxOff) continue
@@ -47,9 +92,15 @@ class RadarWatch(var zoneM: Int = 500) {
         current = null
     }
 
-    private fun alertFor(r: Radar, d: Double, speedKmh: Int) = RadarAlert(r, d.toInt(), speedKmh > r.limit)
+    private fun alertFor(r: Radar, d: Double, speedKmh: Int) = RadarAlert(r, d.toInt(), r.enforcesSpeed && speedKmh > r.limit)
+
+    /** Lombada, pedágio e câmera de semáforo avisam mais perto: não há o que reduzir com tanta antecedência. */
+    private fun zoneOf(r: Radar) = if (r.chimes) zoneM else minOf(zoneM, NEAR_ZONE_M)
 
     private companion object {
         const val NEAR_M = 40.0
+        const val NEAR_ZONE_M = 300
+        // ~1 grau de latitude = 111 km: 0,01° (~1,1 km) cobre qualquer zona de aviso
+        const val MAX_DEG = 0.01
     }
 }

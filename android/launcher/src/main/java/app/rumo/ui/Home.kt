@@ -71,7 +71,9 @@ import androidx.compose.ui.window.PopupProperties
 import app.rumo.core.Channel
 import app.rumo.core.Favorite
 import app.rumo.core.PT_BR
+import app.rumo.core.Radar
 import app.rumo.core.RadarAlert
+import app.rumo.core.radarLabel
 import app.rumo.core.RoadMatch
 import app.rumo.core.compassOf
 import app.rumo.core.directionOf
@@ -116,6 +118,8 @@ class HomeState {
     /** Um mapa.pmtiles por estado instalado (vazio: sem mapa) e a pasta das fontes dos nomes de rua. */
     var mapFiles by mutableStateOf<List<File>>(emptyList())
     var fontsDir by mutableStateOf<File?>(null)
+    /** Radares e outros pontos de atenção dos estados instalados, desenhados no mapa. */
+    var radars by mutableStateOf<List<Radar>>(emptyList())
     var mapStart by mutableStateOf<MapStart?>(null)
     var road by mutableStateOf<RoadMatch?>(null)
     var radar by mutableStateOf<RadarAlert?>(null)
@@ -483,7 +487,7 @@ private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, modifier: Modi
     val hasMap = mapFiles.isNotEmpty()
     val road = s.road
     Box(modifier.card(p, p.mapBlock)) {
-        s.fontsDir?.let { fonts -> if (hasMap) DriveMap(mapFiles, fonts, g, s.mapStart, night) }
+        s.fontsDir?.let { fonts -> if (hasMap) DriveMap(mapFiles, fonts, s.radars, g, s.mapStart, night) }
         val fade = p.surface.copy(alpha = 0.92f)
         Box(
             Modifier
@@ -589,6 +593,13 @@ private fun LimitSign(limit: Int, estimated: Boolean, modifier: Modifier = Modif
     }
 }
 
+/** "Reduza · radar 60 km/h" acima do limite; "Lombada" ou "Radar · 60 km/h" nos demais. */
+private fun radarText(r: RadarAlert): String {
+    val label = radarLabel(r.radar.kind)
+    val limit = if (r.radar.limit > 0) " · ${r.radar.limit} km/h" else ""
+    return if (r.alarm) "Reduza · ${label.lowercase(PT_BR)}$limit" else "$label$limit"
+}
+
 /** Radar à frente: distância e limite; vermelho quando acima do limite dele (os bipes tocam junto). */
 @Composable
 private fun RadarPill(r: RadarAlert, modifier: Modifier) {
@@ -612,7 +623,7 @@ private fun RadarPill(r: RadarAlert, modifier: Modifier) {
         Column {
             Txt(formatDistance(r.distanceM), 36, color = ink, weight = FontWeight.Bold, numeric = true, lineHeight = 1f)
             Txt(
-                if (r.alarm) "Reduza · radar ${r.radar.limit} km/h" else "Radar · ${r.radar.limit} km/h",
+                radarText(r),
                 17, color = if (r.alarm) Color.White else p.text2,
             )
         }

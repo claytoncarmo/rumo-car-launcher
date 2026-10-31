@@ -16,7 +16,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import app.rumo.core.Radar
+import app.rumo.core.radarsGeoJson
 import app.rumo.device.GpsInfo
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
@@ -26,6 +30,7 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapLibreMapOptions
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.sources.GeoJsonSource
 import java.io.File
 
 /** Altura do carro no card (fração a partir do topo): o mapa mostra mais o que vem pela frente. */
@@ -40,7 +45,7 @@ class MapStart(val lat: Double, val lon: Double, val bearing: Double)
  * Rumo; até 30 quadros por segundo.
  */
 @Composable
-fun DriveMap(mapFiles: List<File>, fontsDir: File, gps: GpsInfo, start: MapStart?, night: Boolean, modifier: Modifier = Modifier) {
+fun DriveMap(mapFiles: List<File>, fontsDir: File, radars: List<Radar>, gps: GpsInfo, start: MapStart?, night: Boolean, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
@@ -86,8 +91,13 @@ fun DriveMap(mapFiles: List<File>, fontsDir: File, gps: GpsInfo, start: MapStart
         }
     }
 
-    LaunchedEffect(map, night, mapFiles) {
-        map?.setStyle(Style.Builder().fromJson(mapStyle(mapFiles, fontsDir, night)))
+    LaunchedEffect(map, night, mapFiles, radars) {
+        val m = map ?: return@LaunchedEffect
+        // Dezenas de milhares de pontos: o texto é montado fora da thread principal
+        val points = withContext(Dispatchers.Default) { radarsGeoJson(radars) }
+        m.setStyle(Style.Builder().fromJson(mapStyle(mapFiles, fontsDir, night))) { style ->
+            style.getSourceAs<GeoJsonSource>(RADAR_SOURCE)?.setGeoJson(points)
+        }
     }
 
     LaunchedEffect(map, gps.lat, gps.lon, gps.bearing, height, start) {
@@ -205,15 +215,43 @@ internal fun mapStyle(mapFiles: List<File>, fontsDir: File, night: Boolean): Str
          "paint":{"text-color":"${c.label}","text-halo-color":"${c.halo}","text-halo-width":1.6}}"""
     }
     val land = """{"id":"land","type":"background","paint":{"background-color":"${c.land}"}}"""
-    val layers = (listOf(land) + water + rivers + casingMinor + casingMajor + minor + major + highway + names).joinToString(",\n")
+    val layers = (listOf(land) + water + rivers + casingMinor + casingMajor + minor + major + highway + names + radarLayers())
+        .joinToString(",\n")
     return """
     {
       "version": 8,
       "glyphs": $glyphs,
-      "sources": {$sources},
+      "sources": {$sources${if (sources.isEmpty()) "" else ","}"$RADAR_SOURCE": {"type": "geojson", "data": {"type": "FeatureCollection", "features": []}}},
       "layers": [
         $layers
       ]
     }
     """.trimIndent()
+}
+
+/** Fonte GeoJSON dos radares: começa vazia e recebe os pontos depois que o estilo carrega. */
+internal const val RADAR_SOURCE = "radars"
+
+/**
+ * Radares e demais pontos de atenção (pedágio, polícia, lombada…) por cima das ruas e dos nomes: um círculo por tipo e,
+ * dentro dele, o limite (radares) ou uma letra (L lombada, S câmera de semáforo, P polícia, $ pedágio).
+ */
+private fun radarLayers(): List<String> {
+    val kind = """["get","kind"]"""
+    // amarelo: radar fixo e lombada eletrônica; laranja: semáforo com radar e radar móvel; cinza: lombada; vermelho:
+    // câmera de semáforo; azul: polícia; verde: pedágio
+    val color = """["match",$kind,0,"#FACC15",1,"#FACC15",5,"#FACC15",2,"#F97316",3,"#EA580C",4,"#9CA3AF",6,"#EF4444",7,"#3B82F6",8,"#10B981","#FACC15"]"""
+    val ink = """["match",$kind,6,"#FFFFFF",7,"#FFFFFF",8,"#FFFFFF","#1A1400"]"""
+    // As lombadas comuns são muitas: círculos menores
+    val radius = """["interpolate",["linear"],["zoom"],12,["match",$kind,4,2.5,5],15,["match",$kind,4,5,10],17,["match",$kind,4,8,15]]"""
+    val label = """["case",[">",["get","lim"],0],["to-string",["get","lim"]],["match",$kind,6,"S",7,"P",8,"${'$'}",""]]"""
+    return listOf(
+        """{"id":"radar-dot","type":"circle","source":"$RADAR_SOURCE","minzoom":12,
+         "paint":{"circle-color":$color,"circle-radius":$radius,"circle-stroke-color":"#FFFFFF","circle-stroke-width":2,
+                  "circle-pitch-alignment":"map"}}""",
+        """{"id":"radar-text","type":"symbol","source":"$RADAR_SOURCE","minzoom":14,
+         "layout":{"text-field":$label,"text-font":["NotoSansMedium"],"text-size":["interpolate",["linear"],["zoom"],14,9,17,15],
+                   "text-allow-overlap":true,"text-ignore-placement":true},
+         "paint":{"text-color":$ink}}""",
+    )
 }

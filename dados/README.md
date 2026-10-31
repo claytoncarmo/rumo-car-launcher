@@ -39,6 +39,25 @@ O mapa-múndi do Protomaps traz prédios, pontos de interesse, fronteiras, nomes
 
 Se o estilo passar a desenhar outra coisa, mude `filtrar` junto. `mapa_confere.py` compara uma amostra de tiles do resultado com o que devia ficar e falha o workflow se sumir mais de 1% das feições (a recodificação descarta geometrias inválidas sem avisar). O zoom 14 é o máximo: acima dele o MapLibre amplia o último nível, e o app chega ao zoom 16,5 nas ruas da cidade.
 
+## Radares e outros pontos: MapaRadar
+
+`maparadar.csv` é a base do [MapaRadar](https://maparadar.com.br), mantida **à mão**: para atualizar, troque o arquivo (mesmo formato, sem cabeçalho: `longitude,latitude,Tipo - N kmh@N`) e faça o commit; o workflow recorta por estado e refaz os `vias.db`. O arquivo tem ~40 mil pontos do Brasil inteiro, em sete tipos:
+
+| Tipo no CSV | `kind` | No app |
+|---|---|---|
+| Radar Fixo | 1 | amarelo, com o limite; aviso, "acima do limite" e bipes |
+| Semaforo com Radar | 2 | laranja, igual ao radar fixo |
+| Radar Movel | 3 | laranja escuro, igual ao radar fixo |
+| Lombada, com limite | 5 | lombada eletrônica: amarelo, igual ao radar fixo |
+| Lombada, 0 km/h | 4 | lombada comum: cinza, só aviso na tela (zona de 300 m, sem som) |
+| Semaforo com Camera | 6 | vermelho (S), só aviso na tela |
+| Policia Rodoviaria | 7 | azul (P), aviso com som, sem limite |
+| Pedagio | 8 | verde ($), só aviso na tela |
+
+`kind` 0 é um radar do OSM que não casou com nenhum ponto do MapaRadar (continua valendo, como radar fixo). O CSV não traz o sentido: o `maparadar.py` usa o sentido do radar do OSM a até 50 m (que é o mesmo ponto e sai da lista), senão o da via se for de mão única, senão vale para os dois sentidos. O recorte é pelo contorno do estado (com a folga da divisa), e o mesmo ponto tem o mesmo id em todos os estados. Linhas fora do Brasil, de tipo novo ou sem o formato saem sem aviso; o resumo do workflow mostra quantos pontos entraram em cada estado.
+
+**Licença:** a base é CC BY-NC-ND 4.0 (uso pessoal, com atribuição, sem fins comerciais e **sem alterações**). O CSV fica no repositório como veio, com a atribuição (MapaRadar, maparadar.com.br). Já os `vias.db` e os zips das Releases levam um recorte desses pontos (por estado, num formato diferente), o que a cláusula ND não deixa distribuir: se o projeto sair do uso pessoal, ou se as Releases forem públicas e isso importar, peça autorização ao MapaRadar ou tire `--maparadar` do workflow (os radares voltam a ser só os do OSM).
+
 ## `vias.py`
 
 Lê um recorte do OpenStreetMap (`.osm.pbf`, só com `highway` e `highway=speed_camera`) e grava o `vias.db`:
@@ -48,13 +67,13 @@ Lê um recorte do OpenStreetMap (`.osm.pbf`, só com `highway` e `highway=speed_
 | `info` | região, data e contagens |
 | `ways` | uma linha por via: nome, referência (ex.: SC-401), tipo, mão única, limite nos dois sentidos e se cada limite é estimado |
 | `segs` | trechos das vias por célula de 0,01° (`cell`, `way`, `n`), sem rowid; os pontos (`pts`) em micrograus, cada um como diferença para o anterior, em zigue-zague e varint (`info.versao` = 2; a 1 guardava inteiros de 32 bits e o app ainda a lê) |
-| `radars` | posição, limite fiscalizado e sentido (0–359°, ou −1 para os dois) |
+| `radars` | posição, limite fiscalizado (0 = não fiscaliza velocidade) e sentido (0–359°, ou −1 para os dois), e `kind` (tipo; ver MapaRadar). O vias.db antigo, sem `kind`, ainda é lido |
 
 A célula é calculada igual no gerador (`cell_of`) e no app (`core/Geo.kt`), e o app só lê as células perto do carro.
 
 **Limite da via:** vem do `maxspeed` do OSM (e de `maxspeed:forward`/`backward`). Sem ele, o gerador usa os padrões do CTB pelo tipo da via e marca como **estimado**: urbanas (trânsito rápido 80, arterial 60, coletora 40, local 30) e rodovias (pista dupla 110, pista simples 100, estrada 60; alças no máximo 60). A zona urbana é inferida pela densidade de ruas residenciais na célula. Só cerca de 11% das vias de Santa Catarina têm `maxspeed` no OSM, concentrados nas vias principais.
 
-**Radares:** pontos `highway=speed_camera`, com `direction` (ou a mão da via) para o sentido e `maxspeed` (ou o limite da via) para o limite. Santa Catarina tem cerca de 600 no OSM.
+**Radares do OSM:** pontos `highway=speed_camera`, com `direction` (ou a mão da via) para o sentido e `maxspeed` (ou o limite da via) para o limite. Santa Catarina tem cerca de 600 no OSM; o MapaRadar tem mais (e outros tipos de ponto), e os dois se juntam.
 
 ## Brasil inteiro
 
@@ -66,8 +85,8 @@ Com o filtro e o `vias.db` enxuto, Santa Catarina pesa ~75 MB. Estimando pela á
 python3 -m unittest discover -s dados -p "*_test.py" -v
 ```
 
-O gerador precisa de `pyosmium`, e o filtro e o contorno de `pmtiles`, `mapbox-vector-tile` e `shapely` (`pip install osmium pmtiles mapbox-vector-tile==2.2.0 shapely`). O workflow roda os testes antes de gerar.
+O gerador precisa de `pyosmium`, e o filtro, o contorno e o recorte do MapaRadar de `pmtiles`, `mapbox-vector-tile` e `shapely` (`pip install osmium pmtiles mapbox-vector-tile==2.2.0 shapely`). O workflow roda os testes antes de gerar.
 
 ## Licença dos dados
 
-© colaboradores do [OpenStreetMap](https://www.openstreetmap.org/copyright), sob a [ODbL](https://opendatacommons.org/licenses/odbl/). O pacote não é parte do código-fonte (GPL): é gerado e distribuído à parte, com o crédito no `LEIAME.txt` e no próprio mapa.
+Mapa e vias: © colaboradores do [OpenStreetMap](https://www.openstreetmap.org/copyright), sob a [ODbL](https://opendatacommons.org/licenses/odbl/). Radares, lombadas, pedágios e polícia rodoviária: [MapaRadar](https://maparadar.com.br), sob a [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/). O pacote não é parte do código-fonte (GPL): é gerado e distribuído à parte, com o crédito no `LEIAME.txt` e no próprio mapa.
