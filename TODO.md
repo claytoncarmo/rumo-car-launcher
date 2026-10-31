@@ -22,7 +22,7 @@ Hoje só o HCN de referência foi testado (ver "Outros aparelhos" no [`README.md
 - [ ] Estados: atualizar o app, abrir o painel, marcar dois estados vizinhos, baixar, ver o mapa nos dois e atravessar a divisa (rua e limite continuam; sem sumir vias na faixa de folga). Conferir o tamanho de MG e SP e se o mapa continua fluido com mais de um estado.
 
 - [ ] Volume flutuante: se o volume de música do Android muda o som nesta unidade (senão, achar outro caminho).
-- [ ] Teste dos botões: o que o Android recebe dos botões do lado da tela (os botões pararam em 31/out/2026; ver `CLAUDE.md`).
+- [x] Teste dos botões: o Android não recebe tecla nenhuma dos botões do lado da tela (ver `CLAUDE.md`). Falta religar a MCU (RST, ou tirar a alimentação da unidade por ~1 min) e repetir o teste; se continuar, é a placa dos botões ou o cabo (garantia/vendedor).
 - [ ] Reiniciar o Android pelo menu de energia (serviço de acessibilidade) e o relatório do Teste do reinício.
 - [ ] Painel Rumo: TLS e relógio do aparelho nas conexões https, tela de "instalar apps desconhecidos", instalação por cima, troca do mapa com ele aberto.
 - [ ] Mapa novo (zoom 14 ampliado até 16,5, sem parques, riachos e vias de serviço): ver se ficou bom andando.
