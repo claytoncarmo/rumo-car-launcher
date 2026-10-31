@@ -1,0 +1,50 @@
+name: Release estável
+
+# Ao criar uma tag vX.Y.Z (ou vX.Y.Z-rc1): compila com essa versão, testa e publica a release com
+# rumo-X.Y.Z.apk (nome com a versão) e rumo.apk (nome fixo, para releases/latest/download/rumo.apk).
+# Tags com sufixo (-rc1, -beta…) saem como pré-release. Pelo botão "Run workflow" compila uma versão de teste
+# sem publicar nada.
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versão para compilar sem publicar (ex.: 9.9.9)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      version_name: ${{ github.event_name == 'workflow_dispatch' && inputs.version || substring(github.ref_name, 1) }}
+    secrets: inherit
+
+  publicar:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: rumo-apk
+          path: dist
+
+      - name: Publicar a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version_name }}
+        run: |
+          cp dist/rumo.apk "dist/rumo-${VERSION}.apk"
+          case "$VERSION" in
+            *-*) FLAG="--prerelease" ;;
+            *)   FLAG="--latest" ;;
+          esac
+          gh release create "$GITHUB_REF_NAME" dist/rumo.apk "dist/rumo-${VERSION}.apk" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Rumo $VERSION" \
+            --generate-notes \
+            $FLAG

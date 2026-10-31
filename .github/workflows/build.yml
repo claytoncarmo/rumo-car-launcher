@@ -1,0 +1,83 @@
+name: Compilar
+
+# Compila e testa o launcher e entrega o APK como artefato "rumo-apk" (dist/rumo.apk).
+# Chamado pelo nightly.yml e pelo release.yml; não roda sozinho.
+on:
+  workflow_call:
+    inputs:
+      version_name:
+        description: "Versão exata (ex.: 1.2.3). Vazia: última tag estável + -nightly.N"
+        type: string
+        required: false
+        default: ""
+    outputs:
+      version_name:
+        description: "versionName usado no APK"
+        value: ${{ jobs.apk.outputs.version_name }}
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    outputs:
+      version_name: ${{ steps.versao.outputs.nome }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # a contagem de commits dá o versionCode e as tags dão a base do nightly
+
+      - name: Versão
+        id: versao
+        env:
+          VERSION_INPUT: ${{ inputs.version_name }}
+        run: |
+          COUNT=$(git rev-list --count HEAD)
+          if [ -n "$VERSION_INPUT" ]; then
+            NAME="$VERSION_INPUT"
+          else
+            BASE=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null | sed 's/^v//' || true)
+            NAME="${BASE:-0.0.0}-nightly.${COUNT}"
+          fi
+          # 1000 + commits: o versionCode sempre cresce e fica acima das versões anteriores à migração do repositório
+          echo "nome=$NAME" >> "$GITHUB_OUTPUT"
+          echo "codigo=$((1000 + COUNT))" >> "$GITHUB_OUTPUT"
+          echo "Versão $NAME (versionCode $((1000 + COUNT)))"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # A chave fixa do projeto vem de segredos do repositório. Sem ela (ex.: pull request de fork), o APK sai
+      # assinado com a chave de depuração do SDK e não instala por cima de versões assinadas com a chave do projeto.
+      - name: Chave de assinatura
+        env:
+          KEYSTORE_B64: ${{ secrets.RUMO_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/rumo.jks"
+            echo "RUMO_KEYSTORE=$RUNNER_TEMP/rumo.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::RUMO_KEYSTORE_B64 não definido: APK com a chave de depuração do SDK"
+          fi
+
+      - name: Compilar e testar
+        working-directory: android
+        env:
+          RUMO_KEYSTORE_PASSWORD: ${{ secrets.RUMO_KEYSTORE_PASSWORD }}
+          RUMO_KEY_ALIAS: ${{ secrets.RUMO_KEY_ALIAS }}
+          RUMO_KEY_PASSWORD: ${{ secrets.RUMO_KEY_PASSWORD }}
+          VERSION_NAME: ${{ steps.versao.outputs.nome }}
+          VERSION_CODE: ${{ steps.versao.outputs.codigo }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :launcher:assembleDebug :launcher:testDebugUnitTest \
+            -PrumoVersionName="$VERSION_NAME" -PrumoVersionCode="$VERSION_CODE"
+          mkdir -p ../dist
+          cp launcher/build/outputs/apk/debug/launcher-debug.apk ../dist/rumo.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rumo-apk
+          path: dist/rumo.apk
