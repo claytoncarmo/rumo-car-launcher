@@ -24,6 +24,10 @@
     <!-- Toque longo na gaveta de apps: desinstalar -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
+    <!-- Painel Rumo: ver versões novas, baixar os dados do mapa e instalar o APK baixado -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- Para listar os apps instalados e achar o assistente de voz (Android 11+) -->
     <queries>
         <intent>
@@ -65,5 +69,16 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- Entrega o APK baixado ao instalador do Android -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.arquivos"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>
