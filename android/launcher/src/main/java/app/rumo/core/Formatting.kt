@@ -1,5 +1,8 @@
 package app.rumo.core
 
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -32,6 +35,21 @@ fun formatRadioFreq(khz: Int): String =
 fun formatKm(meters: Double): String {
     val km = meters / 1000
     return if (km < 100) String.format(PT_BR, "%.1f km", km) else "${km.roundToInt()} km"
+}
+
+/** Tamanho de arquivo: "800 B", "18 MB", "1,2 GB". */
+fun formatSize(bytes: Long): String = when {
+    bytes >= 1_000_000_000 -> String.format(PT_BR, "%.1f GB", bytes / 1e9)
+    bytes >= 1_000_000 -> "${(bytes / 1e6).roundToInt()} MB"
+    bytes >= 1_000 -> "${(bytes / 1e3).roundToInt()} kB"
+    else -> "$bytes B"
+}
+
+/** Data e hora de uma publicação (ISO em UTC, como no manifesto) no fuso do aparelho: "31/10 03:00"; vazio se inválida. */
+fun formatBuiltAt(iso: String, zone: ZoneId = ZoneId.systemDefault()): String = try {
+    DateTimeFormatter.ofPattern("dd/MM HH:mm", PT_BR).format(Instant.parse(iso).atZone(zone))
+} catch (e: Exception) {
+    ""
 }
 
 /** Duração em h:mm ("0:07", "1:42"). */

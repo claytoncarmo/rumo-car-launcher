@@ -76,4 +76,6 @@ dependencies {
     implementation("org.maplibre.gl:android-sdk:11.13.5")
 
     testImplementation("junit:junit:4.13.2")
+    // O org.json do Android é só um molde nos testes de JVM; com este os manifestos podem ser lidos neles
+    testImplementation("org.json:json:20240303")
 }
