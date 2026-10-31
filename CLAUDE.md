@@ -43,6 +43,8 @@ HCN, Android **9 (API 28)** embora exiba "15", 32 bits (`armeabi-v7a`), 8× Cort
 
 ## Pendências
 
+A lista viva de tarefas (incluindo suporte a outros aparelhos) está em `TODO.md`.
+
 - Validar o **mudo do `fmradio`** (`setMute`) como "parar" do play do card de mídia no rádio.
 - Testar andando: rua e limite em cruzamentos e ruas paralelas, avisos de radar, desempenho do mapa e a velocidade do GPS contra o painel do carro.
 - Completar os radares além do OSM (ANTT, dados abertos de prefeituras).

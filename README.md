@@ -7,7 +7,7 @@ Foi desenvolvido e testado num aparelho HCN com Android 9 ([detalhes](docs/estud
 ## O que faz
 
 - **Tela inicial** em Compose, de dia e de noite: dock (Início, Android Auto, Rádio, Música, Telefone, Apps, voz), relógio, tema automático pelo farol, escuro ou claro.
-- **Mapa passivo offline** no card principal (MapLibre, dados do OpenStreetMap), com a rua atual, a placa de limite da via e a velocidade em vermelho acima dele. Tocar abre o Android Auto.
+- **Mapa passivo offline** no card principal (MapLibre, dados do OpenStreetMap), com a rua atual, a placa de limite da via. Tocar abre o Android Auto. Acima do limite, a velocidade fica em vermelho no cartão Viagem.
 - **Radares:** aviso curto ao entrar na zona e, acima do limite do radar, bipes que aceleram e sobem de tom ao se aproximar. Só com o Rumo na tela; com o Android Auto aberto, o Rumo não interfere.
 - **Mídia:** o card sabe se o som é do Android Auto ou do rádio, mesmo trocado fora do Rumo, e controla pelos botões anterior, play e próxima.
 - **Rádio próprio:** frequência, memória e texto da emissora; busca e ajuste fino; **favoritas** com nome e **procura de estações**. Abrir a tela já põe o rádio para tocar.
@@ -24,6 +24,19 @@ Foi desenvolvido e testado num aparelho HCN com Android 9 ([detalhes](docs/estud
 ## Atualizar
 
 O **painel Rumo** (7 toques no relógio, só abaixo de 5 km/h) mostra a versão instalada e as últimas publicadas nos canais **estável** e **nightly**. **Instalar** baixa o APK (com retomada se a conexão cair), confere o hash e abre o instalador do Android. O mesmo painel baixa e atualiza os dados do mapa. O Android não deixa instalar uma versão mais antiga que a instalada: de nightly só se volta para a estável quando ela for mais nova.
+
+## Outros aparelhos
+
+Só foi testado no aparelho HCN acima. O que usa só Android comum, GPS e dados do OpenStreetMap deve funcionar em qualquer Android 8 ou superior: tela inicial, dock, apps, painel Rumo (atualização e dados), mapa offline, rua e limite, radares, tema por horário, Viagem, volume flutuante e reinício pelo menu de energia. Hoje o APK só traz código nativo de 32 bits ARM (`armeabi-v7a`).
+
+O que depende do fabricante da unidade e **não** deve aparecer em outro aparelho sem investigação própria:
+
+- **Farol** (tema escuro automático): serviço `carstatus`. Sem ele, o tema segue o horário.
+- **Fonte do áudio:** serviço `sourceinfo`. Sem ele, estima pelo "Acesso ao uso".
+- **Rádio** (estação, nomes, busca, mudo): serviço `fmradio` e app `com.hcn.autoradio`.
+- **Android Auto:** o atalho abre o ZLINK (`com.zjinnova.zlink`).
+
+Outros fabricantes usam outros serviços para as mesmas coisas. Os diagnósticos do painel (farol, rádio, reinício, botões) gravam um relatório com o que existe no aparelho novo e encurtam essa investigação. As tarefas para dar suporte a mais aparelhos estão em [`TODO.md`](TODO.md).
 
 ## Compilar
 
