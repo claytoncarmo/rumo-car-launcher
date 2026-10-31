@@ -118,6 +118,32 @@ object BroadcastHunt {
         return RadioHunt(apps.map { it.packageName }, (actions + manifest.filter(::looksLikeName)).distinct(), manifest.toList())
     }
 
+    /**
+     * Textos (do código e do manifesto) dos apps escolhidos por [pkg] que combinam com [hint], como "pacote: texto".
+     * Para o teste do reinício. Lê os APKs: chamar fora da thread principal.
+     */
+    fun grep(ctx: Context, pkg: (String) -> Boolean, hint: (String) -> Boolean, max: Int): List<String> {
+        @Suppress("DEPRECATION")
+        val apps = ctx.packageManager.getInstalledApplications(0).filter { pkg(it.packageName) }
+        val found = LinkedHashSet<String>()
+        for (a in apps) {
+            val apk = a.sourceDir?.let(::File)?.takeIf { it.canRead() } ?: continue
+            try {
+                ZipFile(apk).use { zip ->
+                    for (e in zip.entries()) {
+                        val isDex = DEX_NAME.matches(e.name)
+                        if (!isDex && e.name != "AndroidManifest.xml" || e.size > MAX_DEX) continue
+                        val bytes = zip.getInputStream(e).use { it.readBytes() }
+                        val add = { s: String -> if (found.size < max && hint(s)) found += "${a.packageName}: $s" }
+                        if (isDex) dexStrings(bytes, add) else axmlStrings(bytes, add)
+                    }
+                }
+            } catch (e: Exception) {
+            }
+        }
+        return found.toList()
+    }
+
     /** Nome com pontos que não é classe nem pacote do Java/Android/Google (candidato a aviso ou chave). */
     private fun looksLikeName(s: String): Boolean {
         if (s.length !in 8..120 || !DOTTED.matches(s) || SKIP_PREFIX.any { s.startsWith(it) }) return false

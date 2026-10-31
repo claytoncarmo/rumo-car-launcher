@@ -41,7 +41,7 @@ Três workflows em `.github/workflows/`:
 
 Cada publicação do app leva um `rumo.json` (versão, `versionCode`, tamanho, SHA-256, endereço do APK, data e commit; gerado por `.github/scripts/rumo-json.sh`). O painel Rumo do app lê os manifestos em endereços fixos: `releases/latest/download/rumo.json` (estável; o GitHub ignora pré-releases no `latest`, então só existe depois da primeira tag `vX.Y.Z`), `releases/download/nightly/rumo.json` e `releases/download/rumo-dados/dados.json` (dados offline, ver `dados/README.md`).
 
-A seção **Sistema** do painel tem o botão **Reiniciar o Android** (dois toques, só parado; `device/Reboot.kt`). Um app comum não pode reiniciar o Android: o botão tenta `PowerManager.reboot` (permissão `REBOOT`, só de apps do sistema) e depois `su`; sem nenhum dos dois, avisa e não faz nada.
+A seção **Sistema** do painel tem o botão **Reiniciar o Android** (dois toques, só parado; `device/Reboot.kt`). Um app comum não pode reiniciar o Android: o botão tenta `PowerManager.reboot` (permissão `REBOOT`, só de apps do sistema) e `su`; no aparelho do Clayton nenhum dos dois vale. Então usa o serviço de acessibilidade "Rumo" (`device/PowerService.kt`, ligado em Configurações › Acessibilidade), que abre o menu de energia e toca em "Reiniciar" por até 10 s depois do pedido, sem ler nem guardar nada. O diagnóstico **Teste do reinício** grava `teste-reinicio.txt` com os ganchos de reinício que achar (componentes, textos nos apps do fabricante, métodos da MCU, serviços).
 
 `build.yml` é o passo comum de compilar e testar (chamado pelos dois primeiros). Em todos os casos o `versionCode` é `1000 + número de commits`, sempre crescente.
 

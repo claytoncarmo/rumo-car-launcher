@@ -75,6 +75,20 @@
             </intent-filter>
         </activity>
 
+        <!-- Reiniciar o Android sem root: abre o menu de energia e toca em "Reiniciar" (o usuário liga em Acessibilidade) -->
+        <service
+            android:name=".device.PowerService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/power_service" />
+        </service>
+
         <!-- Entrega o APK baixado ao instalador do Android -->
         <provider
             android:name="androidx.core.content.FileProvider"

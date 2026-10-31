@@ -166,8 +166,11 @@ interface HomeActions {
     fun installApp(channel: Channel)
     fun downloadData()
     fun cancelTransfer()
-    /** Reinicia o Android (só parado); sem permissão nem root avisa e não faz nada. */
+    /** Reinicia o Android (só parado): permissão/root se houver; senão pelo menu de energia (serviço de acessibilidade). */
     fun reboot()
+    fun accessibilitySettings()
+    /** Diagnóstico: procura ganchos de reinício do fabricante (teste-reinicio.txt). */
+    fun probeReboot()
 }
 
 private val TIME = DateTimeFormatter.ofPattern("HH:mm")

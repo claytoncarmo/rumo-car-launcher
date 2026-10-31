@@ -64,7 +64,9 @@ import app.rumo.device.MapData
 import app.rumo.device.InstallResult
 import app.rumo.device.Installer
 import app.rumo.device.McuTap
+import app.rumo.device.PowerService
 import app.rumo.device.Reboot
+import app.rumo.device.RebootProbe
 import app.rumo.device.Updater
 import app.rumo.core.PT_BR
 import app.rumo.device.NightSignal
@@ -730,7 +732,40 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.toast = "Reiniciando o Android…"
         lifecycleScope.launch {
             val problem = withContext(Dispatchers.IO) { Reboot.request(this@HomeActivity) } ?: return@launch
-            state.toast = "Este aparelho não deixa o Rumo reiniciar ($problem). Use o botão RST da unidade."
+            // Sem permissão nem root: pelo menu de energia, com o serviço de acessibilidade
+            when {
+                !PowerService.connected -> {
+                    state.toast = "Ligue o serviço \"Rumo\" em Acessibilidade e toque em Reiniciar de novo"
+                    accessibilitySettings()
+                }
+                !PowerService.openPowerMenu() -> state.toast = "O Android não abriu o menu de energia ($problem)"
+                else -> {
+                    state.toast = "Abrindo o menu de energia…"
+                    delay(POWER_MENU_WAIT_MS)
+                    if (PowerService.waiting) {
+                        PowerService.disarm()
+                        state.toast = "Não achei \"Reiniciar\" no menu de energia deste aparelho"
+                    }
+                }
+            }
+        }
+    }
+
+    override fun accessibilitySettings() = start(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+
+    /** Teste do reinício: procura no aparelho um gancho que reinicie (componentes, textos, serviços). Salva teste-reinicio.txt. */
+    override fun probeReboot() {
+        if (probeJob?.isActive == true) return
+        if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            permissions.launch(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE))
+            state.toast = "Permita salvar arquivos e toque de novo"
+            return
+        }
+        probeJob = lifecycleScope.launch {
+            state.toast = "Teste do reinício: procurando nos apps e serviços do aparelho…"
+            val report = withContext(Dispatchers.IO) { RebootProbe.run(this@HomeActivity) }
+            state.toast = null
+            showReport("Teste do reinício", "teste-reinicio.txt", report.summary, report.full)
         }
     }
 
@@ -973,6 +1008,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
         /** Distância do aviso de radar (padrão do protótipo). */
         const val RADAR_ZONE_M = 500
         const val PREF_THEME = "tema"
+        /** Quanto esperar o "Reiniciar" aparecer no menu de energia antes de avisar que não achou. */
+        const val POWER_MENU_WAIT_MS = 7_000L
         const val PROBE_SECONDS = 20
         const val PREF_LAT = "ultima_lat"
         const val PREF_LON = "ultima_lon"

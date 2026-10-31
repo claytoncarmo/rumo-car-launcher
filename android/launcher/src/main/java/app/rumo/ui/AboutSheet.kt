@@ -39,6 +39,7 @@ import app.rumo.core.formatSize
 import app.rumo.core.installedChannelLabel
 import app.rumo.device.ChannelInfo
 import app.rumo.device.DataInfo
+import app.rumo.device.PowerService
 import kotlinx.coroutines.delay
 
 /** O que a consulta às releases encontrou: um canal por vez (estável e nightly) e os dados do mapa. */
@@ -217,6 +218,9 @@ private fun DiagnosticsSection(a: HomeActions) {
             PillButton("Teste do farol (20 s)", enabled = true, primary = false) { a.probeHeadlight() }
             PillButton("Teste do rádio (60 s)", enabled = true, primary = false) { a.probeMedia() }
         }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            PillButton("Teste do reinício", enabled = true, primary = false) { a.probeReboot() }
+        }
     }
 }
 
@@ -244,6 +248,14 @@ private fun SystemSection(a: HomeActions) {
             } else {
                 confirming = true
             }
+        }
+        Txt(
+            if (PowerService.connected) "Serviço de acessibilidade \"Rumo\" ligado: o botão abre o menu de energia e toca em Reiniciar."
+            else "Este aparelho não deixa apps reiniciarem. Ligue o serviço \"Rumo\" em Acessibilidade para o botão usar o menu de energia.",
+            14, color = p.text3, maxLines = 4,
+        )
+        if (!PowerService.connected) {
+            Row { PillButton("Abrir Acessibilidade", enabled = true, primary = false) { a.accessibilitySettings() } }
         }
     }
 }

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Rumo</string>
+    <string name="power_service_description">Deixa o Rumo abrir o menu de energia do Android para reiniciar o aparelho. Só olha a tela por alguns segundos depois do botão Reiniciar do painel; não lê nem guarda nada.</string>
 </resources>
