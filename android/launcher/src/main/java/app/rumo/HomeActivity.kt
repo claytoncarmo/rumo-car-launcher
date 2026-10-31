@@ -249,6 +249,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     }
 
     override fun onDestroy() {
+        stopKeyTest()
         unregisterReceiver(packagesChanged)
         alerts.stop()
         radioControl.disconnect()
@@ -467,10 +468,110 @@ class HomeActivity : ComponentActivity(), HomeActions {
         if (hasFocus) hideSystemBars()
     }
 
-    // Botão Início com o Rumo já na tela: volta para os cards
+    // Botão Início com o Rumo já na tela: volta para os cards (no teste dos botões, só anota)
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (state.sheet == Sheet.KEYS) {
+            keyLog("Início: o Android pediu a tela inicial")
+            return
+        }
         state.sheet = Sheet.NONE
+        state.volumeOpen = false
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (state.sheet == Sheet.KEYS && event.repeatCount == 0) {
+            val device = event.device?.name ?: "dispositivo ${event.deviceId}"
+            val action = if (event.action == KeyEvent.ACTION_DOWN) "↓" else "↑"
+            keyLog("${KeyEvent.keyCodeToString(event.keyCode)} $action · $device")
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun volume(delta: Int) {
+        val am = getSystemService(AUDIO_SERVICE) as AudioManager
+        try {
+            if (delta != 0) {
+                am.adjustStreamVolume(
+                    AudioManager.STREAM_MUSIC,
+                    if (delta > 0) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER,
+                    0,
+                )
+            }
+        } catch (e: SecurityException) {
+            state.toast = "O Android não deixou mudar o volume"
+        }
+        state.volume = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+        state.volumeMax = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+    }
+
+    private var keyTestStart = 0L
+    private var keyTestReceiver: BroadcastReceiver? = null
+    private var getevent: Process? = null
+
+    override fun keyTest(on: Boolean) {
+        stopKeyTest()
+        if (!on) return
+        keyTestStart = SystemClock.elapsedRealtime()
+        state.keyLog = emptyList()
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) = keyLog(
+                when (intent.action) {
+                    Intent.ACTION_SCREEN_OFF -> "A tela apagou (botão Power?)"
+                    Intent.ACTION_SCREEN_ON -> "A tela acendeu"
+                    else -> intent.action.orEmpty()
+                },
+            )
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+        }
+        ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
+        keyTestReceiver = receiver
+        lifecycleScope.launch(Dispatchers.IO) { readGetevent() }
+    }
+
+    private fun stopKeyTest() {
+        keyTestReceiver?.let { try { unregisterReceiver(it) } catch (e: IllegalArgumentException) {} }
+        keyTestReceiver = null
+        val process = getevent
+        getevent = null
+        process?.destroy()
+    }
+
+    /** Segunda fonte: as teclas direto do driver de entrada (`getevent`). Sem permissão, o próprio erro vai para a lista. */
+    private fun readGetevent() {
+        val process = try {
+            ProcessBuilder("getevent", "-l").redirectErrorStream(true).start()
+        } catch (e: IOException) {
+            keyLog("getevent: indisponível neste aparelho")
+            return
+        }
+        if (keyTestReceiver == null) {
+            // O teste foi fechado enquanto o processo abria
+            process.destroy()
+            return
+        }
+        getevent = process
+        var other = 0
+        try {
+            process.inputStream.bufferedReader().useLines { lines ->
+                for (line in lines) {
+                    // O toque na tela também gera EV_ABS aos montes: só as teclas e as primeiras mensagens de erro
+                    if ("EV_KEY" in line || other++ < GETEVENT_NOTES) keyLog("getevent: ${line.trim()}")
+                }
+            }
+        } catch (e: IOException) {
+            // O teste terminou: o processo foi encerrado
+        }
+        if (getevent === process) keyLog("getevent: terminou (sem acesso aos dispositivos de entrada?)")
+    }
+
+    private fun keyLog(line: String) {
+        val t = (SystemClock.elapsedRealtime() - keyTestStart) / 100 / 10.0
+        val text = String.format(PT_BR, "+%.1f s  %s", t, line)
+        runOnUiThread { state.keyLog = (listOf(text) + state.keyLog).take(MAX_KEY_LOG) }
     }
 
     override fun openZlink() {
@@ -1003,6 +1104,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_THEME = "tema"
         /** Quanto esperar o "Reiniciar" aparecer no menu de energia antes de avisar que não achou. */
         const val POWER_MENU_WAIT_MS = 7_000L
+        const val MAX_KEY_LOG = 60
+        const val GETEVENT_NOTES = 3
         const val PROBE_SECONDS = 20
         const val PREF_LAT = "ultima_lat"
         const val PREF_LON = "ultima_lon"

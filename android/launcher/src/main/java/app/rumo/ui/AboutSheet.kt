@@ -93,7 +93,7 @@ fun AboutSheet(s: HomeState, a: HomeActions) {
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 DataSection(s, a)
-                DiagnosticsSection(a)
+                DiagnosticsSection(s, a)
             }
         }
     }
@@ -210,7 +210,7 @@ private fun DataSection(s: HomeState, a: HomeActions) {
 }
 
 @Composable
-private fun DiagnosticsSection(a: HomeActions) {
+private fun DiagnosticsSection(s: HomeState, a: HomeActions) {
     val p = LocalPalette.current
     SectionCard("Diagnósticos") {
         Txt("Gravam um relatório em texto na pasta Rumo (memória interna e pendrive).", 16, color = p.text2, maxLines = 3)
@@ -220,6 +220,7 @@ private fun DiagnosticsSection(a: HomeActions) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PillButton("Teste do reinício", enabled = true, primary = false) { a.probeReboot() }
+            PillButton("Teste dos botões", enabled = true, primary = false) { s.sheet = Sheet.KEYS }
         }
     }
 }

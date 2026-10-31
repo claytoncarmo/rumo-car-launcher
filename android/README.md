@@ -43,6 +43,8 @@ Cada publicação do app leva um `rumo.json` (versão, `versionCode`, tamanho, S
 
 A seção **Sistema** do painel tem o botão **Reiniciar o Android** (dois toques, só parado; `device/Reboot.kt`). Um app comum não pode reiniciar o Android: o botão tenta `PowerManager.reboot` (permissão `REBOOT`, só de apps do sistema) e `su`; no aparelho do Clayton nenhum dos dois vale. Então usa o serviço de acessibilidade "Rumo" (`device/PowerService.kt`, ligado em Configurações › Acessibilidade), que abre o menu de energia e toca em "Reiniciar" por até 10 s depois do pedido, sem ler nem guardar nada. O diagnóstico **Teste do reinício** grava `teste-reinicio.txt` com os ganchos de reinício que achar (componentes, textos nos apps do fabricante, métodos da MCU, serviços).
 
+**Volume flutuante:** arrastar o dedo para a direita no menu da esquerda abre um controle grande de volume (música: `AudioManager.adjustStreamVolume`; segurar repete) que recolhe sozinho em 4 s sem toque. **Teste dos botões** (painel Rumo › Diagnósticos, `ui/KeyTestSheet.kt`): lista as teclas que o Android entrega ao Rumo, a tela apagando/acendendo e, se der, o `getevent` do driver de entrada; não toca na MCU.
+
 `build.yml` é o passo comum de compilar e testar (chamado pelos dois primeiros). Em todos os casos o `versionCode` é `1000 + número de commits`, sempre crescente.
 
 **Lançar uma versão estável:**

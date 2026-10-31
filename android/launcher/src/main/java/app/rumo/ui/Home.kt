@@ -10,6 +10,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -57,6 +59,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalDensity
@@ -81,12 +84,14 @@ import app.rumo.device.Apps
 import app.rumo.device.GpsInfo
 import app.rumo.device.GpsStatus
 import app.rumo.device.RadioNow
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-enum class Sheet { NONE, APPS, AUDIO, PHONE, RADIO, ABOUT }
+enum class Sheet { NONE, APPS, AUDIO, PHONE, RADIO, ABOUT, KEYS }
 
 /**
  * De onde vem o som: pelo serviço sourceinfo do multimídia (avisa a cada troca de fonte, inclusive pelo volante)
@@ -134,6 +139,16 @@ class HomeState {
     /** Há assistente de voz instalado: sem ele, o botão do microfone some. */
     var hasVoice by mutableStateOf(false)
     var sheet by mutableStateOf(Sheet.NONE)
+    /**
+     * Controle de volume flutuante (arrastar o dedo no menu da esquerda para a direita): aberto, nível do volume de
+     * música e contador de toques, que reinicia a contagem para recolher sozinho.
+     */
+    var volumeOpen by mutableStateOf(false)
+    var volume by mutableIntStateOf(0)
+    var volumeMax by mutableIntStateOf(1)
+    var volumeTick by mutableIntStateOf(0)
+    /** Teste dos botões: as teclas que o Android entregou ao Rumo, a mais nova primeiro. */
+    var keyLog by mutableStateOf<List<String>>(emptyList())
     var toast by mutableStateOf<String?>(null)
     /** Versão instalada (nome e código), para comparar com as publicadas. */
     var appVersion = ""
@@ -169,12 +184,21 @@ interface HomeActions {
     /** Reinicia o Android (só parado): permissão/root se houver; senão pelo menu de energia (serviço de acessibilidade). */
     fun reboot()
     fun accessibilitySettings()
+    /** Volume de música: [delta] positivo sobe um passo, negativo desce, 0 só lê o nível para a tela. */
+    fun volume(delta: Int)
+    /** Teste dos botões: liga/desliga o registro das teclas e dos avisos de tela enquanto a folha está aberta. */
+    fun keyTest(on: Boolean)
     /** Diagnóstico: procura ganchos de reinício do fabricante (teste-reinicio.txt). */
     fun probeReboot()
 }
 
 private val TIME = DateTimeFormatter.ofPattern("HH:mm")
 private val DATE = DateTimeFormatter.ofPattern("EEE, d 'de' MMM", PT_BR)
+private val DOCK_WIDTH = 112.dp
+private const val VOLUME_DRAG_DP = 56
+private const val VOLUME_HIDE_MS = 4_000L
+private const val VOLUME_REPEAT_AFTER_MS = 400L
+private const val VOLUME_REPEAT_MS = 160L
 private const val CLOCK_TAPS = 7
 private const val CLOCK_TAP_GAP_MS = 1_500L
 private val CARD_RADIUS = 28.dp
@@ -206,7 +230,10 @@ fun HomeScreen(s: HomeState, a: HomeActions) {
         }
     }
     // Na tela inicial, Voltar só fecha a folha aberta
-    BackHandler { s.sheet = Sheet.NONE }
+    BackHandler {
+        s.sheet = Sheet.NONE
+        s.volumeOpen = false
+    }
 
     val night = s.theme.night(s.now.hour, isSystemInDarkTheme(), s.headlight)
     val p = if (night) Night else Day
@@ -222,14 +249,76 @@ fun HomeScreen(s: HomeState, a: HomeActions) {
                             Sheet.NONE -> {}
                             Sheet.RADIO -> RadioSheet(s, a)
                             Sheet.ABOUT -> AboutSheet(s, a)
+                            Sheet.KEYS -> KeyTestSheet(s, a)
                             else -> AppSheet(s, a)
                         }
                         s.probe?.let { ProbeSheet(s.probeTitle, it) { s.probe = null } }
                     }
                 }
             }
+            if (s.volumeOpen) VolumeControl(s, a, Modifier.align(Alignment.CenterStart).padding(start = DOCK_WIDTH + 12.dp))
             s.toast?.let { Toast(it, Modifier.align(Alignment.BottomCenter)) }
         }
+    }
+}
+
+/**
+ * Controle de volume grande, flutuante, para acertar dirigindo (as teclas do sistema são pequenas). Segurar repete.
+ * Recolhe sozinho depois de [VOLUME_HIDE_MS] sem toque.
+ */
+@Composable
+private fun VolumeControl(s: HomeState, a: HomeActions, modifier: Modifier) {
+    val p = LocalPalette.current
+    LaunchedEffect(s.volumeTick) {
+        delay(VOLUME_HIDE_MS)
+        s.volumeOpen = false
+    }
+    Column(
+        modifier.width(132.dp).card(p).swallowTouches().padding(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        VolumeButton(Icons.plus, 1, s, a)
+        Txt(s.volume.toString(), 44, weight = FontWeight.Bold, numeric = true, lineHeight = 1f)
+        val fraction = if (s.volumeMax > 0) (s.volume.toFloat() / s.volumeMax).coerceIn(0f, 1f) else 0f
+        Box(Modifier.size(14.dp, 110.dp).clip(RoundedCornerShape(7.dp)).background(p.surface3), contentAlignment = Alignment.BottomCenter) {
+            Box(Modifier.fillMaxWidth().fillMaxHeight(fraction).background(p.accent))
+        }
+        Txt("de ${s.volumeMax}", 14, color = p.text3)
+        VolumeButton(Icons.minus, -1, s, a)
+    }
+}
+
+@Composable
+private fun VolumeButton(icon: ImageVector, delta: Int, s: HomeState, a: HomeActions) {
+    val p = LocalPalette.current
+    Box(
+        Modifier
+            .size(108.dp, 104.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .background(p.surface2)
+            .pointerInput(delta) {
+                detectTapGestures(onPress = {
+                    a.volume(delta)
+                    s.volumeTick++
+                    // Segurando, repete depois de um instante
+                    coroutineScope {
+                        val repeat = launch {
+                            delay(VOLUME_REPEAT_AFTER_MS)
+                            while (true) {
+                                a.volume(delta)
+                                s.volumeTick++
+                                delay(VOLUME_REPEAT_MS)
+                            }
+                        }
+                        tryAwaitRelease()
+                        repeat.cancel()
+                    }
+                })
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Ico(icon, 44.dp, p.text)
     }
 }
 
@@ -238,9 +327,30 @@ private fun Dock(s: HomeState, a: HomeActions) {
     val p = LocalPalette.current
     Column(
         Modifier
-            .width(112.dp)
+            .width(DOCK_WIDTH)
             .fillMaxHeight()
             .drawBehind { drawLine(p.line, Offset(size.width - 0.5f, 0f), Offset(size.width - 0.5f, size.height), 1f) }
+            // Arrastar o dedo para a direita no menu abre o controle de volume
+            .pointerInput(Unit) {
+                val threshold = VOLUME_DRAG_DP.dp.toPx()
+                var total = 0f
+                var opened = false
+                detectHorizontalDragGestures(
+                    onDragStart = {
+                        total = 0f
+                        opened = false
+                    },
+                    onHorizontalDrag = { _, dx ->
+                        total += dx
+                        if (!opened && total > threshold) {
+                            opened = true
+                            s.volumeOpen = true
+                            s.volumeTick++
+                            a.volume(0)
+                        }
+                    },
+                )
+            }
             .padding(top = 14.dp, bottom = 18.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
