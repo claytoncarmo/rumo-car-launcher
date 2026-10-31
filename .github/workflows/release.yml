@@ -20,7 +20,7 @@ jobs:
   build:
     uses: ./.github/workflows/build.yml
     with:
-      version_name: ${{ github.event_name == 'workflow_dispatch' && inputs.version || substring(github.ref_name, 1) }}
+      version_name: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
     secrets: inherit
 
   publicar:
