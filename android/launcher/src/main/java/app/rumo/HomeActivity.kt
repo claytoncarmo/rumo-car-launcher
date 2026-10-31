@@ -147,6 +147,14 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // A biblioteca nativa do mapa (9,5 MB) demora a carregar: começa já, numa thread à parte, em vez de na hora de
+        // criar o mapa na thread principal. Se o nome mudar numa versão do MapLibre, só deixa de adiantar.
+        Thread({
+            try {
+                System.loadLibrary("maplibre")
+            } catch (e: Throwable) {
+            }
+        }, "rumo-mapa").start()
         gps = Gps(this) { onGps(it) }
         alerts = Alerts(this)
         state.favorites = Favorites.decode(prefs.getString(PREF_FAVORITES, null))

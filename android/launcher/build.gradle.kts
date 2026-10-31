@@ -42,10 +42,17 @@ android {
         debug {
             signingConfigs.findByName("rumo")?.let { signingConfig = it }
         }
+        // O CI publica o release: sem "debuggable" o ART compila e roda o app bem mais rápido que no debug. Sem R8
+        // (isMinifyEnabled = false): o app usa reflexão em serviços do fabricante e isso pede regras testadas no aparelho
         release {
             isMinifyEnabled = false
-            signingConfigs.findByName("rumo")?.let { signingConfig = it }
+            signingConfig = signingConfigs.findByName("rumo") ?: signingConfigs.getByName("debug")
         }
+    }
+
+    // O CI não roda o lint (o debug não rodava); sem isto o lintVital do release poderia barrar a publicação
+    lint {
+        checkReleaseBuilds = false
     }
 
     buildFeatures {

@@ -23,7 +23,7 @@ Precisa de JDK 17 e do Android SDK:
 
 ```bash
 cd android
-./gradlew :launcher:assembleDebug          # APK em launcher/build/outputs/apk/debug/
+./gradlew :launcher:assembleDebug          # APK em launcher/build/outputs/apk/debug/ (o CI publica o assembleRelease)
 ./gradlew :launcher:testDebugUnitTest      # testes unitários
 ```
 

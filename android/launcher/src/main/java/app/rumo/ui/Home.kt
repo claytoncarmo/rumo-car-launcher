@@ -43,6 +43,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
@@ -238,6 +239,15 @@ fun HomeScreen(s: HomeState, a: HomeActions) {
             s.toast = null
         }
     }
+    // O mapa (MapLibre: biblioteca nativa, contexto GL, estilo) é o que mais pesa para abrir. Só entra depois que o
+    // primeiro quadro foi desenhado: a tela inicial aparece logo e o mapa chega em seguida (antes, os dados costumavam
+    // ficar prontos antes da primeira composição e o mapa entrava nela, atrasando o primeiro quadro)
+    var mapAllowed by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        withFrameNanos { }
+        mapAllowed = true
+    }
     // Na tela inicial, Voltar só fecha a folha aberta
     BackHandler {
         s.sheet = Sheet.NONE
@@ -253,7 +263,7 @@ fun HomeScreen(s: HomeState, a: HomeActions) {
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     StatusBar(s, a)
                     Box(Modifier.weight(1f).fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
-                        HomeCards(s, a, night)
+                        HomeCards(s, a, night, mapAllowed)
                         when (s.sheet) {
                             Sheet.NONE -> {}
                             Sheet.RADIO -> RadioSheet(s, a)
@@ -453,9 +463,9 @@ private fun StatusBar(s: HomeState, a: HomeActions) {
 
 /** Layout "Mapa em foco" do protótipo: mapa à esquerda; mídia e cartão inteligente à direita. */
 @Composable
-private fun HomeCards(s: HomeState, a: HomeActions, night: Boolean) {
+private fun HomeCards(s: HomeState, a: HomeActions, night: Boolean, mapAllowed: Boolean) {
     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        MapCard(s, a, night, Modifier.weight(1.6f).fillMaxHeight())
+        MapCard(s, a, night, mapAllowed, Modifier.weight(1.6f).fillMaxHeight())
         Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             // Linha de baixo no rádio: nome dado na favorita, texto da emissora, memória; "Rádio parado" no mudo
             val radioLine = if (s.radioMuted) {
@@ -480,14 +490,14 @@ private fun HomeCards(s: HomeState, a: HomeActions, night: Boolean) {
  * Tocar em qualquer ponto abre o Android Auto. Sem a pasta Rumo, fica a seta no rumo do GPS.
  */
 @Composable
-private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, modifier: Modifier) {
+private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, mapAllowed: Boolean, modifier: Modifier) {
     val p = LocalPalette.current
     val g = s.gps
     val mapFiles = s.mapFiles
     val hasMap = mapFiles.isNotEmpty()
     val road = s.road
     Box(modifier.card(p, p.mapBlock)) {
-        s.fontsDir?.let { fonts -> if (hasMap) DriveMap(mapFiles, fonts, s.radars, g, s.mapStart, night) }
+        s.fontsDir?.let { fonts -> if (hasMap && mapAllowed) DriveMap(mapFiles, fonts, s.radars, g, s.mapStart, night) }
         val fade = p.surface.copy(alpha = 0.92f)
         Box(
             Modifier

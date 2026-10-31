@@ -76,10 +76,10 @@ jobs:
           VERSION_CODE: ${{ steps.versao.outputs.codigo }}
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon :launcher:assembleDebug :launcher:testDebugUnitTest \
+          ./gradlew --no-daemon :launcher:assembleRelease :launcher:testDebugUnitTest \
             -PrumoVersionName="$VERSION_NAME" -PrumoVersionCode="$VERSION_CODE"
           mkdir -p ../dist
-          cp launcher/build/outputs/apk/debug/launcher-debug.apk ../dist/rumo.apk
+          cp launcher/build/outputs/apk/release/launcher-release.apk ../dist/rumo.apk
 
       - uses: actions/upload-artifact@v4
         with:
