@@ -1,0 +1,116 @@
+name: Dados do mapa (OSM)
+
+# Pacote "Rumo" para copiar no aparelho: mapa.pmtiles (mapa vetorial), vias.db (ruas, limites e radares) e fontes.
+# Publica a pré-release "rumo-dados" (pré-release para nunca ser a "última" release, que é a do APK estável).
+# Detalhes do pacote em dados/README.md.
+on:
+  push:
+    paths:
+      - "dados/**"
+      - ".github/workflows/dados.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 1 * *"   # todo dia 1, dados novos do OSM
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dados-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGIAO: Santa Catarina
+  # Santa Catarina com folga (pega as divisas com PR, RS e Argentina)
+  BBOX: "-53.9,-29.45,-48.3,-25.9"
+  ZOOM: "15"
+  PMTILES: "1.31.2"
+
+jobs:
+  dados:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Ferramentas
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q osmium-tool
+          pip install "osmium>=3.7"
+          curl -fsSL "https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES}/go-pmtiles_${PMTILES}_Linux_x86_64.tar.gz" | tar xz pmtiles
+          ./pmtiles version || true
+
+      - name: Testes do gerador
+        run: python3 -m unittest discover -s dados -p "*_test.py" -v
+
+      - name: Baixar o OSM (região Sul) e recortar
+        run: |
+          curl -fsSL -o sul.osm.pbf https://download.geofabrik.de/south-america/brazil/sul-latest.osm.pbf
+          IFS=, read -r W S E N <<< "$BBOX"
+          osmium extract -b "$W,$S,$E,$N" sul.osm.pbf -o recorte.osm.pbf
+          osmium tags-filter recorte.osm.pbf w/highway n/highway=speed_camera -o vias.osm.pbf
+          ls -la *.pbf
+
+      - name: Vias, limites e radares
+        run: |
+          mkdir -p Rumo
+          python3 dados/vias.py vias.osm.pbf Rumo/vias.db "$REGIAO"
+
+      # Mapa vetorial: recorte do mapa-múndi diário do Protomaps (OSM, licença ODbL)
+      - name: Mapa vetorial
+        run: |
+          for i in $(seq 0 14); do
+            D=$(date -u -d "-$i day" +%Y%m%d)
+            if curl -fsI "https://build.protomaps.com/$D.pmtiles" > /dev/null; then BUILD="https://build.protomaps.com/$D.pmtiles"; break; fi
+          done
+          echo "Base: $BUILD"
+          echo "BUILD=$BUILD" >> "$GITHUB_ENV"
+          ./pmtiles extract "$BUILD" Rumo/mapa.pmtiles --bbox="$BBOX" --maxzoom="$ZOOM" --download-threads=8
+          ./pmtiles show Rumo/mapa.pmtiles | head -30
+
+      - name: Fontes dos nomes de rua
+        run: |
+          for f in "Noto Sans Medium:NotoSansMedium" "Noto Sans Regular:NotoSansRegular"; do
+            NOME="${f%%:*}"; PASTA="Rumo/fontes/${f##*:}"
+            mkdir -p "$PASTA"
+            for r in 0-255 256-511 8192-8447; do
+              curl -fsSL -o "$PASTA/$r.pbf" "https://raw.githubusercontent.com/protomaps/basemaps-assets/main/fonts/${NOME// /%20}/$r.pbf"
+            done
+          done
+
+      - name: Empacotar
+        run: |
+          {
+            echo "Dados do OpenStreetMap (© colaboradores do OpenStreetMap, licença ODbL)."
+            echo "Região: $REGIAO · gerado em $(date -u +%Y-%m-%d) · mapa: $BUILD"
+          } > Rumo/LEIAME.txt
+          zip -0 -r rumo-dados-sc.zip Rumo
+          ls -la Rumo rumo-dados-sc.zip
+
+      - name: Tamanhos
+        run: |
+          {
+            echo "## Tamanhos ($REGIAO)"
+            echo
+            echo "| Arquivo | Tamanho |"
+            echo "|---|---|"
+            echo "| mapa.pmtiles | $(du -h Rumo/mapa.pmtiles | cut -f1) |"
+            echo "| vias.db | $(du -h Rumo/vias.db | cut -f1) |"
+            echo "| rumo-dados-sc.zip | $(du -h rumo-dados-sc.zip | cut -f1) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar em Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete rumo-dados --yes --cleanup-tag || true
+          gh release create rumo-dados rumo-dados-sc.zip \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Rumo · dados do mapa (SC)" \
+            --notes "Mapa, vias, limites e radares de $REGIAO, do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL). Descompacte e copie a pasta Rumo para a memória interna do aparelho. Instruções em dados/README.md."
