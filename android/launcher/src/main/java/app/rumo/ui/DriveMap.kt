@@ -205,8 +205,7 @@ internal fun mapStyle(mapFiles: List<File>, fontsDir: File, night: Boolean): Str
          "paint":{"text-color":"${c.label}","text-halo-color":"${c.halo}","text-halo-width":1.6}}"""
     }
     val land = """{"id":"land","type":"background","paint":{"background-color":"${c.land}"}}"""
-    val layers = (listOf(land) + water + rivers + casingMinor + casingMajor + minor + major + highway + names).joinToString(",
-")
+    val layers = (listOf(land) + water + rivers + casingMinor + casingMajor + minor + major + highway + names).joinToString(",\n")
     return """
     {
       "version": 8,
