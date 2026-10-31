@@ -22,6 +22,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.content.pm.PackageInfoCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -29,6 +30,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import app.rumo.core.AudioOwner
+import app.rumo.core.Channel
+import app.rumo.core.DownloadCancelled
+import app.rumo.core.HttpFailure
 import app.rumo.core.Favorite
 import app.rumo.core.Favorites
 import app.rumo.core.RadioNames
@@ -57,9 +61,14 @@ import app.rumo.device.Gps
 import app.rumo.device.GpsInfo
 import app.rumo.device.GpsStatus
 import app.rumo.device.MapData
+import app.rumo.device.InstallResult
+import app.rumo.device.Installer
 import app.rumo.device.McuTap
+import app.rumo.device.Updater
 import app.rumo.core.PT_BR
 import app.rumo.device.NightSignal
+import app.rumo.ui.AboutState
+import app.rumo.ui.DATA_KEY
 import app.rumo.ui.HomeActions
 import app.rumo.ui.HomeScreen
 import app.rumo.ui.HomeState
@@ -68,14 +77,21 @@ import app.rumo.ui.MapStatus
 import app.rumo.ui.Sheet
 import app.rumo.ui.Source
 import app.rumo.ui.ThemeMode
+import app.rumo.ui.Transfer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.concurrent.Executors
 
 /** Tela inicial do Rumo. GPS (e, depois, os alertas) só funcionam com ela na tela. */
@@ -108,6 +124,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var sourceInfoMissing = false
     private val radioControl by lazy { RadioControl(this) }
     @Volatile private var scanCancelled = false
+    @Volatile private var transferCancelled = false
+    private val updater by lazy { Updater(prefs) }
     private var savedOwner: String? = null
     private val prefs by lazy { getSharedPreferences("rumo", MODE_PRIVATE) }
 
@@ -141,6 +159,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 prefs.getFloat(PREF_LON, 0f).toDouble(),
                 prefs.getFloat(PREF_BEARING, 0f).toDouble(),
             )
+        }
+        packageManager.getPackageInfo(packageName, 0).let {
+            state.appVersion = it.versionName.orEmpty()
+            state.appCode = PackageInfoCompat.getLongVersionCode(it)
         }
         hideSystemBars()
         setContent { HomeScreen(state, this) }
@@ -689,6 +711,120 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     override fun askFiles() = permissions.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
 
+    /** Painel Rumo: só com o carro parado, para não pedir atenção do motorista. Consulta as versões ao abrir. */
+    override fun openAbout() {
+        if ((state.gps.speedKmh ?: 0) >= PARKED_BELOW_KMH) {
+            state.toast = "Pare o carro para abrir o painel Rumo"
+            return
+        }
+        state.sheet = Sheet.ABOUT
+        if (!state.about.checked && !state.about.checking) checkUpdates()
+    }
+
+    override fun checkUpdates() {
+        if (state.about.checking || state.transfer != null) return
+        state.about = state.about.copy(checking = true)
+        lifecycleScope.launch {
+            val (stable, nightly, data) = coroutineScope {
+                val stable = async { updater.fetchChannel(Channel.STABLE) }
+                val nightly = async { updater.fetchChannel(Channel.NIGHTLY) }
+                val data = async { updater.fetchData() }
+                Triple(stable.await(), nightly.await(), data.await())
+            }
+            state.about = AboutState(checking = false, checked = true, stable = stable, nightly = nightly, data = data)
+        }
+    }
+
+    override fun installApp(channel: Channel) {
+        if (state.transfer != null) return
+        val info = if (channel == Channel.STABLE) state.about.stable else state.about.nightly
+        val release = info?.release ?: return
+        transferCancelled = false
+        val key = channel.name
+        val label = "${channel.label} ${release.versionName}"
+        state.transfer = Transfer(key, label, 0, release.size)
+        lifecycleScope.launch {
+            try {
+                val apk = updater.downloadApp(
+                    release, Installer.folder(this@HomeActivity),
+                    onProgress = throttled { done -> state.transfer = Transfer(key, label, done, release.size) },
+                    cancelled = { transferCancelled },
+                )
+                state.transfer = null
+                state.toast = when (Installer.install(this@HomeActivity, apk)) {
+                    InstallResult.OPENED -> "Confirme a instalação na tela do Android"
+                    InstallResult.NEEDS_PERMISSION -> "Libere \"instalar apps desconhecidos\" para o Rumo e toque em Instalar de novo"
+                    InstallResult.UNAVAILABLE -> "Este aparelho não tem o instalador de apps"
+                }
+            } catch (e: IOException) {
+                state.transfer = null
+                state.toast = transferError(e)
+            }
+        }
+    }
+
+    override fun downloadData() {
+        val plan = state.about.data?.plan?.takeIf { it.download.isNotEmpty() } ?: return
+        if (state.transfer != null) return
+        // Android 9: gravar em /sdcard/Rumo pede a permissão de escrita
+        if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            permissions.launch(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE))
+            state.toast = "Permita salvar arquivos e toque em Baixar de novo"
+            return
+        }
+        transferCancelled = false
+        val label = "Dados do mapa"
+        state.transfer = Transfer(DATA_KEY, label, 0, plan.bytes)
+        // Trocar o mapa com ele aberto: o MapLibre mantém o arquivo mapeado, então a tela é recriada no fim
+        val replacesMap = state.mapFile != null && plan.download.any { it.dest.endsWith(".pmtiles") }
+        lifecycleScope.launch {
+            try {
+                updater.downloadData(
+                    plan,
+                    onProgress = throttled { done -> state.transfer = Transfer(DATA_KEY, label, done, plan.bytes) },
+                    cancelled = { transferCancelled },
+                )
+                state.transfer = null
+                state.toast = "Dados do mapa prontos"
+                if (replacesMap) {
+                    recreate()
+                } else {
+                    loadMapData()
+                    state.about = state.about.copy(checked = false)
+                    checkUpdates()
+                }
+            } catch (e: IOException) {
+                state.transfer = null
+                state.toast = transferError(e)
+                // O que já foi baixado vale: atualiza o que falta
+                state.about = state.about.copy(checked = false)
+            }
+        }
+    }
+
+    override fun cancelTransfer() {
+        transferCancelled = true
+    }
+
+    /** Repassa o progresso para a tela no máximo a cada [PROGRESS_EVERY_MS] (o download chama a cada 64 KB). */
+    private fun throttled(update: (Long) -> Unit): (Long) -> Unit {
+        var last = 0L
+        return { done ->
+            val now = SystemClock.elapsedRealtime()
+            if (now - last >= PROGRESS_EVERY_MS) {
+                last = now
+                runOnUiThread { update(done) }
+            }
+        }
+    }
+
+    private fun transferError(e: IOException) = when (e) {
+        is DownloadCancelled -> "Download cancelado"
+        is HttpFailure -> "O GitHub respondeu erro ${e.code}"
+        is UnknownHostException, is SocketTimeoutException, is ConnectException -> "Sem conexão: o download continua de onde parou"
+        else -> "Falha no download: ${e.message}"
+    }
+
     private fun loadMapData() {
         if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             state.mapStatus = MapStatus.NO_PERMISSION
@@ -840,6 +976,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_RADIO_MUTED = "radio_mudo"
         const val RADIO_LOG_LINES = 300
         const val MAX_ACTIONS = 2_000
+        /** Painel Rumo só abre abaixo desta velocidade. */
+        const val PARKED_BELOW_KMH = 5
+        const val PROGRESS_EVERY_MS = 250L
     }
 
     private fun hideSystemBars() {

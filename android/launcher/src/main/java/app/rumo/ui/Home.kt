@@ -36,6 +36,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -63,6 +65,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import app.rumo.core.Channel
 import app.rumo.core.Favorite
 import app.rumo.core.PT_BR
 import app.rumo.core.RadarAlert
@@ -83,7 +86,7 @@ import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-enum class Sheet { NONE, APPS, AUDIO, PHONE, RADIO }
+enum class Sheet { NONE, APPS, AUDIO, PHONE, RADIO, ABOUT }
 
 /**
  * De onde vem o som: pelo serviço sourceinfo do multimídia (avisa a cada troca de fonte, inclusive pelo volante)
@@ -132,6 +135,12 @@ class HomeState {
     var hasVoice by mutableStateOf(false)
     var sheet by mutableStateOf(Sheet.NONE)
     var toast by mutableStateOf<String?>(null)
+    /** Versão instalada (nome e código), para comparar com as publicadas. */
+    var appVersion = ""
+    var appCode = 0L
+    /** Painel Rumo: o que a consulta às releases achou e o download em andamento (app ou dados). */
+    var about by mutableStateOf(AboutState())
+    var transfer by mutableStateOf<Transfer?>(null)
 }
 
 interface HomeActions {
@@ -151,10 +160,18 @@ interface HomeActions {
     fun chooseTheme(mode: ThemeMode)
     fun probeHeadlight()
     fun probeMedia()
+    /** Painel Rumo (só com o carro parado): consulta as versões e os dados ao abrir. */
+    fun openAbout()
+    fun checkUpdates()
+    fun installApp(channel: Channel)
+    fun downloadData()
+    fun cancelTransfer()
 }
 
 private val TIME = DateTimeFormatter.ofPattern("HH:mm")
 private val DATE = DateTimeFormatter.ofPattern("EEE, d 'de' MMM", PT_BR)
+private const val CLOCK_TAPS = 7
+private const val CLOCK_TAP_GAP_MS = 1_500L
 private val CARD_RADIUS = 28.dp
 private val CARD = RoundedCornerShape(CARD_RADIUS)
 
@@ -199,6 +216,7 @@ fun HomeScreen(s: HomeState, a: HomeActions) {
                         when (s.sheet) {
                             Sheet.NONE -> {}
                             Sheet.RADIO -> RadioSheet(s, a)
+                            Sheet.ABOUT -> AboutSheet(s, a)
                             else -> AppSheet(s, a)
                         }
                         s.probe?.let { ProbeSheet(s.probeTitle, it) { s.probe = null } }
@@ -266,7 +284,21 @@ private fun StatusBar(s: HomeState, a: HomeActions) {
         Modifier.fillMaxWidth().height(64.dp).padding(start = 22.dp, end = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Txt(s.now.format(TIME), 36, weight = FontWeight.SemiBold, numeric = true, lineHeight = 1f)
+        // 7 toques seguidos no relógio abrem o painel Rumo (versão, atualização e dados do mapa)
+        var taps by remember { mutableIntStateOf(0) }
+        var lastTap by remember { mutableLongStateOf(0L) }
+        Txt(
+            s.now.format(TIME), 36, weight = FontWeight.SemiBold, numeric = true, lineHeight = 1f,
+            modifier = Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                val t = System.currentTimeMillis()
+                taps = if (t - lastTap > CLOCK_TAP_GAP_MS) 1 else taps + 1
+                lastTap = t
+                if (taps >= CLOCK_TAPS) {
+                    taps = 0
+                    a.openAbout()
+                }
+            },
+        )
         Spacer(Modifier.width(12.dp))
         Txt(s.now.format(DATE), 18, color = p.text2)
         Spacer(Modifier.weight(1f))
@@ -380,7 +412,10 @@ private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, modifier: Modi
                         modifier = Modifier.clickable { a.askFiles() },
                     )
                 s.mapStatus == MapStatus.MISSING ->
-                    Txt("Sem dados do mapa: copie a pasta Rumo para a memória interna", 22, color = p.text2, weight = FontWeight.SemiBold, maxLines = 2)
+                    Txt(
+                        "Sem dados do mapa. Toque para baixar", 22, color = p.accentInk, weight = FontWeight.SemiBold, maxLines = 2,
+                        modifier = Modifier.clickable { a.openAbout() },
+                    )
                 road != null -> Txt(road.way.label, 28, weight = FontWeight.SemiBold, lineHeight = 1.1f)
                 g.status == GpsStatus.OK && s.mapStatus == MapStatus.READY ->
                     Txt("Fora das vias do mapa", 22, color = p.text2, weight = FontWeight.SemiBold)
