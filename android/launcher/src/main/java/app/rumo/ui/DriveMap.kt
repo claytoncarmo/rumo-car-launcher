@@ -124,18 +124,21 @@ private fun zoomFor(kmh: Int): Double = when {
     else -> 14.7
 }
 
-/** Cores do mapa: tons de cinza quase neutros (água e áreas verdes só um pouco diferentes do fundo). */
+/**
+ * Cores do mapa: tons de cinza quase neutros (a água só um pouco diferente do fundo). O mapa.pmtiles do app só traz o que
+ * é desenhado aqui (água, rios e vias para carro; `dados/mapa_filtro.py`): se incluir outra camada, mude os dois.
+ */
 private class MapColors(
-    val land: String, val water: String, val park: String, val minor: String,
+    val land: String, val water: String, val minor: String,
     val major: String, val highway: String, val casing: String?, val label: String, val halo: String,
 )
 
 private val NIGHT_MAP = MapColors(
-    land = "#121417", water = "#1B2026", park = "#15191A", minor = "#2A2E33",
+    land = "#121417", water = "#1B2026", minor = "#2A2E33",
     major = "#373C42", highway = "#454A51", casing = null, label = "#A3A8AE", halo = "#121417",
 )
 private val DAY_MAP = MapColors(
-    land = "#ECEDEE", water = "#D2D8DD", park = "#E2E5E0", minor = "#FFFFFF",
+    land = "#ECEDEE", water = "#D2D8DD", minor = "#FFFFFF",
     major = "#FFFFFF", highway = "#FAFAF7", casing = "#CDD0D3", label = "#4F5359", halo = "#FFFFFF",
 )
 
@@ -163,20 +166,12 @@ internal fun mapStyle(mapFile: File, night: Boolean): String {
       "sources": {"osm": {"type": "vector", "url": $tiles}},
       "layers": [
         {"id":"land","type":"background","paint":{"background-color":"${c.land}"}},
-        {"id":"park","type":"fill","source":"osm","source-layer":"landuse",
-         "filter":["all",["==","${'$'}type","Polygon"],
-                   ["in","kind","park","forest","wood","nature_reserve","national_park","garden","grass","meadow","golf_course"]],
-         "paint":{"fill-color":"${c.park}"}},
         {"id":"water","type":"fill","source":"osm","source-layer":"water","filter":["==","${'$'}type","Polygon"],
          "paint":{"fill-color":"${c.water}"}},
         {"id":"rivers","type":"line","source":"osm","source-layer":"water",
          "filter":["all",["==","${'$'}type","LineString"],["in","kind","river","canal"]],
          "layout":{"line-cap":"round","line-join":"round"},
          "paint":{"line-color":"${c.water}","line-width":{"base":1.4,"stops":[[10,1],[15,3],[18,8]]}}},
-        {"id":"streams","type":"line","source":"osm","source-layer":"water","minzoom":13,
-         "filter":["all",["==","${'$'}type","LineString"],["!in","kind","river","canal"]],
-         "layout":{"line-cap":"round","line-join":"round"},
-         "paint":{"line-color":"${c.water}","line-width":{"base":1.4,"stops":[[13,0.6],[15,1.5],[18,4]]}}},
         $casing
         {"id":"minor","type":"line","source":"osm","source-layer":"roads","filter":["==","kind","minor_road"],"minzoom":12,
          "layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":"${c.minor}","line-width":$minorW}},

@@ -2,7 +2,7 @@
 
 O Rumo funciona sem internet: o mapa, as vias com limite de velocidade e os radares vêm de uma pasta `Rumo` copiada para o aparelho. O workflow **Dados do mapa (OSM)** gera essa pasta a partir do OpenStreetMap e a publica em [Releases](../../../releases) como a pré-release **"Rumo · dados do mapa (SC)"** (`rumo-dados-sc.zip`).
 
-Hoje o pacote cobre **Santa Catarina**. Ele é refeito todo dia 1 do mês e a cada mudança em `dados/` ou no workflow.
+Hoje o pacote cobre **Santa Catarina** (contorno do estado em `regioes/sc.geojson`, com ~8 km de folga para andar além da divisa). Ele é refeito todo dia 1 do mês e a cada mudança em `dados/` ou no workflow.
 
 ## Instalar no aparelho
 
@@ -22,12 +22,22 @@ O workflow publica, ao lado do zip, cada arquivo como asset solto e um `dados.js
 
 | Arquivo | O que é |
 |---|---|
-| `mapa.pmtiles` | Mapa vetorial (recorte do build diário do [Protomaps](https://docs.protomaps.com/basemaps/downloads), até o zoom 15), lido pelo MapLibre |
+| `mapa.pmtiles` | Mapa vetorial (recorte do build diário do [Protomaps](https://docs.protomaps.com/basemaps/downloads) pelo contorno do estado, até o zoom 14, filtrado por `mapa_filtro.py`), lido pelo MapLibre |
 | `vias.db` | SQLite com as vias, o limite de velocidade por sentido e os radares (gerado por `vias.py`) |
 | `fontes/` | Fontes (glifos) dos nomes de rua no mapa |
 | `LEIAME.txt` | Região, data e origem do mapa |
 
-Tamanhos em Santa Catarina: `mapa.pmtiles` ~310 MB, `vias.db` ~100 MB, pacote ~430 MB.
+Tamanhos em Santa Catarina: `mapa.pmtiles` ~37 MB, `vias.db` ~38 MB, pacote ~62 MB (o recorte bruto do Protomaps tem 119 MB).
+
+## `mapa_filtro.py`
+
+O mapa-múndi do Protomaps traz prédios, pontos de interesse, fronteiras, nomes de lugares, trilhas, calçadas e parques que o Rumo não desenha. O filtro abre cada tile e deixa só o que o estilo do app (`DriveMap.kt`) usa:
+
+- **água:** polígonos (menos piscinas e fontes) e linhas de rios e canais; sem riachos;
+- **vias:** `minor_road`, `major_road` e `highway`, sem as de serviço (garagens, estacionamentos), com o nome a partir do zoom 14;
+- tudo mais (prédios, lugares, fronteiras, parques, terra, trilhas, trilhos) sai.
+
+Se o estilo passar a desenhar outra coisa, mude `filtrar` junto. `mapa_confere.py` compara uma amostra de tiles do resultado com o que devia ficar e falha o workflow se sumir mais de 1% das feições (a recodificação descarta geometrias inválidas sem avisar). O zoom 14 é o máximo: acima dele o MapLibre amplia o último nível, e o app chega ao zoom 16,5 nas ruas da cidade.
 
 ## `vias.py`
 
@@ -37,7 +47,7 @@ Lê um recorte do OpenStreetMap (`.osm.pbf`, só com `highway` e `highway=speed_
 |---|---|
 | `info` | região, data e contagens |
 | `ways` | uma linha por via: nome, referência (ex.: SC-401), tipo, mão única, limite nos dois sentidos e se cada limite é estimado |
-| `segs` | trechos das vias por célula de 0,01° (`cell`), com os pontos em micrograus (`lat, lon` como inteiros de 32 bits) |
+| `segs` | trechos das vias por célula de 0,01° (`cell`, `way`, `n`), sem rowid; os pontos (`pts`) em micrograus, cada um como diferença para o anterior, em zigue-zague e varint (`info.versao` = 2; a 1 guardava inteiros de 32 bits e o app ainda a lê) |
 | `radars` | posição, limite fiscalizado e sentido (0–359°, ou −1 para os dois) |
 
 A célula é calculada igual no gerador (`cell_of`) e no app (`core/Geo.kt`), e o app só lê as células perto do carro.
@@ -48,7 +58,7 @@ A célula é calculada igual no gerador (`cell_of`) e no app (`core/Geo.kt`), e 
 
 ## Brasil inteiro
 
-Estimativa a partir do OSM (2 GB para o Brasil contra 409 MB da região Sul): o mapa ficaria em 4 a 5 GB, mais ~1,2 GB de vias e radares, ou 6 a 7 GB no total. Cabe no aparelho (50 GB livres), mas passa do limite de 2 GB por arquivo das releases do GitHub, então teria de ser dividido em partes ou publicado com menos zooms.
+Com o filtro e o `vias.db` enxuto, Santa Catarina pesa ~75 MB. Estimando pela área e pela densidade de vias, o Brasil inteiro ficaria na casa de 1,5 a 2 GB no total (hoje o limite de 2 GB por arquivo das releases não seria problema, porque os arquivos seriam por estado).
 
 ## Testes
 
@@ -56,7 +66,7 @@ Estimativa a partir do OSM (2 GB para o Brasil contra 409 MB da região Sul): o 
 python3 -m unittest discover -s dados -p "*_test.py" -v
 ```
 
-O gerador precisa de `pyosmium` (`pip install osmium`). O workflow roda os testes antes de gerar.
+O gerador precisa de `pyosmium`, e o filtro de `pmtiles`, `mapbox-vector-tile` e `shapely` (`pip install osmium pmtiles mapbox-vector-tile==2.2.0 shapely`). O workflow roda os testes antes de gerar.
 
 ## Licença dos dados
 

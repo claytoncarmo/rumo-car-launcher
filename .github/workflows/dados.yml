@@ -21,9 +21,10 @@ concurrency:
 
 env:
   REGIAO: Santa Catarina
-  # Santa Catarina com folga (pega as divisas com PR, RS e Argentina)
-  BBOX: "-53.9,-29.45,-48.3,-25.9"
-  ZOOM: "15"
+  # Contorno do estado com ~8 km de folga (para continuar andando além da divisa): dados/regioes/
+  CONTORNO: dados/regioes/sc.geojson
+  # Zoom máximo do mapa: acima disso o MapLibre amplia o último nível (o app chega a 16,5)
+  ZOOM: "14"
   PMTILES: "1.31.2"
 
 jobs:
@@ -41,7 +42,7 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q osmium-tool
-          pip install "osmium>=3.7"
+          pip install "osmium>=3.7" pmtiles mapbox-vector-tile==2.2.0 shapely
           curl -fsSL "https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES}/go-pmtiles_${PMTILES}_Linux_x86_64.tar.gz" | tar xz pmtiles
           ./pmtiles version || true
 
@@ -51,8 +52,7 @@ jobs:
       - name: Baixar o OSM (região Sul) e recortar
         run: |
           curl -fsSL -o sul.osm.pbf https://download.geofabrik.de/south-america/brazil/sul-latest.osm.pbf
-          IFS=, read -r W S E N <<< "$BBOX"
-          osmium extract -b "$W,$S,$E,$N" sul.osm.pbf -o recorte.osm.pbf
+          osmium extract -p "$CONTORNO" sul.osm.pbf -o recorte.osm.pbf
           osmium tags-filter recorte.osm.pbf w/highway n/highway=speed_camera -o vias.osm.pbf
           ls -la *.pbf
 
@@ -70,7 +70,13 @@ jobs:
           done
           echo "Base: $BUILD"
           echo "BUILD=$BUILD" >> "$GITHUB_ENV"
-          ./pmtiles extract "$BUILD" Rumo/mapa.pmtiles --bbox="$BBOX" --maxzoom="$ZOOM" --download-threads=8
+          ./pmtiles extract "$BUILD" mapa-bruto.pmtiles --region="$CONTORNO" --maxzoom="$ZOOM" --download-threads=8
+          ls -la mapa-bruto.pmtiles
+          # Só o que o estilo do app desenha (água, rios, vias para carro e seus nomes): ver dados/mapa_filtro.py
+          python3 dados/mapa_filtro.py mapa-bruto.pmtiles Rumo/mapa.pmtiles
+          ./pmtiles verify Rumo/mapa.pmtiles
+          # A recodificação descarta geometrias inválidas sem avisar: falha se sumir mais de 1% das vias e da água
+          python3 dados/mapa_confere.py mapa-bruto.pmtiles Rumo/mapa.pmtiles
           ./pmtiles show Rumo/mapa.pmtiles | head -30
 
       - name: Fontes dos nomes de rua
@@ -89,7 +95,7 @@ jobs:
             echo "Dados do OpenStreetMap (© colaboradores do OpenStreetMap, licença ODbL)."
             echo "Região: $REGIAO · gerado em $(date -u +%Y-%m-%d) · mapa: $BUILD"
           } > Rumo/LEIAME.txt
-          zip -0 -r rumo-dados-sc.zip Rumo
+          zip -r rumo-dados-sc.zip Rumo
           # Arquivos avulsos + dados.json: o app baixa direto para a pasta Rumo, só o que mudou (o zip é para copiar à mão)
           python3 dados/manifesto.py Rumo publicar \
             "https://github.com/$GITHUB_REPOSITORY/releases/download/rumo-dados" sc "$REGIAO"
@@ -102,12 +108,15 @@ jobs:
             echo
             echo "| Arquivo | Tamanho |"
             echo "|---|---|"
+            echo "| mapa bruto (recorte do Protomaps, antes do filtro) | $(du -h mapa-bruto.pmtiles | cut -f1) |"
             echo "| mapa.pmtiles | $(du -h Rumo/mapa.pmtiles | cut -f1) |"
             echo "| vias.db | $(du -h Rumo/vias.db | cut -f1) |"
             echo "| rumo-dados-sc.zip | $(du -h rumo-dados-sc.zip | cut -f1) |"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Só a main publica: em outras branches o workflow serve para conferir os tamanhos e os testes
       - name: Publicar em Releases
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
