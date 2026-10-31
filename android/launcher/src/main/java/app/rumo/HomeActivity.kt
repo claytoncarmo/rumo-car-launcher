@@ -64,6 +64,7 @@ import app.rumo.device.MapData
 import app.rumo.device.InstallResult
 import app.rumo.device.Installer
 import app.rumo.device.McuTap
+import app.rumo.device.Reboot
 import app.rumo.device.Updater
 import app.rumo.core.PT_BR
 import app.rumo.device.NightSignal
@@ -719,6 +720,18 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }
         state.sheet = Sheet.ABOUT
         if (!state.about.checked && !state.about.checking) checkUpdates()
+    }
+
+    override fun reboot() {
+        if ((state.gps.speedKmh ?: 0) >= PARKED_BELOW_KMH) {
+            state.toast = "Pare o carro para reiniciar"
+            return
+        }
+        state.toast = "Reiniciando o Android…"
+        lifecycleScope.launch {
+            val problem = withContext(Dispatchers.IO) { Reboot.request(this@HomeActivity) } ?: return@launch
+            state.toast = "Este aparelho não deixa o Rumo reiniciar ($problem). Use o botão RST da unidade."
+        }
     }
 
     override fun checkUpdates() {

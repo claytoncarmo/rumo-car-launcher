@@ -19,6 +19,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -34,6 +39,7 @@ import app.rumo.core.formatSize
 import app.rumo.core.installedChannelLabel
 import app.rumo.device.ChannelInfo
 import app.rumo.device.DataInfo
+import kotlinx.coroutines.delay
 
 /** O que a consulta às releases encontrou: um canal por vez (estável e nightly) e os dados do mapa. */
 data class AboutState(
@@ -79,6 +85,7 @@ fun AboutSheet(s: HomeState, a: HomeActions) {
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 AppSection(s, a)
+                SystemSection(a)
             }
             Column(
                 Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
@@ -213,6 +220,34 @@ private fun DiagnosticsSection(a: HomeActions) {
     }
 }
 
+/** Reiniciar o Android: o aparelho não tem botão para isso. Pede um segundo toque para não reiniciar sem querer. */
+@Composable
+private fun SystemSection(a: HomeActions) {
+    val p = LocalPalette.current
+    var confirming by remember { mutableStateOf(false) }
+    LaunchedEffect(confirming) {
+        if (confirming) {
+            delay(CONFIRM_MS)
+            confirming = false
+        }
+    }
+    SectionCard("Sistema") {
+        Txt("Reinicia o Android do aparelho (como desligar e ligar). Funciona só com o carro parado.", 16, color = p.text2, maxLines = 3)
+        PillButton(
+            text = if (confirming) "Toque de novo para reiniciar" else "Reiniciar o Android",
+            enabled = true,
+            primary = confirming,
+        ) {
+            if (confirming) {
+                confirming = false
+                a.reboot()
+            } else {
+                confirming = true
+            }
+        }
+    }
+}
+
 @Composable
 private fun TransferBar(t: Transfer, a: HomeActions) {
     val p = LocalPalette.current
@@ -247,6 +282,9 @@ private fun PillButton(text: String, enabled: Boolean, primary: Boolean, onClick
         Txt(text, 18, color = if (primary) p.onAccent else p.text, weight = FontWeight.SemiBold)
     }
 }
+
+/** Quanto tempo o botão de reiniciar espera o segundo toque. */
+private const val CONFIRM_MS = 5_000L
 
 /** Chave do download dos dados em [Transfer]. */
 const val DATA_KEY = "dados"
