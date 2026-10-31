@@ -67,37 +67,46 @@ fun installedChannelLabel(versionName: String): String = when {
 /** Um arquivo dos dados offline: destino dentro da pasta Rumo, tamanho, SHA-256 e onde baixar. */
 data class RemoteFile(val dest: String, val size: Long, val sha256: String, val url: String)
 
-data class Region(val id: String, val name: String, val files: List<RemoteFile>) {
+/** Um estado: [group] é a região do país ("Sul", "Sudeste") para agrupar na lista; pode vir vazio. */
+data class Region(val id: String, val name: String, val files: List<RemoteFile>, val group: String = "") {
     val totalSize: Long get() = files.sumOf { it.size }
 }
 
-data class DataManifest(val builtAt: String, val regions: List<Region>)
+/** [common]: arquivos de qualquer estado (as fontes dos nomes de rua). */
+data class DataManifest(val builtAt: String, val regions: List<Region>, val common: List<RemoteFile> = emptyList())
+
+/** O id vira nome de pasta (`regioes/<id>`) e vem da rede: só letras minúsculas, números e sublinhado. */
+fun isSafeRegionId(id: String): Boolean = Regex("[a-z0-9_]{1,16}").matches(id)
 
 /** O destino vem da rede: nunca pode sair da pasta Rumo. */
 fun isSafeDestination(dest: String): Boolean =
     dest.isNotBlank() && !dest.startsWith("/") && '\\' !in dest && dest.none { it < ' ' } &&
         dest.split('/').none { it.isEmpty() || it == "." || it == ".." }
 
+private fun parseFiles(arr: org.json.JSONArray?): List<RemoteFile> =
+    if (arr == null) emptyList() else (0 until arr.length()).map { k ->
+        val f = arr.getJSONObject(k)
+        RemoteFile(f.getString("destino"), f.getLong("tamanho"), f.getString("sha256"), f.getString("url"))
+    }
+
+private fun isValidFile(f: RemoteFile) =
+    isSafeDestination(f.dest) && f.size > 0 && f.sha256.length == 64 && f.url.startsWith("https://")
+
 fun parseDataManifest(text: String): DataManifest? = try {
     val j = JSONObject(text)
     val regions = j.getJSONArray("regioes").let { arr ->
         (0 until arr.length()).map { i ->
             val r = arr.getJSONObject(i)
-            val files = r.getJSONArray("arquivos").let { fa ->
-                (0 until fa.length()).map { k ->
-                    val f = fa.getJSONObject(k)
-                    RemoteFile(f.getString("destino"), f.getLong("tamanho"), f.getString("sha256"), f.getString("url"))
-                }
-            }
-            Region(r.getString("id"), r.getString("nome"), files)
+            Region(r.getString("id"), r.getString("nome"), parseFiles(r.getJSONArray("arquivos")), r.optString("grupo"))
         }
     }
-    val valid = regions.isNotEmpty() && regions.all { region ->
-        region.files.isNotEmpty() && region.files.all {
-            isSafeDestination(it.dest) && it.size > 0 && it.sha256.length == 64 && it.url.startsWith("https://")
+    val common = parseFiles(j.optJSONArray("comum"))
+    val valid = regions.isNotEmpty() && regions.map { it.id }.distinct().size == regions.size &&
+        common.all(::isValidFile) &&
+        regions.all { region ->
+            isSafeRegionId(region.id) && region.files.isNotEmpty() && region.files.all(::isValidFile)
         }
-    }
-    if (valid) DataManifest(j.optString("geradoEm"), regions) else null
+    if (valid) DataManifest(j.optString("geradoEm"), regions, common) else null
 } catch (e: Exception) {
     null
 }

@@ -46,10 +46,12 @@ class ReleasesTest {
         assertEquals("build local", installedChannelLabel("0.0.0-dev"))
     }
 
-    private fun dataJson(dest: String = "mapa.pmtiles") =
-        """{"versao":1,"geradoEm":"2026-10-31T03:00:00Z","regioes":[{"id":"sc","nome":"Santa Catarina","arquivos":[
+    private fun dataJson(dest: String = "regioes/sc/mapa.pmtiles", id: String = "sc") =
+        """{"versao":2,"geradoEm":"2026-10-31T03:00:00Z",
+            "comum":[{"destino":"fontes/NotoSansMedium/0-255.pbf","tamanho":5000,"sha256":"${"c".repeat(64)}","url":"https://exemplo.org/f.pbf"}],
+            "regioes":[{"id":"$id","nome":"Santa Catarina","grupo":"Sul","arquivos":[
             {"destino":"$dest","tamanho":310000000,"sha256":"$sha","url":"https://exemplo.org/mapa.pmtiles"},
-            {"destino":"vias.db","tamanho":100000000,"sha256":"${"b".repeat(64)}","url":"https://exemplo.org/vias.db"}]}]}"""
+            {"destino":"regioes/sc/vias.db","tamanho":100000000,"sha256":"${"b".repeat(64)}","url":"https://exemplo.org/vias.db"}]}]}"""
 
     @Test
     fun leOManifestoDosDados() {
@@ -57,8 +59,35 @@ class ReleasesTest {
         assertEquals("2026-10-31T03:00:00Z", m.builtAt)
         val sc = m.regions.single()
         assertEquals("Santa Catarina", sc.name)
-        assertEquals(listOf("mapa.pmtiles", "vias.db"), sc.files.map { it.dest })
+        assertEquals(listOf("regioes/sc/mapa.pmtiles", "regioes/sc/vias.db"), sc.files.map { it.dest })
         assertEquals(410_000_000L, sc.totalSize)
+        assertEquals("Sul", sc.group)
+        assertEquals(listOf("fontes/NotoSansMedium/0-255.pbf"), m.common.map { it.dest })
+    }
+
+    @Test
+    fun manifestoAntigoSemComumEGrupoAindaLe() {
+        val antigo = """{"versao":1,"geradoEm":"2026-10-31T03:00:00Z","regioes":[{"id":"sc","nome":"Santa Catarina","arquivos":[
+            {"destino":"mapa.pmtiles","tamanho":100,"sha256":"$sha","url":"https://exemplo.org/mapa.pmtiles"}]}]}"""
+        val m = parseDataManifest(antigo)!!
+        assertTrue(m.common.isEmpty())
+        assertEquals("", m.regions.single().group)
+    }
+
+    @Test
+    fun recusaIdDeRegiaoQueViraPastaPerigosa() {
+        for (ruim in listOf("../x", "SC", "a/b", "", "a".repeat(17), "s c")) {
+            assertNull("id '$ruim' devia ser recusado", parseDataManifest(dataJson(id = ruim)))
+        }
+        assertTrue(isSafeRegionId("sc"))
+        assertTrue(isSafeRegionId("mg_2"))
+    }
+
+    @Test
+    fun recusaRegioesComIdRepetido() {
+        val um = dataJson()
+        val regiao = um.substring(um.indexOf("{\"id\""), um.lastIndexOf("]}"))
+        assertNull(parseDataManifest(um.replace(regiao, "$regiao,$regiao")))
     }
 
     @Test
@@ -67,7 +96,7 @@ class ReleasesTest {
         for (ruim in listOf("../mapa.pmtiles", "/sdcard/mapa.pmtiles", "a/../b", "a\\\\b", "a//b", "./x", "")) {
             assertNull("destino '$ruim' devia ser recusado", parseDataManifest(dataJson(ruim)))
         }
-        assertNotNull(parseDataManifest(dataJson("fontes/NotoSansMedium/0-255.pbf")))
+        assertNotNull(parseDataManifest(dataJson("regioes/sc/outro.pmtiles")))
         assertTrue(isSafeDestination("mapa.pmtiles"))
         assertFalse(isSafeDestination(".."))
     }
@@ -77,10 +106,11 @@ class ReleasesTest {
         assertNull(parseDataManifest("{}"))
         assertNull(parseDataManifest("""{"regioes":[]}"""))
         assertNull(parseDataManifest(dataJson().replace("https://exemplo.org/vias.db", "http://exemplo.org/vias.db")))
+        assertNull(parseDataManifest(dataJson().replace("https://exemplo.org/f.pbf", "http://exemplo.org/f.pbf")))
     }
 
-    private val mapa = RemoteFile("mapa.pmtiles", 100, sha, "https://exemplo.org/mapa.pmtiles")
-    private val vias = RemoteFile("vias.db", 50, "b".repeat(64), "https://exemplo.org/vias.db")
+    private val mapa = RemoteFile("regioes/sc/mapa.pmtiles", 100, sha, "https://exemplo.org/mapa.pmtiles")
+    private val vias = RemoteFile("regioes/sc/vias.db", 50, "b".repeat(64), "https://exemplo.org/vias.db")
     private val regiao = Region("sc", "Santa Catarina", listOf(mapa, vias))
 
     @Test

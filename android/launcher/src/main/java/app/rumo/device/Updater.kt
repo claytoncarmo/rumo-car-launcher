@@ -10,6 +10,8 @@ import app.rumo.core.Endpoints
 import app.rumo.core.Http
 import app.rumo.core.HttpFailure
 import app.rumo.core.LocalFile
+import app.rumo.core.Region
+import app.rumo.core.RegionInfo
 import app.rumo.core.RemoteFile
 import app.rumo.core.parseAppRelease
 import app.rumo.core.parseDataManifest
@@ -23,8 +25,16 @@ import java.io.IOException
 /** O que se sabe de um canal (estável ou nightly): a versão publicada ou o motivo de não haver. */
 data class ChannelInfo(val release: AppRelease?, val problem: String?)
 
-/** Dados offline: o manifesto, o que falta baixar no aparelho e, se deu errado, o motivo. */
-data class DataInfo(val manifest: DataManifest?, val plan: DataPlan?, val problem: String?)
+/**
+ * Dados offline: o manifesto, cada estado com o que falta baixar, o que falta dos arquivos comuns (fontes) e, se deu
+ * errado, o motivo.
+ */
+data class DataInfo(
+    val manifest: DataManifest?,
+    val regions: List<RegionInfo>,
+    val common: DataPlan?,
+    val problem: String?,
+)
 
 /**
  * Consulta as releases do repositório e baixa o app e os dados offline (mapa, vias, radares) para o aparelho.
@@ -51,17 +61,22 @@ class Updater(private val prefs: SharedPreferences, private val http: Http = Htt
     suspend fun fetchData(): DataInfo = withContext(Dispatchers.IO) {
         try {
             val manifest = parseDataManifest(http.getText(Endpoints.DATA))
-                ?: return@withContext DataInfo(null, null, "Manifesto dos dados inválido")
-            val region = manifest.regions.first()
-            val plan = planData(region, { localFile(it) }, { sha256Of(fileOf(it)) })
-            // Estavam certos, só não tinham registro: grava para não conferir de novo
-            plan.verified.forEach { record(it) }
-            DataInfo(manifest, plan, null)
+                ?: return@withContext DataInfo(null, emptyList(), null, "Manifesto dos dados inválido")
+            val regions = manifest.regions.map { RegionInfo(it, planOf(it)) }
+            val common = planOf(Region("comum", "Fontes", manifest.common))
+            DataInfo(manifest, regions, common, null)
         } catch (e: HttpFailure) {
-            DataInfo(null, null, if (e.code == 404) "Dados ainda não publicados" else "Erro ${e.code} no servidor")
+            DataInfo(null, emptyList(), null, if (e.code == 404) "Dados ainda não publicados" else "Erro ${e.code} no servidor")
         } catch (e: IOException) {
-            DataInfo(null, null, "Sem conexão com o GitHub")
+            DataInfo(null, emptyList(), null, "Sem conexão com o GitHub")
         }
+    }
+
+    private fun planOf(region: Region): DataPlan {
+        val plan = planData(region, { localFile(it) }, { sha256Of(fileOf(it)) })
+        // Estavam certos, só não tinham registro: grava para não conferir de novo
+        plan.verified.forEach { record(it) }
+        return plan
     }
 
     /**
@@ -78,6 +93,25 @@ class Updater(private val prefs: SharedPreferences, private val http: Http = Htt
                 before += file.size
             }
         }
+
+    /** Apaga os arquivos de um estado (`regioes/<id>`). O id já foi validado ao ler o manifesto. */
+    suspend fun removeRegion(region: Region) = withContext(Dispatchers.IO) {
+        File(rumoDir, "$REGIONS/${region.id}").deleteRecursively()
+        region.files.forEach { prefs.edit().remove(KEY + it.dest).apply() }
+    }
+
+    /**
+     * Antes dos estados, o mapa e as vias ficavam direto na pasta Rumo (só Santa Catarina). Depois que um estado
+     * novo está inteiro no aparelho, os arquivos antigos só ocupam espaço e saem.
+     */
+    suspend fun removeLegacy() = withContext(Dispatchers.IO) {
+        val regions = File(rumoDir, REGIONS).listFiles().orEmpty()
+        val complete = regions.any { File(it, "mapa.pmtiles").isFile && File(it, "vias.db").isFile }
+        if (complete) {
+            listOf("mapa.pmtiles", "vias.db", "mapa.pmtiles.part", "vias.db.part").forEach { File(rumoDir, it).delete() }
+            prefs.edit().remove(KEY + "mapa.pmtiles").remove(KEY + "vias.db").apply()
+        }
+    }
 
     /** Baixa o APK para [folder] e o devolve pronto para instalar (já conferido pelo tamanho e pelo hash). */
     suspend fun downloadApp(
@@ -109,5 +143,6 @@ class Updater(private val prefs: SharedPreferences, private val http: Http = Htt
 
     private companion object {
         const val KEY = "dados_"
+        const val REGIONS = "regioes"
     }
 }

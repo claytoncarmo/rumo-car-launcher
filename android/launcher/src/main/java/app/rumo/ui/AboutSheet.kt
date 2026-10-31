@@ -31,7 +31,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.rumo.core.Channel
+import app.rumo.core.DataChange
 import app.rumo.core.DataStatus
+import app.rumo.core.RegionInfo
+import app.rumo.core.installedIds
+import app.rumo.core.planChange
 import app.rumo.core.UpdateKind
 import app.rumo.core.compareWithInstalled
 import app.rumo.core.formatBuiltAt
@@ -49,7 +53,15 @@ data class AboutState(
     val stable: ChannelInfo? = null,
     val nightly: ChannelInfo? = null,
     val data: DataInfo? = null,
+    /** Estados marcados na lista de dados; null enquanto o usuário não mexeu (vale o que está instalado). */
+    val selected: Set<String>? = null,
 )
+
+/** Estados que o usuário quer no aparelho: os marcados ou, sem escolha ainda, os instalados. */
+fun AboutState.wanted(): Set<String> {
+    val regions = data?.regions.orEmpty()
+    return selected?.intersect(regions.map { it.region.id }.toSet()) ?: installedIds(regions)
+}
 
 /** Download em andamento: [key] é o canal (`STABLE`/`NIGHTLY`) ou `dados`. */
 data class Transfer(val key: String, val label: String, val done: Long, val total: Long)
@@ -172,40 +184,76 @@ private fun DataSection(s: HomeState, a: HomeActions) {
     val p = LocalPalette.current
     val about = s.about
     val data = about.data
-    val region = data?.manifest?.regions?.firstOrNull()
-    val plan = data?.plan
+    val wanted = about.wanted()
+    val change = data?.let { planChange(it.regions, it.common, wanted) }
     val transfer = s.transfer?.takeIf { it.key == DATA_KEY }
-    SectionCard("Dados do mapa" + (region?.let { " · ${it.name}" } ?: "")) {
+    SectionCard("Mapas por estado") {
         Txt(
             when {
                 data == null -> if (about.checking) "Consultando…" else "—"
                 data.problem != null -> data.problem
-                plan == null -> ""
-                plan.status == DataStatus.NOT_INSTALLED ->
-                    "Não instalado. Baixar ${formatSize(plan.bytes)}: mapa, ruas, limites de velocidade e radares."
-                plan.status == DataStatus.UPDATE -> "Atualização disponível: ${formatSize(plan.bytes)}."
-                else -> "Em dia" + formatBuiltAt(data.manifest?.builtAt.orEmpty()).let { if (it.isEmpty()) "" else " · gerado em $it" }
+                else -> "Marque os estados que quer no carro e toque no botão. Vários funcionam juntos, inclusive ao cruzar a divisa."
             },
-            18, color = p.text2, maxLines = 4,
+            16, color = p.text2, maxLines = 3,
         )
+        if (data != null && data.problem == null) {
+            val groups = data.regions.groupBy { it.region.group }
+            for ((group, regions) in groups) {
+                if (group.isNotBlank()) Txt(group, 14, color = p.text3, weight = FontWeight.SemiBold, caps = true)
+                regions.forEach { RegionRow(it, it.region.id in wanted, s.transfer == null) { a.toggleRegion(it.region.id) } }
+            }
+        }
         if (transfer != null) {
             TransferBar(transfer, a)
-        } else {
+        } else if (change != null) {
             PillButton(
-                text = when (plan?.status) {
-                    DataStatus.NOT_INSTALLED -> "Baixar"
-                    DataStatus.UPDATE -> "Atualizar"
-                    DataStatus.UP_TO_DATE -> "Em dia"
-                    null -> "—"
-                },
-                enabled = plan != null && plan.status != DataStatus.UP_TO_DATE && s.transfer == null,
+                text = applyLabel(change),
+                enabled = !change.isEmpty && s.transfer == null,
                 primary = true,
-            ) { a.downloadData() }
+            ) { a.applyData() }
         }
         Txt(
             "Use o wi-fi do carro ou o ponto de acesso do celular. Se a conexão cair, o download continua de onde parou. Dados do OpenStreetMap (© colaboradores).",
             14, color = p.text3, maxLines = 4,
         )
+    }
+}
+
+private fun applyLabel(change: DataChange): String = when {
+    change.isEmpty -> "Nada a fazer"
+    change.remove.isEmpty() -> "Baixar ${formatSize(change.bytes)}"
+    change.download.isEmpty() -> "Remover ${change.remove.size} ${if (change.remove.size == 1) "estado" else "estados"}"
+    else -> "Baixar ${formatSize(change.bytes)} e remover ${change.remove.size}"
+}
+
+@Composable
+private fun RegionRow(info: RegionInfo, checked: Boolean, enabled: Boolean, onToggle: () -> Unit) {
+    val p = LocalPalette.current
+    val detail = when (info.plan.status) {
+        DataStatus.NOT_INSTALLED -> formatSize(info.region.totalSize)
+        DataStatus.UPDATE -> "Instalado · atualização de ${formatSize(info.plan.bytes)}"
+        DataStatus.UP_TO_DATE -> "Instalado · ${formatSize(info.region.totalSize)}"
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.5f)
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(enabled = enabled, onClick = onToggle)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(
+            Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(if (checked) p.accent else p.surface3),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (checked) Ico(Icons.check, 26.dp, p.onAccent)
+        }
+        Column(Modifier.weight(1f)) {
+            Txt(info.region.name, 20, weight = FontWeight.SemiBold)
+            Txt(detail, 14, color = p.text2)
+        }
     }
 }
 

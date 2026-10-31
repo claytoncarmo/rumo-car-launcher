@@ -50,6 +50,7 @@ object Icons {
         s("M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"),
     )
     val x = icon("x", s("M18 6 6 18M6 6l12 12"))
+    val check = icon("check", s("M5 12l5 5L20 7", 3f))
     val plus = icon("plus", s("M12 5v14M5 12h14", 2.8f))
     val minus = icon("minus", s("M5 12h14", 2.8f))
     private const val STAR = "M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5-4.8-4.6 6.6-.9Z"

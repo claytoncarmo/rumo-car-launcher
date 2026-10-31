@@ -36,10 +36,11 @@ class MapStart(val lat: Double, val lon: Double, val bearing: Double)
 
 /**
  * Mapa passivo do card: segue o GPS com a frente do carro para cima, sem gestos (tocar no card abre o Android Auto).
- * Mapa vetorial offline (mapa.pmtiles) e fontes dos nomes de rua da pasta Rumo; até 30 quadros por segundo.
+ * Mapa vetorial offline (um mapa.pmtiles por estado instalado, todos desenhados) e fontes dos nomes de rua da pasta
+ * Rumo; até 30 quadros por segundo.
  */
 @Composable
-fun DriveMap(mapFile: File, gps: GpsInfo, start: MapStart?, night: Boolean, modifier: Modifier = Modifier) {
+fun DriveMap(mapFiles: List<File>, fontsDir: File, gps: GpsInfo, start: MapStart?, night: Boolean, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
@@ -85,8 +86,8 @@ fun DriveMap(mapFile: File, gps: GpsInfo, start: MapStart?, night: Boolean, modi
         }
     }
 
-    LaunchedEffect(map, night, mapFile) {
-        map?.setStyle(Style.Builder().fromJson(mapStyle(mapFile, night)))
+    LaunchedEffect(map, night, mapFiles) {
+        map?.setStyle(Style.Builder().fromJson(mapStyle(mapFiles, fontsDir, night)))
     }
 
     LaunchedEffect(map, gps.lat, gps.lon, gps.bearing, height, start) {
@@ -142,48 +143,77 @@ private val DAY_MAP = MapColors(
     major = "#FFFFFF", highway = "#FAFAF7", casing = "#CDD0D3", label = "#4F5359", halo = "#FFFFFF",
 )
 
-internal fun mapStyle(mapFile: File, night: Boolean): String {
+/**
+ * Estilo do mapa: uma fonte por estado instalado. As camadas são agrupadas por tipo (primeiro a água de todos os
+ * estados, depois as vias de todos…) para que, na faixa de folga da divisa, a água de um estado não cubra as vias do
+ * vizinho.
+ */
+internal fun mapStyle(mapFiles: List<File>, fontsDir: File, night: Boolean): String {
     val c = if (night) NIGHT_MAP else DAY_MAP
-    val tiles = JSONObject.quote("pmtiles://file://" + mapFile.absolutePath)
-    val glyphs = JSONObject.quote("file://" + File(mapFile.parentFile, "fontes").absolutePath + "/{fontstack}/{range}.pbf")
+    val glyphs = JSONObject.quote("file://" + fontsDir.absolutePath + "/{fontstack}/{range}.pbf")
     val minorW = """{"base":1.5,"stops":[[12,0.6],[15,3],[18,16]]}"""
     val majorW = """{"base":1.5,"stops":[[9,0.8],[15,6],[18,24]]}"""
     val highwayW = """{"base":1.5,"stops":[[7,1],[15,8],[18,28]]}"""
-    val casing = c.casing?.let { col ->
-        """
-        {"id":"casing-minor","type":"line","source":"osm","source-layer":"roads","filter":["==","kind","minor_road"],
-         "minzoom":13,"layout":{"line-cap":"round","line-join":"round"},
-         "paint":{"line-color":"$col","line-width":{"base":1.5,"stops":[[12,1.6],[15,5],[18,19]]}}},
-        {"id":"casing-major","type":"line","source":"osm","source-layer":"roads","filter":["in","kind","major_road","highway"],
+    val sources = mapFiles.indices.joinToString(",") { i ->
+        "\"osm$i\": {\"type\": \"vector\", \"url\": ${JSONObject.quote("pmtiles://file://" + mapFiles[i].absolutePath)}}"
+    }
+    // Cada tipo de camada, uma vez por fonte
+    fun perSource(layer: (src: String, id: String) -> String) =
+        mapFiles.indices.map { layer("osm$it", "$it") }
+
+    val water = perSource { src, i ->
+        """{"id":"water$i","type":"fill","source":"$src","source-layer":"water","filter":["==","${'$'}type","Polygon"],
+         "paint":{"fill-color":"${c.water}"}}"""
+    }
+    val rivers = perSource { src, i ->
+        """{"id":"rivers$i","type":"line","source":"$src","source-layer":"water",
+         "filter":["all",["==","${'$'}type","LineString"],["in","kind","river","canal"]],
          "layout":{"line-cap":"round","line-join":"round"},
-         "paint":{"line-color":"$col","line-width":{"base":1.5,"stops":[[9,1.8],[15,8.5],[18,30]]}}},
-        """.trimIndent()
-    } ?: ""
+         "paint":{"line-color":"${c.water}","line-width":{"base":1.4,"stops":[[10,1],[15,3],[18,8]]}}}"""
+    }
+    val casingMinor = c.casing?.let { col ->
+        perSource { src, i ->
+            """{"id":"casing-minor$i","type":"line","source":"$src","source-layer":"roads","filter":["==","kind","minor_road"],
+         "minzoom":13,"layout":{"line-cap":"round","line-join":"round"},
+         "paint":{"line-color":"$col","line-width":{"base":1.5,"stops":[[12,1.6],[15,5],[18,19]]}}}"""
+        }
+    }.orEmpty()
+    val casingMajor = c.casing?.let { col ->
+        perSource { src, i ->
+            """{"id":"casing-major$i","type":"line","source":"$src","source-layer":"roads","filter":["in","kind","major_road","highway"],
+         "layout":{"line-cap":"round","line-join":"round"},
+         "paint":{"line-color":"$col","line-width":{"base":1.5,"stops":[[9,1.8],[15,8.5],[18,30]]}}}"""
+        }
+    }.orEmpty()
+    val minor = perSource { src, i ->
+        """{"id":"minor$i","type":"line","source":"$src","source-layer":"roads","filter":["==","kind","minor_road"],"minzoom":12,
+         "layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":"${c.minor}","line-width":$minorW}}"""
+    }
+    val major = perSource { src, i ->
+        """{"id":"major$i","type":"line","source":"$src","source-layer":"roads","filter":["==","kind","major_road"],
+         "layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":"${c.major}","line-width":$majorW}}"""
+    }
+    val highway = perSource { src, i ->
+        """{"id":"highway$i","type":"line","source":"$src","source-layer":"roads","filter":["==","kind","highway"],
+         "layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":"${c.highway}","line-width":$highwayW}}"""
+    }
+    val names = perSource { src, i ->
+        """{"id":"names$i","type":"symbol","source":"$src","source-layer":"roads","minzoom":14,
+         "filter":["in","kind","minor_road","major_road","highway"],
+         "layout":{"symbol-placement":"line","text-field":"{name}","text-font":["NotoSansMedium"],"text-size":15,
+                   "text-max-angle":30,"symbol-spacing":320},
+         "paint":{"text-color":"${c.label}","text-halo-color":"${c.halo}","text-halo-width":1.6}}"""
+    }
+    val land = """{"id":"land","type":"background","paint":{"background-color":"${c.land}"}}"""
+    val layers = (listOf(land) + water + rivers + casingMinor + casingMajor + minor + major + highway + names).joinToString(",
+")
     return """
     {
       "version": 8,
       "glyphs": $glyphs,
-      "sources": {"osm": {"type": "vector", "url": $tiles}},
+      "sources": {$sources},
       "layers": [
-        {"id":"land","type":"background","paint":{"background-color":"${c.land}"}},
-        {"id":"water","type":"fill","source":"osm","source-layer":"water","filter":["==","${'$'}type","Polygon"],
-         "paint":{"fill-color":"${c.water}"}},
-        {"id":"rivers","type":"line","source":"osm","source-layer":"water",
-         "filter":["all",["==","${'$'}type","LineString"],["in","kind","river","canal"]],
-         "layout":{"line-cap":"round","line-join":"round"},
-         "paint":{"line-color":"${c.water}","line-width":{"base":1.4,"stops":[[10,1],[15,3],[18,8]]}}},
-        $casing
-        {"id":"minor","type":"line","source":"osm","source-layer":"roads","filter":["==","kind","minor_road"],"minzoom":12,
-         "layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":"${c.minor}","line-width":$minorW}},
-        {"id":"major","type":"line","source":"osm","source-layer":"roads","filter":["==","kind","major_road"],
-         "layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":"${c.major}","line-width":$majorW}},
-        {"id":"highway","type":"line","source":"osm","source-layer":"roads","filter":["==","kind","highway"],
-         "layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":"${c.highway}","line-width":$highwayW}},
-        {"id":"names","type":"symbol","source":"osm","source-layer":"roads","minzoom":14,
-         "filter":["in","kind","minor_road","major_road","highway"],
-         "layout":{"symbol-placement":"line","text-field":"{name}","text-font":["NotoSansMedium"],"text-size":15,
-                   "text-max-angle":30,"symbol-spacing":320},
-         "paint":{"text-color":"${c.label}","text-halo-color":"${c.halo}","text-halo-width":1.6}}
+        $layers
       ]
     }
     """.trimIndent()

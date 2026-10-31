@@ -31,7 +31,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import app.rumo.core.AudioOwner
 import app.rumo.core.Channel
+import app.rumo.core.DataPlan
 import app.rumo.core.DownloadCancelled
+import app.rumo.core.planChange
 import app.rumo.core.HttpFailure
 import app.rumo.core.Favorite
 import app.rumo.core.Favorites
@@ -70,6 +72,7 @@ import app.rumo.device.Updater
 import app.rumo.core.PT_BR
 import app.rumo.device.NightSignal
 import app.rumo.ui.AboutState
+import app.rumo.ui.wanted
 import app.rumo.ui.DATA_KEY
 import app.rumo.ui.HomeActions
 import app.rumo.ui.HomeScreen
@@ -871,7 +874,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 val data = async { updater.fetchData() }
                 Triple(stable.await(), nightly.await(), data.await())
             }
-            state.about = AboutState(checking = false, checked = true, stable = stable, nightly = nightly, data = data)
+            state.about = AboutState(
+                checking = false, checked = true, stable = stable, nightly = nightly, data = data,
+                selected = state.about.selected,
+            )
         }
     }
 
@@ -903,34 +909,48 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }
     }
 
-    override fun downloadData() {
-        val plan = state.about.data?.plan?.takeIf { it.download.isNotEmpty() } ?: return
+    override fun toggleRegion(id: String) {
         if (state.transfer != null) return
+        val about = state.about
+        val wanted = about.wanted()
+        state.about = about.copy(selected = if (id in wanted) wanted - id else wanted + id)
+    }
+
+    override fun applyData() {
+        val data = state.about.data ?: return
+        if (state.transfer != null) return
+        val change = planChange(data.regions, data.common, state.about.wanted())
+        if (change.isEmpty) return
         // Android 9: gravar em /sdcard/Rumo pede a permissão de escrita
         if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             permissions.launch(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE))
-            state.toast = "Permita salvar arquivos e toque em Baixar de novo"
+            state.toast = "Permita salvar arquivos e toque no botão de novo"
             return
         }
         transferCancelled = false
         val label = "Dados do mapa"
-        state.transfer = Transfer(DATA_KEY, label, 0, plan.bytes)
-        // Trocar o mapa com ele aberto: o MapLibre mantém o arquivo mapeado, então a tela é recriada no fim
-        val replacesMap = state.mapFile != null && plan.download.any { it.dest.endsWith(".pmtiles") }
+        state.transfer = Transfer(DATA_KEY, label, 0, change.bytes)
+        // Trocar ou tirar um mapa com ele aberto: o MapLibre mantém o arquivo mapeado, então a tela é recriada no fim
+        val touchesMaps = state.mapFiles.isNotEmpty() &&
+            (change.download.any { it.dest.endsWith(".pmtiles") } || change.remove.isNotEmpty())
         lifecycleScope.launch {
             try {
-                updater.downloadData(
-                    plan,
-                    onProgress = throttled { done -> state.transfer = Transfer(DATA_KEY, label, done, plan.bytes) },
-                    cancelled = { transferCancelled },
-                )
+                if (change.download.isNotEmpty()) {
+                    updater.downloadData(
+                        DataPlan(change.download, emptyList(), 0),
+                        onProgress = throttled { done -> state.transfer = Transfer(DATA_KEY, label, done, change.bytes) },
+                        cancelled = { transferCancelled },
+                    )
+                }
+                change.remove.forEach { updater.removeRegion(it) }
+                updater.removeLegacy()
                 state.transfer = null
                 state.toast = "Dados do mapa prontos"
-                if (replacesMap) {
+                state.about = state.about.copy(checked = false, selected = null)
+                if (touchesMaps) {
                     recreate()
                 } else {
                     loadMapData()
-                    state.about = state.about.copy(checked = false)
                     checkUpdates()
                 }
             } catch (e: IOException) {
@@ -977,7 +997,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 radars.reset()
                 MapData.open(this@HomeActivity).also { data = it }
             }
-            state.mapFile = found?.mapFile
+            state.mapFiles = found?.mapFiles.orEmpty()
+            state.fontsDir = found?.fontsDir
             state.mapStatus = if (found == null) MapStatus.MISSING else MapStatus.READY
             state.road = null
             state.radar = null

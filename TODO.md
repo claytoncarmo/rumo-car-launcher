@@ -12,9 +12,11 @@ Hoje só o HCN de referência foi testado (ver "Outros aparelhos" no [`README.md
 - [ ] **Android Auto configurável:** escolher o app de navegação/projeção em vez de fixar o ZLINK.
 - [ ] **Mais arquiteturas:** compilar também `arm64-v8a` (e `x86_64` para emulador); conferir o tamanho do APK com o MapLibre.
 - [ ] **Roteiro para aparelho novo** (`docs/novo-aparelho.md`): ordem dos diagnósticos (farol, rádio, reinício, botões), o que olhar em cada relatório e como transformar o resultado num perfil.
-- [ ] **Mais de um estado nos dados:** o `dados.json` já tem regiões, mas o app usa só a primeira; falta unir várias regiões no app (vias com ids próprios, várias fontes de mapa) e escolher no painel.
+- [x] **Mais de um estado nos dados:** Sul e Sudeste (PR, SC, RS, SP, RJ, MG, ES), lista e seleção no painel Rumo, vários mapas e vias ao mesmo tempo. Falta validar no carro (ver abaixo) e, se der certo, as outras regiões do país.
 
 ## A validar no aparelho
+
+- [ ] Estados: atualizar o app, abrir o painel, marcar dois estados vizinhos, baixar, ver o mapa nos dois e atravessar a divisa (rua e limite continuam; sem sumir vias na faixa de folga). Conferir o tamanho de MG e SP e se o mapa continua fluido com mais de um estado.
 
 - [ ] Volume flutuante: se o volume de música do Android muda o som nesta unidade (senão, achar outro caminho).
 - [ ] Teste dos botões: o que o Android recebe dos botões do lado da tela (os botões pararam em 31/out/2026; ver `CLAUDE.md`).

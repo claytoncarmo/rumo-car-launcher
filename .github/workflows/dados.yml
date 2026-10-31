@@ -1,6 +1,7 @@
 name: Dados do mapa (OSM)
 
-# Pacote "Rumo" para copiar no aparelho: mapa.pmtiles (mapa vetorial), vias.db (ruas, limites e radares) e fontes.
+# Dados offline por estado (Sul e Sudeste): cada estado tem mapa.pmtiles (mapa vetorial) e vias.db (ruas, limites e
+# radares); as fontes dos nomes de rua são comuns. O app lê o dados.json, lista os estados e baixa os escolhidos.
 # Publica a pré-release "rumo-dados" (pré-release para nunca ser a "última" release, que é a do APK estável).
 # Detalhes do pacote em dados/README.md.
 on:
@@ -20,17 +21,33 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  REGIAO: Santa Catarina
-  # Contorno do estado com ~8 km de folga (para continuar andando além da divisa): dados/regioes/
-  CONTORNO: dados/regioes/sc.geojson
   # Zoom máximo do mapa: acima disso o MapLibre amplia o último nível (o app chega a 16,5)
   ZOOM: "14"
   PMTILES: "1.31.2"
+  # Ordem em que os estados aparecem no app (Sul, depois Sudeste); os nomes e grupos vêm de dados/regioes/<id>.geojson
+  ESTADOS: "pr sc rs sp rj mg es"
 
 jobs:
-  dados:
+  estado:
+    name: dados ${{ matrix.id }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # pbf: recorte da Geofabrik que contém o estado (região Sul ou Sudeste)
+          - { id: pr, pbf: sul }
+          - { id: sc, pbf: sul }
+          - { id: rs, pbf: sul }
+          - { id: sp, pbf: sudeste }
+          - { id: rj, pbf: sudeste }
+          - { id: mg, pbf: sudeste }
+          - { id: es, pbf: sudeste }
+    env:
+      ID: ${{ matrix.id }}
+      # Contorno do estado com ~8 km de folga (para continuar andando além da divisa): dados/regioes/
+      CONTORNO: dados/regioes/${{ matrix.id }}.geojson
     steps:
       - uses: actions/checkout@v4
 
@@ -49,17 +66,22 @@ jobs:
       - name: Testes do gerador
         run: python3 -m unittest discover -s dados -p "*_test.py" -v
 
-      - name: Baixar o OSM (região Sul) e recortar
+      - name: Nome do estado
         run: |
-          curl -fsSL -o sul.osm.pbf https://download.geofabrik.de/south-america/brazil/sul-latest.osm.pbf
-          osmium extract -p "$CONTORNO" sul.osm.pbf -o recorte.osm.pbf
+          NOME=$(python3 -c "import json;print(json.load(open('$CONTORNO', encoding='utf-8'))['properties']['nome'])")
+          echo "REGIAO=$NOME" >> "$GITHUB_ENV"
+
+      - name: Baixar o OSM (região ${{ matrix.pbf }}) e recortar
+        run: |
+          curl -fsSL --retry 3 -o regiao.osm.pbf "https://download.geofabrik.de/south-america/brazil/${{ matrix.pbf }}-latest.osm.pbf"
+          osmium extract -p "$CONTORNO" regiao.osm.pbf -o recorte.osm.pbf
           osmium tags-filter recorte.osm.pbf w/highway n/highway=speed_camera -o vias.osm.pbf
           ls -la *.pbf
 
       - name: Vias, limites e radares
         run: |
-          mkdir -p Rumo
-          python3 dados/vias.py vias.osm.pbf Rumo/vias.db "$REGIAO"
+          mkdir -p "Rumo/regioes/$ID"
+          python3 dados/vias.py vias.osm.pbf "Rumo/regioes/$ID/vias.db" "$REGIAO"
 
       # Mapa vetorial: recorte do mapa-múndi diário do Protomaps (OSM, licença ODbL)
       - name: Mapa vetorial
@@ -73,33 +95,11 @@ jobs:
           ./pmtiles extract "$BUILD" mapa-bruto.pmtiles --region="$CONTORNO" --maxzoom="$ZOOM" --download-threads=8
           ls -la mapa-bruto.pmtiles
           # Só o que o estilo do app desenha (água, rios, vias para carro e seus nomes): ver dados/mapa_filtro.py
-          python3 dados/mapa_filtro.py mapa-bruto.pmtiles Rumo/mapa.pmtiles
-          ./pmtiles verify Rumo/mapa.pmtiles
+          python3 dados/mapa_filtro.py mapa-bruto.pmtiles "Rumo/regioes/$ID/mapa.pmtiles"
+          ./pmtiles verify "Rumo/regioes/$ID/mapa.pmtiles"
           # A recodificação descarta geometrias inválidas sem avisar: falha se sumir mais de 1% das vias e da água
-          python3 dados/mapa_confere.py mapa-bruto.pmtiles Rumo/mapa.pmtiles
-          ./pmtiles show Rumo/mapa.pmtiles | head -30
-
-      - name: Fontes dos nomes de rua
-        run: |
-          for f in "Noto Sans Medium:NotoSansMedium" "Noto Sans Regular:NotoSansRegular"; do
-            NOME="${f%%:*}"; PASTA="Rumo/fontes/${f##*:}"
-            mkdir -p "$PASTA"
-            for r in 0-255 256-511 8192-8447; do
-              curl -fsSL -o "$PASTA/$r.pbf" "https://raw.githubusercontent.com/protomaps/basemaps-assets/main/fonts/${NOME// /%20}/$r.pbf"
-            done
-          done
-
-      - name: Empacotar
-        run: |
-          {
-            echo "Dados do OpenStreetMap (© colaboradores do OpenStreetMap, licença ODbL)."
-            echo "Região: $REGIAO · gerado em $(date -u +%Y-%m-%d) · mapa: $BUILD"
-          } > Rumo/LEIAME.txt
-          zip -r rumo-dados-sc.zip Rumo
-          # Arquivos avulsos + dados.json: o app baixa direto para a pasta Rumo, só o que mudou (o zip é para copiar à mão)
-          python3 dados/manifesto.py Rumo publicar \
-            "https://github.com/$GITHUB_REPOSITORY/releases/download/rumo-dados" sc "$REGIAO"
-          ls -la Rumo rumo-dados-sc.zip publicar
+          python3 dados/mapa_confere.py mapa-bruto.pmtiles "Rumo/regioes/$ID/mapa.pmtiles"
+          ./pmtiles show "Rumo/regioes/$ID/mapa.pmtiles" | head -30
 
       - name: Tamanhos
         run: |
@@ -109,9 +109,84 @@ jobs:
             echo "| Arquivo | Tamanho |"
             echo "|---|---|"
             echo "| mapa bruto (recorte do Protomaps, antes do filtro) | $(du -h mapa-bruto.pmtiles | cut -f1) |"
-            echo "| mapa.pmtiles | $(du -h Rumo/mapa.pmtiles | cut -f1) |"
-            echo "| vias.db | $(du -h Rumo/vias.db | cut -f1) |"
-            echo "| rumo-dados-sc.zip | $(du -h rumo-dados-sc.zip | cut -f1) |"
+            echo "| mapa.pmtiles | $(du -h Rumo/regioes/$ID/mapa.pmtiles | cut -f1) |"
+            echo "| vias.db | $(du -h Rumo/regioes/$ID/vias.db | cut -f1) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dados-${{ matrix.id }}
+          path: Rumo
+          retention-days: 2
+
+  publicar:
+    name: manifesto e publicação
+    needs: estado
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dados-*
+          path: estados
+
+      - name: Fontes dos nomes de rua
+        run: |
+          for f in "Noto Sans Medium:NotoSansMedium" "Noto Sans Regular:NotoSansRegular"; do
+            NOME="${f%%:*}"; PASTA="comum/fontes/${f##*:}"
+            mkdir -p "$PASTA"
+            for r in 0-255 256-511 8192-8447; do
+              curl -fsSL -o "$PASTA/$r.pbf" "https://raw.githubusercontent.com/protomaps/basemaps-assets/main/fonts/${NOME// /%20}/$r.pbf"
+            done
+          done
+
+      - name: Manifesto
+        run: |
+          ARGS=()
+          for id in $ESTADOS; do
+            test -f "estados/dados-$id/regioes/$id/mapa.pmtiles" -a -f "estados/dados-$id/regioes/$id/vias.db"
+            INFO=$(python3 -c "import json;p=json.load(open('dados/regioes/$id.geojson', encoding='utf-8'))['properties'];print(p['nome']+'='+p['grupo'])")
+            # id=nome=pasta=grupo
+            ARGS+=("$id=${INFO%%=*}=estados/dados-$id=${INFO##*=}")
+          done
+          python3 dados/manifesto.py publicar \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/rumo-dados" comum "${ARGS[@]}"
+          ls -la publicar
+
+      # Um zip por estado, para copiar à mão: a pasta Rumo pronta (fontes + o estado)
+      - name: Pacotes por estado
+        run: |
+          for id in $ESTADOS; do
+            NOME=$(python3 -c "import json;print(json.load(open('dados/regioes/$id.geojson', encoding='utf-8'))['properties']['nome'])")
+            P="pacote/$id/Rumo"
+            mkdir -p "$P"
+            cp -r comum/fontes "$P/"
+            cp -r "estados/dados-$id/regioes" "$P/"
+            {
+              echo "Dados do OpenStreetMap (© colaboradores do OpenStreetMap, licença ODbL)."
+              echo "Estado: $NOME · gerado em $(date -u +%Y-%m-%d)"
+              echo "Copie a pasta Rumo para a memória interna do aparelho."
+            } > "$P/LEIAME.txt"
+            (cd "pacote/$id" && zip -qr "../../rumo-dados-$id.zip" Rumo)
+          done
+          ls -la rumo-dados-*.zip
+
+      - name: Tamanhos
+        run: |
+          {
+            echo "## Pacotes"
+            echo
+            echo "| Estado | mapa.pmtiles | vias.db | zip |"
+            echo "|---|---|---|---|"
+            for id in $ESTADOS; do
+              echo "| $id | $(du -h estados/dados-$id/regioes/$id/mapa.pmtiles | cut -f1) | $(du -h estados/dados-$id/regioes/$id/vias.db | cut -f1) | $(du -h rumo-dados-$id.zip | cut -f1) |"
+            done
           } >> "$GITHUB_STEP_SUMMARY"
 
       # Só a main publica: em outras branches o workflow serve para conferir os tamanhos e os testes
@@ -121,9 +196,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete rumo-dados --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" || true
-          gh release create rumo-dados rumo-dados-sc.zip publicar/* \
+          gh release create rumo-dados rumo-dados-*.zip publicar/* \
             --repo "$GITHUB_REPOSITORY" \
             --prerelease \
             --target "$GITHUB_SHA" \
-            --title "Rumo · dados do mapa (SC)" \
-            --notes "Mapa, vias, limites e radares de $REGIAO, do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL). O app baixa e atualiza estes dados sozinho (painel Rumo: 7 toques no relógio); para copiar à mão, descompacte rumo-dados-sc.zip e leve a pasta Rumo para a memória interna do aparelho. Instruções em dados/README.md."
+            --title "Rumo · dados do mapa (Sul e Sudeste)" \
+            --notes "Mapa, vias, limites e radares dos estados do Sul e do Sudeste, do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL). O app lista os estados e baixa os escolhidos sozinho (painel Rumo: 7 toques no relógio); para copiar à mão, descompacte o rumo-dados-<estado>.zip e leve a pasta Rumo para a memória interna do aparelho (vários estados: copie cada um para a mesma pasta Rumo). Instruções em dados/README.md."

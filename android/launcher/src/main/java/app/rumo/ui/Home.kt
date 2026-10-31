@@ -113,7 +113,9 @@ class HomeState {
     var probe by mutableStateOf<List<String>?>(null)
     var probeTitle by mutableStateOf("Teste do farol")
     var mapStatus by mutableStateOf(MapStatus.LOADING)
-    var mapFile by mutableStateOf<File?>(null)
+    /** Um mapa.pmtiles por estado instalado (vazio: sem mapa) e a pasta das fontes dos nomes de rua. */
+    var mapFiles by mutableStateOf<List<File>>(emptyList())
+    var fontsDir by mutableStateOf<File?>(null)
     var mapStart by mutableStateOf<MapStart?>(null)
     var road by mutableStateOf<RoadMatch?>(null)
     var radar by mutableStateOf<RadarAlert?>(null)
@@ -179,7 +181,10 @@ interface HomeActions {
     fun openAbout()
     fun checkUpdates()
     fun installApp(channel: Channel)
-    fun downloadData()
+    /** Marca ou desmarca um estado na lista de dados do mapa (só muda a escolha; [applyData] baixa e remove). */
+    fun toggleRegion(id: String)
+    /** Baixa os estados marcados que faltam ou estão desatualizados e remove os desmarcados. */
+    fun applyData()
     fun cancelTransfer()
     /** Reinicia o Android (só parado): permissão/root se houver; senão pelo menu de energia (serviço de acessibilidade). */
     fun reboot()
@@ -474,10 +479,11 @@ private fun HomeCards(s: HomeState, a: HomeActions, night: Boolean) {
 private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, modifier: Modifier) {
     val p = LocalPalette.current
     val g = s.gps
-    val mapFile = s.mapFile
+    val mapFiles = s.mapFiles
+    val hasMap = mapFiles.isNotEmpty()
     val road = s.road
     Box(modifier.card(p, p.mapBlock)) {
-        if (mapFile != null) DriveMap(mapFile, g, s.mapStart, night)
+        s.fontsDir?.let { fonts -> if (hasMap) DriveMap(mapFiles, fonts, g, s.mapStart, night) }
         val fade = p.surface.copy(alpha = 0.92f)
         Box(
             Modifier
@@ -498,16 +504,16 @@ private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, modifier: Modi
         // Com o mapa, a frente do carro fica para cima (o mapa gira); sem ele, a seta gira
         Box(
             Modifier
-                .align(if (mapFile != null) BiasAlignment(0f, 2 * CAR_Y - 1) else Alignment.Center)
+                .align(if (hasMap) BiasAlignment(0f, 2 * CAR_Y - 1) else Alignment.Center)
                 .size(68.dp)
                 .clip(CircleShape)
-                .background(if (mapFile != null) p.accent else p.accentSoft),
+                .background(if (hasMap) p.accent else p.accentSoft),
             contentAlignment = Alignment.Center,
         ) {
             Ico(
                 Icons.nav, 42.dp,
-                if (mapFile != null) p.onAccent else p.text,
-                Modifier.rotate(if (mapFile != null) 0f else g.bearing ?: 0f),
+                if (hasMap) p.onAccent else p.text,
+                Modifier.rotate(if (hasMap) 0f else g.bearing ?: 0f),
             )
         }
         Column(
@@ -561,7 +567,7 @@ private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, modifier: Modi
                 road?.let { LimitSign(it.limit, it.estimated, Modifier.align(Alignment.CenterEnd)) }
             }
         }
-        if (mapFile != null) {
+        if (hasMap) {
             Txt("© OpenStreetMap", 11, color = p.text3, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 4.dp))
         }
     }
