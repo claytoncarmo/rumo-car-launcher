@@ -25,6 +25,7 @@ O workflow publica, ao lado dos zips, cada arquivo como asset solto e um `dados.
 | `regioes/<estado>/mapa.pmtiles` | Mapa vetorial (recorte do build diário do [Protomaps](https://docs.protomaps.com/basemaps/downloads) pelo contorno do estado, até o zoom 14, filtrado por `mapa_filtro.py`), lido pelo MapLibre |
 | `regioes/<estado>/vias.db` | SQLite com as vias, o limite de velocidade por sentido e os radares (gerado por `vias.py`) |
 | `fontes/` | Fontes (glifos) dos nomes de rua no mapa |
+| `regioes/<estado>/contorno.geojson` | Contorno do estado (com a folga da divisa), para recortar os radares do MapaRadar no app |
 | `LEIAME.txt` | Estado, data e origem do mapa (só nos zips) |
 
 Tamanhos em Santa Catarina: `mapa.pmtiles` ~37 MB, `vias.db` ~38 MB, pacote ~62 MB (o recorte bruto do Protomaps tem 119 MB). Os demais estados estão na tabela de tamanhos do resumo de cada execução do workflow. Quem já tinha o formato antigo (`mapa.pmtiles` e `vias.db` direto em `Rumo/`, só SC) continua funcionando até baixar um estado; depois o app apaga os arquivos antigos.
@@ -41,7 +42,9 @@ Se o estilo passar a desenhar outra coisa, mude `filtrar` junto. `mapa_confere.p
 
 ## Radares e outros pontos: MapaRadar
 
-`maparadar.csv` é a base do [MapaRadar](https://maparadar.com.br), mantida **à mão**: para atualizar, troque o arquivo (mesmo formato, sem cabeçalho: `longitude,latitude,Tipo - N kmh@N`) e faça o commit; o workflow recorta por estado e refaz os `vias.db`. O arquivo tem ~40 mil pontos do Brasil inteiro, em sete tipos:
+`maparadar.csv` é a base do [MapaRadar](https://maparadar.com.br), mantida **à mão**: para atualizar, troque o arquivo (mesmo formato, sem cabeçalho: `longitude,latitude,Tipo - N kmh@N`) e faça o commit. O workflow `maparadar.yml` roda só nessa mudança e publica a release **"Rumo · MapaRadar (arquivo original)"** (`rumo-maparadar`) com uma **cópia idêntica** do CSV e um `maparadar.json` (tamanho e SHA-256). O arquivo tem ~40 mil pontos do Brasil inteiro.
+
+**O app baixa o arquivo original e o processa no aparelho** (`core/MapaRadar.kt`, `MapData.loadMapaRadar`): lê o CSV, recorta pelos contornos dos estados instalados (cada estado leva o seu `contorno.geojson`), acha em cada ponto a via mais perto para saber o sentido e junta com os radares do OSM. O resultado fica em cache no aparelho e só se refaz quando o CSV ou os dados dos estados mudam. Os radares do OSM aparecem logo; os do MapaRadar entram quando o processamento termina (alguns segundos na primeira vez). Nada derivado do CSV é publicado.
 
 | Tipo no CSV | `kind` | No app |
 |---|---|---|
@@ -54,9 +57,9 @@ Se o estilo passar a desenhar outra coisa, mude `filtrar` junto. `mapa_confere.p
 | Policia Rodoviaria | 7 | azul (P), aviso com som, sem limite |
 | Pedagio | 8 | verde ($), só aviso na tela |
 
-`kind` 0 é um radar do OSM que não casou com nenhum ponto do MapaRadar (continua valendo, como radar fixo). O CSV não traz o sentido: o `maparadar.py` usa o sentido do radar do OSM a até 50 m (que é o mesmo ponto e sai da lista), senão o da via se for de mão única, senão vale para os dois sentidos. O recorte é pelo contorno do estado (com a folga da divisa), e o mesmo ponto tem o mesmo id em todos os estados. Linhas fora do Brasil, de tipo novo ou sem o formato saem sem aviso; o resumo do workflow mostra quantos pontos entraram em cada estado.
+`kind` 0 é um radar do OSM que não casou com nenhum ponto do MapaRadar (continua valendo, como radar fixo). O CSV não traz o sentido: vale o do radar do OSM a até 50 m (que é o mesmo ponto e sai da lista), senão o da via se for de mão única, senão os dois sentidos. O mesmo ponto tem o mesmo id (o número da linha, negativo) em todos os estados. Linhas fora do Brasil, de tipo novo ou sem o formato são ignoradas. Para copiar à mão, ponha o `maparadar.csv` original na pasta `Rumo`.
 
-**Licença:** a base é CC BY-NC-ND 4.0 (uso pessoal, com atribuição, sem fins comerciais e **sem alterações**). O CSV fica no repositório como veio, com a atribuição (MapaRadar, maparadar.com.br). Já os `vias.db` e os zips das Releases levam um recorte desses pontos (por estado, num formato diferente), o que a cláusula ND não deixa distribuir: se o projeto sair do uso pessoal, ou se as Releases forem públicas e isso importar, peça autorização ao MapaRadar ou tire `--maparadar` do workflow (os radares voltam a ser só os do OSM).
+**Licença:** a base é CC BY-NC-ND 4.0 (uso pessoal, com atribuição, sem fins comerciais e **sem alterações**). Por isso o projeto só **distribui o arquivo original**, sem alterações, e a conversão acontece no aparelho de cada pessoa (adaptação privada). O `vias.db` e os zips das Releases têm só dados do OpenStreetMap. A atribuição está aqui, no painel do app, nas notas da release e no `LEIAME.txt` dos zips. Confira os termos de uso do site do MapaRadar antes de divulgar o projeto mais amplamente.
 
 ## `vias.py`
 
@@ -67,13 +70,13 @@ Lê um recorte do OpenStreetMap (`.osm.pbf`, só com `highway` e `highway=speed_
 | `info` | região, data e contagens |
 | `ways` | uma linha por via: nome, referência (ex.: SC-401), tipo, mão única, limite nos dois sentidos e se cada limite é estimado |
 | `segs` | trechos das vias por célula de 0,01° (`cell`, `way`, `n`), sem rowid; os pontos (`pts`) em micrograus, cada um como diferença para o anterior, em zigue-zague e varint (`info.versao` = 2; a 1 guardava inteiros de 32 bits e o app ainda a lê) |
-| `radars` | posição, limite fiscalizado (0 = não fiscaliza velocidade) e sentido (0–359°, ou −1 para os dois), e `kind` (tipo; ver MapaRadar). O vias.db antigo, sem `kind`, ainda é lido |
+| `radars` | posição, limite fiscalizado (0 = não fiscaliza velocidade) e sentido (0–359°, ou −1 para os dois), e `kind` (tipo; no vias.db é sempre 0, os tipos 1 a 8 vêm do MapaRadar no aparelho). O vias.db antigo, sem `kind`, ainda é lido |
 
 A célula é calculada igual no gerador (`cell_of`) e no app (`core/Geo.kt`), e o app só lê as células perto do carro.
 
 **Limite da via:** vem do `maxspeed` do OSM (e de `maxspeed:forward`/`backward`). Sem ele, o gerador usa os padrões do CTB pelo tipo da via e marca como **estimado**: urbanas (trânsito rápido 80, arterial 60, coletora 40, local 30) e rodovias (pista dupla 110, pista simples 100, estrada 60; alças no máximo 60). A zona urbana é inferida pela densidade de ruas residenciais na célula. Só cerca de 11% das vias de Santa Catarina têm `maxspeed` no OSM, concentrados nas vias principais.
 
-**Radares do OSM:** pontos `highway=speed_camera`, com `direction` (ou a mão da via) para o sentido e `maxspeed` (ou o limite da via) para o limite. Santa Catarina tem cerca de 600 no OSM; o MapaRadar tem mais (e outros tipos de ponto), e os dois se juntam.
+**Radares do OSM:** pontos `highway=speed_camera`, com `direction` (ou a mão da via) para o sentido e `maxspeed` (ou o limite da via) para o limite. Santa Catarina tem cerca de 600 no OSM; o MapaRadar tem mais (e outros tipos de ponto), e o app junta os dois no aparelho.
 
 ## Brasil inteiro
 
@@ -85,8 +88,8 @@ Com o filtro e o `vias.db` enxuto, Santa Catarina pesa ~75 MB. Estimando pela á
 python3 -m unittest discover -s dados -p "*_test.py" -v
 ```
 
-O gerador precisa de `pyosmium`, e o filtro, o contorno e o recorte do MapaRadar de `pmtiles`, `mapbox-vector-tile` e `shapely` (`pip install osmium pmtiles mapbox-vector-tile==2.2.0 shapely`). O workflow roda os testes antes de gerar.
+O gerador precisa de `pyosmium`, e o filtro e o contorno de `pmtiles`, `mapbox-vector-tile` e `shapely` (`pip install osmium pmtiles mapbox-vector-tile==2.2.0 shapely`). O workflow roda os testes antes de gerar.
 
 ## Licença dos dados
 
-Mapa e vias: © colaboradores do [OpenStreetMap](https://www.openstreetmap.org/copyright), sob a [ODbL](https://opendatacommons.org/licenses/odbl/). Radares, lombadas, pedágios e polícia rodoviária: [MapaRadar](https://maparadar.com.br), sob a [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/). O pacote não é parte do código-fonte (GPL): é gerado e distribuído à parte, com o crédito no `LEIAME.txt` e no próprio mapa.
+Mapa e vias: © colaboradores do [OpenStreetMap](https://www.openstreetmap.org/copyright), sob a [ODbL](https://opendatacommons.org/licenses/odbl/). Radares, lombadas, pedágios e polícia rodoviária: [MapaRadar](https://maparadar.com.br), sob a [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/), distribuídos só no arquivo original. O pacote não é parte do código-fonte (GPL): é gerado e distribuído à parte, com o crédito no `LEIAME.txt` e no próprio mapa.

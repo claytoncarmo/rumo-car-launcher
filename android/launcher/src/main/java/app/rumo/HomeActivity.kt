@@ -985,6 +985,26 @@ class HomeActivity : ComponentActivity(), HomeActions {
         else -> "Falha no download: ${e.message}"
     }
 
+    /**
+     * Junta os radares do MapaRadar (arquivo original baixado) com os do OSM, no aparelho. Os do OSM já estão na tela;
+     * os da junção entram quando ficam prontos (a primeira vez demora alguns segundos, depois vem do cache).
+     */
+    private fun joinMapaRadar(found: MapData) {
+        lifecycleScope.launch {
+            val merged = withContext(Dispatchers.IO) {
+                try {
+                    found.loadMapaRadar(File(filesDir, "radares.bin"))
+                } catch (e: Exception) {
+                    null
+                }
+            } ?: return@launch
+            // Os dados podem ter sido recarregados enquanto isso
+            if (data !== found) return@launch
+            found.radars = merged
+            state.radars = merged
+        }
+    }
+
     private fun loadMapData() {
         if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             state.mapStatus = MapStatus.NO_PERMISSION
@@ -1000,6 +1020,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             state.mapFiles = found?.mapFiles.orEmpty()
             state.fontsDir = found?.fontsDir
             state.radars = found?.radars.orEmpty()
+            if (found != null) joinMapaRadar(found)
             state.mapStatus = if (found == null) MapStatus.MISSING else MapStatus.READY
             state.road = null
             state.radar = null

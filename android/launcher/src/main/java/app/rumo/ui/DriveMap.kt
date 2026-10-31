@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
@@ -91,13 +92,21 @@ fun DriveMap(mapFiles: List<File>, fontsDir: File, radars: List<Radar>, gps: Gps
         }
     }
 
-    LaunchedEffect(map, night, mapFiles, radars) {
+    // Os radares mais recentes, para o estilo novo já nascer com eles
+    val latestRadars = rememberUpdatedState(radars)
+    LaunchedEffect(map, night, mapFiles) {
         val m = map ?: return@LaunchedEffect
         // Dezenas de milhares de pontos: o texto é montado fora da thread principal
-        val points = withContext(Dispatchers.Default) { radarsGeoJson(radars) }
+        val points = withContext(Dispatchers.Default) { radarsGeoJson(latestRadars.value) }
         m.setStyle(Style.Builder().fromJson(mapStyle(mapFiles, fontsDir, night))) { style ->
             style.getSourceAs<GeoJsonSource>(RADAR_SOURCE)?.setGeoJson(points)
         }
+    }
+    // Radares novos (a junção com o MapaRadar termina depois do mapa) trocam só os dados, sem recarregar o estilo
+    LaunchedEffect(map, radars) {
+        val m = map ?: return@LaunchedEffect
+        val points = withContext(Dispatchers.Default) { radarsGeoJson(radars) }
+        m.getStyle { style -> style.getSourceAs<GeoJsonSource>(RADAR_SOURCE)?.setGeoJson(points) }
     }
 
     LaunchedEffect(map, gps.lat, gps.lon, gps.bearing, height, start) {

@@ -153,4 +153,23 @@ class ReleasesTest {
         assertTrue(plano.download.isEmpty())
         assertEquals(listOf(mapa, vias), plano.verified)
     }
+
+    private fun radarJson(dest: String = "maparadar.csv", url: String = "https://exemplo.org/maparadar.csv") =
+        """{"versao":1,"geradoEm":"2026-10-31T03:00:00Z","linhas":39975,
+            "arquivo":{"destino":"$dest","tamanho":1700000,"sha256":"$sha","url":"$url"}}"""
+
+    @Test
+    fun leOManifestoDoMapaRadar() {
+        val f = parseMapaRadarManifest(radarJson())!!
+        assertEquals("maparadar.csv", f.dest)
+        assertEquals(1_700_000L, f.size)
+    }
+
+    @Test
+    fun recusaManifestoDoMapaRadarInvalido() {
+        assertNull(parseMapaRadarManifest("{}"))
+        assertNull(parseMapaRadarManifest(radarJson(dest = "../x.csv")))
+        assertNull(parseMapaRadarManifest(radarJson(dest = "outro.csv")))
+        assertNull(parseMapaRadarManifest(radarJson(url = "http://exemplo.org/maparadar.csv")))
+    }
 }

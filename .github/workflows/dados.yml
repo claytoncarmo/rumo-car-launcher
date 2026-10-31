@@ -8,6 +8,8 @@ on:
   push:
     paths:
       - "dados/**"
+      - "!dados/maparadar.csv"
+      - "!dados/maparadar_manifesto*.py"
       - ".github/workflows/dados.yml"
   workflow_dispatch:
   schedule:
@@ -81,10 +83,9 @@ jobs:
       - name: Vias, limites e radares
         run: |
           mkdir -p "Rumo/regioes/$ID"
-          # Radares e outros pontos (pedágio, polícia, lombada…): MapaRadar (dados/maparadar.csv, mantido à mão) recortado
-          # pelo contorno do estado, junto com os radares do OSM
-          python3 dados/vias.py vias.osm.pbf "Rumo/regioes/$ID/vias.db" "$REGIAO" \
-            --maparadar dados/maparadar.csv --contorno "$CONTORNO"
+          python3 dados/vias.py vias.osm.pbf "Rumo/regioes/$ID/vias.db" "$REGIAO"
+          # O contorno vai junto: o app recorta por ele os radares do MapaRadar (workflow maparadar.yml)
+          cp "$CONTORNO" "Rumo/regioes/$ID/contorno.geojson"
 
       # Mapa vetorial: recorte do mapa-múndi diário do Protomaps (OSM, licença ODbL)
       - name: Mapa vetorial
@@ -172,8 +173,8 @@ jobs:
             cp -r comum/fontes "$P/"
             cp -r "estados/dados-$id/regioes" "$P/"
             {
-              echo "Mapa e vias: OpenStreetMap (© colaboradores do OpenStreetMap, licença ODbL)."
-              echo "Radares, lombadas, pedágios e polícia: MapaRadar (maparadar.com.br), licença CC BY-NC-ND 4.0, uso pessoal."
+              echo "Dados do OpenStreetMap (© colaboradores do OpenStreetMap, licença ODbL)."
+              echo "Os radares do MapaRadar (CC BY-NC-ND 4.0) o app baixa à parte: copie o maparadar.csv original para a pasta Rumo."
               echo "Estado: $NOME · gerado em $(date -u +%Y-%m-%d)"
               echo "Copie a pasta Rumo para a memória interna do aparelho."
             } > "$P/LEIAME.txt"
@@ -205,4 +206,4 @@ jobs:
             --prerelease \
             --target "$GITHUB_SHA" \
             --title "Rumo · dados do mapa (Sul e Sudeste)" \
-            --notes "Mapa, vias, limites e radares dos estados do Sul e do Sudeste, do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL); radares, lombadas, pedágios e pontos da polícia rodoviária do MapaRadar (CC BY-NC-ND 4.0, uso pessoal). O app lista os estados e baixa os escolhidos sozinho (painel Rumo: 7 toques no relógio); para copiar à mão, descompacte o rumo-dados-<estado>.zip e leve a pasta Rumo para a memória interna do aparelho (vários estados: copie cada um para a mesma pasta Rumo). Instruções em dados/README.md."
+            --notes "Mapa, vias, limites e radares dos estados do Sul e do Sudeste, do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL). Os radares, lombadas, pedágios e pontos da polícia rodoviária do MapaRadar (CC BY-NC-ND 4.0, uso pessoal) vão numa release à parte, com o arquivo original. O app lista os estados e baixa os escolhidos sozinho (painel Rumo: 7 toques no relógio); para copiar à mão, descompacte o rumo-dados-<estado>.zip e leve a pasta Rumo para a memória interna do aparelho (vários estados: copie cada um para a mesma pasta Rumo). Instruções em dados/README.md."

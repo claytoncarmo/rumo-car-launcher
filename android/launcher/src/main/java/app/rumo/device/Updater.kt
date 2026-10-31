@@ -15,6 +15,7 @@ import app.rumo.core.RegionInfo
 import app.rumo.core.RemoteFile
 import app.rumo.core.parseAppRelease
 import app.rumo.core.parseDataManifest
+import app.rumo.core.parseMapaRadarManifest
 import app.rumo.core.planData
 import app.rumo.core.sha256Of
 import kotlinx.coroutines.Dispatchers
@@ -63,7 +64,13 @@ class Updater(private val prefs: SharedPreferences, private val http: Http = Htt
             val manifest = parseDataManifest(http.getText(Endpoints.DATA))
                 ?: return@withContext DataInfo(null, emptyList(), null, "Manifesto dos dados inválido")
             val regions = manifest.regions.map { RegionInfo(it, planOf(it)) }
-            val common = planOf(Region("comum", "Fontes", manifest.common))
+            // O CSV original do MapaRadar vem de outra release; sem ela (ou sem rede para ela) o resto segue
+            val radarFile = try {
+                parseMapaRadarManifest(http.getText(Endpoints.MAPARADAR))
+            } catch (e: IOException) {
+                null
+            }
+            val common = planOf(Region("comum", "Fontes e radares", manifest.common + listOfNotNull(radarFile)))
             DataInfo(manifest, regions, common, null)
         } catch (e: HttpFailure) {
             DataInfo(null, emptyList(), null, if (e.code == 404) "Dados ainda não publicados" else "Erro ${e.code} no servidor")

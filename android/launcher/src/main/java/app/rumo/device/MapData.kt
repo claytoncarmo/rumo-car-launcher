@@ -3,7 +3,11 @@ package app.rumo.device
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.os.Environment
+import app.rumo.core.Contour
 import app.rumo.core.Geo
+import app.rumo.core.MapaRadar
+import app.rumo.core.RadarCache
+import app.rumo.core.nearestWayHint
 import app.rumo.core.Radar
 import app.rumo.core.RadarKind
 import app.rumo.core.Run
@@ -11,6 +15,7 @@ import app.rumo.core.Way
 import app.rumo.core.decodePoints
 import app.rumo.core.decodePointsV1
 import java.io.File
+import java.io.IOException
 
 /**
  * Pasta "Rumo" copiada para o aparelho (gerada pelo GitHub Actions, ver dados/): `fontes/` e, em `regioes/<estado>/`,
@@ -28,7 +33,10 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
     val fontsDir = File(dir, "fontes")
 
     // Na divisa, os dois estados têm o mesmo radar (a folga de ~8 km se sobrepõe)
-    val radars: List<Radar> = regions.flatMap { it.radars }.distinctBy { it.id }
+    private val osmRadars: List<Radar> = regions.flatMap { it.radars }.distinctBy { it.id }
+
+    /** Radares do OSM e, depois de [loadMapaRadar], também os do MapaRadar. Lida na thread do GPS. */
+    @Volatile var radars: List<Radar> = osmRadars
 
     // Poucas células por vez: o carro anda ~1 célula por minuto a 60 km/h
     private val cells = object : LinkedHashMap<Long, List<Run>>(64, 0.75f, true) {
@@ -44,6 +52,43 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
 
     fun close() = regions.forEach { it.close() }
 
+    /**
+     * Junta o `maparadar.csv` original (pasta Rumo) com os radares do OSM: recorta pelos contornos dos estados
+     * instalados e acha, em cada ponto, o sentido da via. É o processamento no aparelho (a licença não deixa publicar
+     * nada derivado do arquivo). Demora alguns segundos, então o resultado fica em [cacheFile] e só se refaz quando o
+     * CSV ou os dados dos estados mudam. Null se não há CSV ou nenhum contorno. Chamar fora da thread principal.
+     */
+    fun loadMapaRadar(cacheFile: File): List<Radar>? {
+        val csv = File(dir, MAPARADAR).takeIf { it.isFile } ?: return null
+        val signature = "${csv.length()}:${csv.lastModified()}" + regions.joinToString("") { "|" + it.signature() }
+        try {
+            if (cacheFile.isFile) RadarCache.decode(cacheFile.readBytes(), signature)?.let { return it }
+        } catch (e: IOException) {
+            // cache ilegível: refaz
+        }
+        val contours = regions.mapNotNull { it.contourFile()?.let { f -> Contour.parse(f.readText()) } }
+        if (contours.isEmpty()) return null
+        val points = csv.bufferedReader().use { MapaRadar.read(it.lineSequence()) }
+            .filter { p -> contours.any { it.contains(p.lat, p.lon) } }
+            // Pontos vizinhos pedem as mesmas células de vias: ordenar poupa leituras do banco
+            .sortedBy { Geo.cellOf(it.lat, it.lon) }
+        val cells = object : LinkedHashMap<Long, List<Run>>(64, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, List<Run>>) = size > 128
+        }
+        val merged = MapaRadar.merge(osmRadars, points) { lat, lon ->
+            val runs = Geo.cellsAround(lat, lon, WAY_SEARCH_M).flatMap { c ->
+                cells.getOrPut(c) { regions.flatMap { it.loadCell(c) } }
+            }
+            nearestWayHint(runs, lat, lon)
+        }
+        try {
+            cacheFile.writeBytes(RadarCache.encode(signature, merged))
+        } catch (e: IOException) {
+            // sem cache, só refaz na próxima vez
+        }
+        return merged
+    }
+
     private fun loadCell(cell: Long): List<Run> {
         if (regions.size == 1) return regions[0].loadCell(cell)
         // A mesma via pode estar nos dois estados vizinhos, na faixa de folga da divisa
@@ -53,7 +98,16 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
 
     /** vias.db e mapa.pmtiles de um estado. */
     private class RegionData(dir: File, private val db: SQLiteDatabase?) {
+        private val dir = dir
         val mapFile: File? = File(dir, MAP).takeIf { it.isFile }
+
+        fun contourFile(): File? = File(dir, CONTOUR).takeIf { it.isFile }
+
+        /** Muda quando os dados do estado mudam (entra na assinatura do cache dos radares). */
+        fun signature(): String {
+            val vias = File(dir, ROADS)
+            return "${dir.name}:${vias.length()}:${vias.lastModified()}:${contourFile()?.length() ?: 0}"
+        }
         val radars: List<Radar> = db?.let(::loadRadars) ?: emptyList()
         private val info: Map<String, String> = db?.let(::loadInfo) ?: emptyMap()
 
@@ -63,6 +117,7 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
 
         fun close() = db?.close()
 
+        @Synchronized
         fun loadCell(cell: Long): List<Run> {
             val db = db ?: return emptyList()
             val out = ArrayList<Run>()
@@ -102,6 +157,9 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
         const val REGIONS = "regioes"
         const val MAP = "mapa.pmtiles"
         const val ROADS = "vias.db"
+        const val CONTOUR = "contorno.geojson"
+        const val MAPARADAR = "maparadar.csv"
+        private const val WAY_SEARCH_M = 45.0
 
         /** Abre a primeira pasta Rumo encontrada, ou null. Lê o disco: chamar fora da thread principal. */
         fun open(ctx: Context): MapData? {

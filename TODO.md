@@ -16,8 +16,8 @@ Hoje só o HCN de referência foi testado (ver "Outros aparelhos" no [`README.md
 
 ## A validar no aparelho
 
-- [ ] Radares do MapaRadar: aparecem no mapa (círculos por tipo, limite dentro), avisos e bipes só nos que fiscalizam, lombada/pedágio/câmera só na tela, sem avisos do sentido contrário em via de mão dupla (o CSV não tem sentido). Ver se o mapa continua fluido com milhares de pontos.
-- [ ] Licença do MapaRadar (CC BY-NC-ND): decidir se o recorte por estado nas Releases públicas é aceitável ou se pede autorização.
+- [ ] Radares do MapaRadar (agora baixados no painel junto com os estados e processados no aparelho; a primeira junção demora alguns segundos): aparecem no mapa (círculos por tipo, limite dentro), avisos e bipes só nos que fiscalizam, lombada/pedágio/câmera só na tela, sem avisos do sentido contrário em via de mão dupla (o CSV não tem sentido). Ver se o mapa continua fluido com milhares de pontos.
+- [ ] MapaRadar: ler os termos de uso do site (redistribuir o arquivo original; uso fora do pessoal). O recorte e a junção agora são feitos no aparelho, sem publicar nada derivado.
 
 - [ ] Estados: atualizar o app, abrir o painel, marcar dois estados vizinhos, baixar, ver o mapa nos dois e atravessar a divisa (rua e limite continuam; sem sumir vias na faixa de folga). Conferir o tamanho de MG e SP e se o mapa continua fluido com mais de um estado.
 

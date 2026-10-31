@@ -8,7 +8,7 @@ Kotlin + Jetpack Compose (só `foundation`, sem Material), `minSdk 26`, `targetS
 
 | Pasta | O que tem |
 |---|---|
-| `core/` | Lógica pura, com testes em `src/test`: `Geo` (distâncias, grade de células), `Roads` (rua atual por *map matching*, limite, velocidade acima), `Radars` (zona de aviso), `TripMeter`, `Formatting`, `Favorites` (lista própria e ajuste fino do FM), `RadioNames` (cache de textos RDS: vale até 50 km do lugar onde foi guardado, sem prazo), `AudioOwner` (pacote → fonte) |
+| `core/` | Lógica pura, com testes em `src/test`: `Geo` (distâncias, grade de células), `Roads` (rua atual por *map matching*, limite, velocidade acima), `Radars` (zona de aviso e tipos de ponto), `MapaRadar` (CSV do MapaRadar processado no aparelho: recorte, sentido, junção e cache), `TripMeter`, `Formatting`, `Favorites` (lista própria e ajuste fino do FM), `RadioNames` (cache de textos RDS: vale até 50 km do lugar onde foi guardado, sem prazo), `AudioOwner` (pacote → fonte) |
 | `device/` | Acesso ao aparelho: `Gps`, `Apps`, `MapData` (lê a pasta `Rumo`: vários estados ao mesmo tempo), `Alerts` (sons), `Aidl` (serviços do fabricante em binder puro), `CarStatus` (farol), `RadioStation` (estação), `RadioControl` (comandos) e os diagnósticos (`BroadcastHunt`, `CarSourceProbe`, `NightSignal`, `RadioProbe`) |
 | `ui/` | Telas em Compose: `Home` (cards, dock, folhas), `RadioSheet`, `DriveMap` (MapLibre), `Theme`, `Icons` |
 | `HomeActivity.kt` | Liga tudo: ciclo de vida, GPS, serviços, preferências |

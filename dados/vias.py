@@ -12,15 +12,13 @@ Tabelas:
                                    guardava pares int32 LE, sem n
   radars(id, lat, lon, lim, bearing, kind)
                                    bearing = sentido fiscalizado em graus (0 = norte), -1 = os dois; lim = limite
-                                   fiscalizado (0 = ponto sem fiscalização de velocidade); kind = tipo (maparadar.py:
-                                   0 radar do OSM sem tipo, 1 fixo, 2 semáforo com radar, 3 móvel, 4 lombada,
-                                   5 lombada eletrônica, 6 semáforo com câmera, 7 polícia rodoviária, 8 pedágio)
+                                   fiscalizado (0 = ponto sem fiscalização de velocidade); kind = tipo: aqui é sempre
+                                   0 (radar do OSM sem tipo). O app junta, no aparelho, os pontos do MapaRadar (tipos 1 a 8,
+                                   core/MapaRadar.kt) e usa a mesma coluna
 
-Uso: python3 vias.py entrada.osm.pbf saida.db "Santa Catarina" [--maparadar dados/maparadar.csv --contorno dados/regioes/sc.geojson]
-Com --maparadar, os radares e demais pontos do CSV dentro do contorno entram junto com os do OSM (maparadar.py).
+Uso: python3 vias.py entrada.osm.pbf saida.db "Santa Catarina"
 """
 
-import argparse
 import math
 import re
 import sqlite3
@@ -203,7 +201,7 @@ COMPASS = {"N": 0, "NNE": 22, "NE": 45, "ENE": 67, "E": 90, "ESE": 112, "SE": 13
            "S": 180, "SSW": 202, "SW": 225, "WSW": 247, "W": 270, "WNW": 292, "NW": 315, "NNW": 337}
 
 
-def build(src, dst, region, maparadar=None, contorno=None):
+def build(src, dst, region):
     import osmium
 
     started = time.time()
@@ -320,24 +318,8 @@ def build(src, dst, region, maparadar=None, contorno=None):
                 lim = fwd if ahead else bwd
         osm_radars.append((nid, lat, lon, lim, int(round(b)) if b >= 0 else -1))
 
-    # Radares e outros pontos do MapaRadar (pedágio, polícia, lombada…) dentro do contorno do estado
-    pontos = []
-    if maparadar:
-        import maparadar as mr
-
-        todos = mr.ler(maparadar)
-        pontos = mr.dentro(todos, contorno) if contorno else todos
-        print(f"MapaRadar: {len(pontos)} de {len(todos)} pontos dentro do contorno", flush=True)
-
-    def via_em(lat, lon):
-        hit = nearest_way(c.ways, grid, lat, lon)
-        return None if hit is None else (hit[1], c.ways[hit[0]][5])
-
-    import maparadar as mr
-
-    radar_rows = mr.mesclar(osm_radars, pontos, via_em, CELL)
-    db.executemany("INSERT INTO radars VALUES (?,?,?,?,?,?)", radar_rows)
-    n_radar = len(radar_rows)
+    db.executemany("INSERT INTO radars VALUES (?,?,?,?,?,0)", osm_radars)
+    n_radar = len(osm_radars)
 
     segs.sort(key=lambda r: r[:3])
     db.executemany("INSERT INTO segs VALUES (?,?,?,?)", segs)
@@ -348,7 +330,6 @@ def build(src, dst, region, maparadar=None, contorno=None):
         "vias": str(len(c.ways)),
         "vias_com_limite": str(len(c.ways) - n_est),
         "radares": str(n_radar),
-        "radares_maparadar": str(len(pontos)),
     }
     db.executemany("INSERT INTO info VALUES (?,?)", info.items())
     db.commit()
@@ -382,11 +363,4 @@ def seg_dist_m(lat, lon, a_lat, a_lon, b_lat, b_lon):
 
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser(description="Gera o vias.db do Rumo.")
-    ap.add_argument("entrada")
-    ap.add_argument("saida")
-    ap.add_argument("regiao", nargs="?", default="")
-    ap.add_argument("--maparadar", help="CSV do MapaRadar (dados/maparadar.csv)")
-    ap.add_argument("--contorno", help="GeoJSON do estado, para recortar o CSV")
-    args = ap.parse_args()
-    build(args.entrada, args.saida, args.regiao, args.maparadar, args.contorno)
+    build(sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "")

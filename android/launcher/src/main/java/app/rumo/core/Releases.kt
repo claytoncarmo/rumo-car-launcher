@@ -14,6 +14,9 @@ object Endpoints {
 
     /** `dados.json` dos dados offline (mapa, vias, radares). */
     const val DATA = "$BASE/download/rumo-dados/dados.json"
+
+    /** `maparadar.json` da cópia original do maparadar.csv (workflow maparadar.yml). */
+    const val MAPARADAR = "$BASE/download/rumo-maparadar/maparadar.json"
 }
 
 enum class Channel(val label: String, val url: String) {
@@ -107,6 +110,15 @@ fun parseDataManifest(text: String): DataManifest? = try {
             isSafeRegionId(region.id) && region.files.isNotEmpty() && region.files.all(::isValidFile)
         }
     if (valid) DataManifest(j.optString("geradoEm"), regions, common) else null
+} catch (e: Exception) {
+    null
+}
+
+/** O arquivo do `maparadar.json` (o CSV original do MapaRadar), ou null se o manifesto não presta. */
+fun parseMapaRadarManifest(text: String): RemoteFile? = try {
+    val f = JSONObject(text).getJSONObject("arquivo")
+    val file = RemoteFile(f.getString("destino"), f.getLong("tamanho"), f.getString("sha256"), f.getString("url"))
+    file.takeIf { it.dest == "maparadar.csv" && isValidFile(it) }
 } catch (e: Exception) {
     null
 }
