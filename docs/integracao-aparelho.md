@@ -121,6 +121,6 @@ Para investigar outro aparelho (ou outra versão de firmware) o Rumo traz ferram
 | Toque longo no card de mídia | Por 60 s: liga nos serviços do rádio, lê as funções de leitura, registra os ouvintes e anota o que muda ao trocar de estação | `teste-radio.txt` |
 | Toque longo no título "Rádio" (tela de rádio) | Registro dos comandos mandados ao rádio | `teste-comandos.txt` |
 
-Os relatórios vão para `Rumo/` na memória interna e para `Android/data/app.rumo/files/` de cada pendrive ou cartão. O código está em `device/` (`BroadcastHunt`, `CarSourceProbe`, `McuTap`, `NightSignal`, `RadioProbe`).
+Os relatórios vão para `Rumo/` na memória interna e para `Android/data/app.rumo/files/` de cada pendrive ou cartão. O código está em `device/` (`BroadcastHunt`, `CarSourceProbe`, `NightSignal`, `RadioProbe`).
 
 **Receita para um aparelho novo:** liste os serviços (`ServiceManager.listServices`) e filtre por nomes de carro, MCU e rádio; leia o `interfaceDescriptor` de cada um; carregue a classe da interface e do `Stub` e liste as constantes `TRANSACTION_*`; chame primeiro só as funções de leitura (`get…`/`is…`); procure nos APKs do fabricante nomes de ação de broadcast e de propriedades; só depois registre ouvintes.

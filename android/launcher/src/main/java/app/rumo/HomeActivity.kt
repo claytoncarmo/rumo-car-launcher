@@ -63,7 +63,6 @@ import app.rumo.device.GpsStatus
 import app.rumo.device.MapData
 import app.rumo.device.InstallResult
 import app.rumo.device.Installer
-import app.rumo.device.McuTap
 import app.rumo.device.PowerService
 import app.rumo.device.Reboot
 import app.rumo.device.RebootProbe
@@ -292,8 +291,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
     }
 
     /**
-     * Teste do farol: ouve os eventos da MCU (mcu_service) e os avisos (broadcasts) que parecem do farol; fotografa
-     * os ajustes do sistema; dá [PROBE_SECONDS] para acender e apagar o farol; mostra o que chegou e o que mudou e
+     * Teste do farol: ouve os avisos (broadcasts) que parecem do farol; fotografa os ajustes do sistema. Não se
+     * registra mais na MCU (mcu_service): o teste antigo fazia isso e os botões do aparelho pararam logo depois; dá [PROBE_SECONDS] para acender e apagar o farol; mostra o que chegou e o que mudou e
      * salva o relatório completo em teste-farol.txt (memória interna, pasta Rumo, e pendrive/cartão quando der).
      */
     override fun probeHeadlight() {
@@ -307,7 +306,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             state.toast = "Teste do farol: procurando os avisos nos apps do aparelho…"
             val hunt = withContext(Dispatchers.IO) { BroadcastHunt.hunt(this@HomeActivity, Apps.ZLINK) }
             val candidates = hunt.actions
-            state.toast = "Teste do farol: abrindo o serviço da MCU…"
+            state.toast = "Teste do farol: lendo os serviços do carro…"
             val (framework, services) = withContext(Dispatchers.IO) {
                 CarSourceProbe.describe(this@HomeActivity, hunt.classes) to CarSourceProbe.services()
             }
@@ -327,22 +326,13 @@ class HomeActivity : ComponentActivity(), HomeActions {
             ContextCompat.registerReceiver(this@HomeActivity, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
                 ?.let { received += "(estado atual) ${it.action}${describe(it)}" }
 
-            // Eventos da MCU, com o tempo desde o começo da contagem
-            val mcuEvents = mutableListOf<String>()
-            val t0 = SystemClock.elapsedRealtime()
-            val tap = McuTap { e ->
-                val t = (SystemClock.elapsedRealtime() - t0) / 100 / 10.0
-                runOnUiThread { mcuEvents += String.format(PT_BR, "+%.1f s  %s", t, e) }
-            }
-            val mcuStatus = withContext(Dispatchers.IO) { tap.attach(McuTap.groups()) }
             try {
                 for (left in PROBE_SECONDS downTo 1) {
-                    state.toast = "Acenda e depois apague o farol · $left s · ${mcuEvents.size} eventos da MCU"
+                    state.toast = "Acenda e depois apague o farol · $left s · ${received.size} avisos"
                     delay(1_000)
                 }
             } finally {
                 unregisterReceiver(receiver)
-                withContext(NonCancellable + Dispatchers.IO) { tap.detach() }
             }
             state.toast = "Comparando…"
             val (after, propsAfter) = withContext(Dispatchers.IO) {
@@ -352,8 +342,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
             // O GPS e o contador de mensagens da MCU mudam sempre: só atrapalham a leitura
             val changed = NightSignal.diff(before, after).filterNot { it.startsWith("prop:vendor.gps.") || it.startsWith("prop:log.mcud.") }
             val summary = buildList {
-                add("Eventos da MCU (${mcuEvents.size}) · $mcuStatus:")
-                addAll(mcuEvents.ifEmpty { listOf("nenhum") })
                 add("Avisos recebidos (${received.size}):")
                 addAll(received.ifEmpty { listOf("nenhum") })
                 add("Ajustes que mudaram (${changed.size}):")
