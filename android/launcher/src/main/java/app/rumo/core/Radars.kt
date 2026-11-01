@@ -13,6 +13,9 @@ object RadarKind {
     const val RED_LIGHT_CAMERA = 6
     const val POLICE = 7
     const val TOLL = 8
+
+    /** Os que fiscalizam velocidade (têm limite, "acima do limite" e bipes). */
+    val ENFORCING = setOf(FIXED, TRAFFIC_LIGHT_RADAR, MOBILE, ELECTRONIC_BUMP)
 }
 
 /**

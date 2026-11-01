@@ -33,9 +33,20 @@ object MapaRadar {
         "pedagio" to RadarKind.TOLL,
     )
 
-    // Os que fiscalizam velocidade: o radar do OSM a até MERGE_M deles é o mesmo ponto
-    private val ENFORCING = setOf(RadarKind.FIXED, RadarKind.TRAFFIC_LIGHT_RADAR, RadarKind.MOBILE, RadarKind.ELECTRONIC_BUMP)
+    // Entre os que fiscalizam velocidade, o radar do OSM a até MERGE_M é o mesmo ponto
     const val MERGE_M = 50.0
+
+    // Nomes do CSV por tipo (a lombada eletrônica é "Lombada" com limite)
+    private val NAMES = mapOf(
+        RadarKind.FIXED to "Radar Fixo",
+        RadarKind.TRAFFIC_LIGHT_RADAR to "Semaforo com Radar",
+        RadarKind.MOBILE to "Radar Movel",
+        RadarKind.BUMP to "Lombada",
+        RadarKind.ELECTRONIC_BUMP to "Lombada",
+        RadarKind.RED_LIGHT_CAMERA to "Semaforo com Camera",
+        RadarKind.POLICE to "Policia Rodoviaria",
+        RadarKind.TOLL to "Pedagio",
+    )
 
     // Caixa do Brasil, com folga: fora dela é erro de digitação
     private val LAT = -34.5..6.0
@@ -54,13 +65,25 @@ object MapaRadar {
         val lon = parts[0].trim().toDoubleOrNull() ?: return null
         val lat = parts[1].trim().toDoubleOrNull() ?: return null
         if (lat !in LAT || lon !in LON) return null
-        val m = DESC.find(parts[2].trim()) ?: return null
+        val (kind, limit) = parseDescription(parts[2]) ?: return null
+        return MapaRadarPoint(-number.toLong(), lat, lon, kind, limit)
+    }
+
+    /** Tipo e limite de uma descrição do CSV ("Radar Fixo - 60 kmh@60"), ou null se não presta. Só quem fiscaliza guarda o limite. */
+    fun parseDescription(desc: String): Pair<Int, Int>? {
+        val m = DESC.find(desc.trim()) ?: return null
         val type = TYPES[plain(m.groupValues[1])] ?: return null
-        var limit = m.groupValues[2].toIntOrNull() ?: return null
+        val limit = m.groupValues[2].toIntOrNull() ?: return null
         if (limit > MAX_LIMIT) return null
         val kind = if (type == RadarKind.BUMP && limit > 0) RadarKind.ELECTRONIC_BUMP else type
-        if (kind !in ENFORCING) limit = 0
-        return MapaRadarPoint(-number.toLong(), lat, lon, kind, limit)
+        return kind to (if (kind in RadarKind.ENFORCING) limit else 0)
+    }
+
+    /** A descrição do CSV de um tipo e limite (o inverso de [parseDescription]); null para o tipo OSM, que não existe no CSV. */
+    fun describe(kind: Int, limit: Int): String? {
+        val name = NAMES[kind] ?: return null
+        val l = if (kind in RadarKind.ENFORCING) limit else 0
+        return "$name - $l kmh@$l"
     }
 
     /** Todos os pontos do arquivo, sem os repetidos (mesma posição e tipo). */
@@ -88,7 +111,7 @@ object MapaRadar {
         val out = ArrayList<Radar>(points.size + osm.size)
         for (p in points) {
             var bearing = -1
-            if (p.kind in ENFORCING) {
+            if (p.kind in RadarKind.ENFORCING) {
                 var best = -1
                 var bestD = Double.MAX_VALUE
                 for (dy in -1..1) for (dx in -1..1) {

@@ -34,9 +34,29 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
 
     // Na divisa, os dois estados têm o mesmo radar (a folga de ~8 km se sobrepõe)
     private val osmRadars: List<Radar> = regions.flatMap { it.radars }.distinctBy { it.id }
+    private var baseRadars: List<Radar> = osmRadars
+    private var mineRadars: List<Radar> = emptyList()
 
-    /** Radares do OSM e, depois de [loadMapaRadar], também os do MapaRadar. Lida na thread do GPS. */
+    /**
+     * Radares do OSM e, depois de [setMapaRadar], também os do MapaRadar, mais os pontos do usuário ([setMine]).
+     * Lida na thread do GPS: a lista é trocada inteira, nunca alterada.
+     */
     @Volatile var radars: List<Radar> = osmRadars
+        private set
+
+    /** Troca os radares de base (OSM junto com o MapaRadar); os pontos do usuário continuam. */
+    @Synchronized
+    fun setMapaRadar(merged: List<Radar>) {
+        baseRadars = merged
+        radars = baseRadars + mineRadars
+    }
+
+    /** Troca os pontos marcados pelo usuário (já como radares). */
+    @Synchronized
+    fun setMine(mine: List<Radar>) {
+        mineRadars = mine
+        radars = baseRadars + mineRadars
+    }
 
     // Poucas células por vez: o carro anda ~1 célula por minuto a 60 km/h
     private val cells = object : LinkedHashMap<Long, List<Run>>(64, 0.75f, true) {

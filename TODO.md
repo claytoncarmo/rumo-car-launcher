@@ -21,6 +21,7 @@ Hoje só o HCN de referência foi testado (ver "Outros aparelhos" no [`README.md
 
 - [ ] Estados: atualizar o app, abrir o painel, marcar dois estados vizinhos, baixar, ver o mapa nos dois e atravessar a divisa (rua e limite continuam; sem sumir vias na faixa de folga). Conferir o tamanho de MG e SP e se o mapa continua fluido com mais de um estado.
 
+- [ ] Marcar ponto ("+" no card do mapa): marcar um semáforo com radar que falta ao passar por ele (posição e sentido certos, limite da via), ver o ponto no mapa na hora e o aviso na volta; conferir que continua depois de atualizar o app (OTA) e de reiniciar; listar e apagar em "Meus pontos"; ver se o toque no "+" atrapalha o toque no card (abre o ZLINK).
 - [ ] Volume flutuante: se o volume de música do Android muda o som nesta unidade (senão, achar outro caminho).
 - [x] Teste dos botões: o Android não recebe tecla nenhuma dos botões do lado da tela (ver `CLAUDE.md`). Falta religar a MCU (RST, ou tirar a alimentação da unidade por ~1 min) e repetir o teste; se continuar, é a placa dos botões ou o cabo (garantia/vendedor).
 - [ ] Reiniciar o Android pelo menu de energia (serviço de acessibilidade) e o relatório do Teste do reinício.
@@ -33,6 +34,7 @@ Hoje só o HCN de referência foi testado (ver "Outros aparelhos" no [`README.md
 
 - [ ] Testar andando: rua e limite em cruzamentos e ruas paralelas, avisos de radar, desempenho do mapa e a velocidade do GPS contra o painel do carro.
 - [ ] Radares além do OSM (ANTT, dados abertos de prefeituras).
+- [ ] Pontos do usuário: mandar para o fórum do MapaRadar/OSM direto do app (hoje só copiando o `meus-pontos.csv`), desfazer logo depois de marcar e esconder pontos que o MapaRadar passar a ter a menos de 50 m.
 - [ ] Primeira versão estável: `git tag v0.5.0 && git push origin v0.5.0`, para existir `releases/latest`.
 - [ ] Fonte Barlow; cartão inteligente só tem a página Viagem; telefone e Bluetooth não integrados.
 - [ ] Servidor de relatórios na rede, para dispensar o pendrive nos testes.

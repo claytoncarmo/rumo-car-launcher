@@ -49,8 +49,12 @@ import app.rumo.device.RadioProbe
 import app.rumo.device.RadioNow
 import app.rumo.device.RadioStation
 import app.rumo.device.SourceInfo
+import app.rumo.core.MarkSpot
 import app.rumo.core.RadarAlert
+import app.rumo.core.RadarKind
 import app.rumo.core.RadarWatch
+import app.rumo.core.UserPoint
+import app.rumo.core.UserPoints
 import app.rumo.core.RoadMatch
 import app.rumo.core.RoadMatcher
 import app.rumo.device.Alerts
@@ -69,6 +73,7 @@ import app.rumo.device.PowerService
 import app.rumo.device.Reboot
 import app.rumo.device.RebootProbe
 import app.rumo.device.Updater
+import app.rumo.device.UserPointsStore
 import app.rumo.core.PT_BR
 import app.rumo.device.NightSignal
 import app.rumo.ui.AboutState
@@ -97,6 +102,7 @@ import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.time.LocalDate
 import java.util.concurrent.Executors
 
 /** Tela inicial do Rumo. GPS (e, depois, os alertas) só funcionam com ela na tela. */
@@ -109,6 +115,18 @@ class HomeActivity : ComponentActivity(), HomeActions {
     // Vias e radares: uma thread só, que lê o vias.db e guarda o estado do casamento com a via
     private val drive = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     private var data: MapData? = null
+
+    // Pontos marcados pelo usuário: lidos uma vez (na thread drive) e guardados a cada mudança
+    private val pointsStore by lazy {
+        UserPointsStore(
+            listOf(
+                File(File(Environment.getExternalStorageDirectory(), MapData.FOLDER), UserPoints.FILE),
+                File(filesDir, UserPoints.FILE),
+            ),
+        )
+    }
+    @Volatile private var minePoints: List<UserPoint>? = null
+    private fun minePointsLoaded(): List<UserPoint> = minePoints ?: pointsStore.load().also { minePoints = it }
     private val matcher = RoadMatcher()
     private val radars = RadarWatch(zoneM = RADAR_ZONE_M)
     private val overSpeed = OverSpeed()
@@ -158,6 +176,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         gps = Gps(this) { onGps(it) }
         alerts = Alerts(this)
         state.favorites = Favorites.decode(prefs.getString(PREF_FAVORITES, null))
+        lifecycleScope.launch { state.myPoints = withContext(drive) { minePointsLoaded() } }
         state.radioMuted = prefs.getBoolean(PREF_RADIO_MUTED, false)
         radioNames.load(prefs.getString(PREF_RADIO_NAMES, null))
         state.radioNames = radioNames.valid()
@@ -827,6 +846,43 @@ class HomeActivity : ComponentActivity(), HomeActions {
         if (!state.about.checked && !state.about.checking) checkUpdates()
     }
 
+    override fun addPoint(spot: MarkSpot, kind: Int, limit: Int, bothWays: Boolean) {
+        if (minePoints == null) {
+            state.toast = "Carregando os pontos salvos: toque de novo"
+            return
+        }
+        val point = UserPoint(
+            spot.lat, spot.lon, kind,
+            if (kind in RadarKind.ENFORCING) limit else 0,
+            if (bothWays) -1 else spot.bearing ?: -1,
+            LocalDate.now().toString(),
+        )
+        state.sheet = Sheet.NONE
+        savePoints(UserPoints.add(state.myPoints, point))
+        state.toast = "${UserPoints.label(point)} salvo"
+    }
+
+    override fun removePoint(index: Int) {
+        if (minePoints == null) return
+        savePoints(UserPoints.remove(state.myPoints, index))
+    }
+
+    /** Põe a lista nova no mapa e nos avisos e a grava (em ordem: tudo na thread drive). */
+    private fun savePoints(list: List<UserPoint>) {
+        state.myPoints = list
+        lifecycleScope.launch {
+            val saved = withContext(drive) {
+                minePoints = list
+                data?.setMine(UserPoints.toRadars(list))
+                // O radar à frente pode ser um que acabou de sair da lista
+                radars.reset()
+                pointsStore.save(list)
+            }
+            data?.let { state.radars = it.radars }
+            if (saved == 0) state.toast = "Não foi possível guardar os pontos"
+        }
+    }
+
     override fun reboot() {
         if ((state.gps.speedKmh ?: 0) >= PARKED_BELOW_KMH) {
             state.toast = "Pare o carro para reiniciar"
@@ -1008,8 +1064,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
             } ?: return@launch
             // Os dados podem ter sido recarregados enquanto isso
             if (data !== found) return@launch
-            found.radars = merged
-            state.radars = merged
+            found.setMapaRadar(merged)
+            state.radars = found.radars
         }
     }
 
@@ -1023,7 +1079,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 data?.close()
                 matcher.reset()
                 radars.reset()
-                MapData.open(this@HomeActivity).also { data = it }
+                MapData.open(this@HomeActivity)?.also { it.setMine(UserPoints.toRadars(minePointsLoaded())) }.also { data = it }
             }
             state.mapFiles = found?.mapFiles.orEmpty()
             state.fontsDir = found?.fontsDir

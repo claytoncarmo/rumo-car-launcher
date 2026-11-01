@@ -71,11 +71,13 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import app.rumo.core.Channel
 import app.rumo.core.Favorite
+import app.rumo.core.MarkSpot
 import app.rumo.core.PT_BR
 import app.rumo.core.Radar
 import app.rumo.core.RadarAlert
 import app.rumo.core.radarLabel
 import app.rumo.core.RoadMatch
+import app.rumo.core.UserPoint
 import app.rumo.core.compassOf
 import app.rumo.core.directionOf
 import app.rumo.core.formatDistance
@@ -94,7 +96,7 @@ import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-enum class Sheet { NONE, APPS, AUDIO, PHONE, RADIO, ABOUT, KEYS }
+enum class Sheet { NONE, APPS, AUDIO, PHONE, RADIO, ABOUT, KEYS, MARK }
 
 /**
  * De onde vem o som: pelo serviço sourceinfo do multimídia (avisa a cada troca de fonte, inclusive pelo volante)
@@ -121,6 +123,9 @@ class HomeState {
     var fontsDir by mutableStateOf<File?>(null)
     /** Radares e outros pontos de atenção dos estados instalados, desenhados no mapa. */
     var radars by mutableStateOf<List<Radar>>(emptyList())
+    /** Pontos marcados pelo usuário (só neste aparelho) e o lugar do "+" que abriu a folha de marcar. */
+    var myPoints by mutableStateOf<List<UserPoint>>(emptyList())
+    var markSpot by mutableStateOf<MarkSpot?>(null)
     var mapStart by mutableStateOf<MapStart?>(null)
     var road by mutableStateOf<RoadMatch?>(null)
     var radar by mutableStateOf<RadarAlert?>(null)
@@ -200,6 +205,10 @@ interface HomeActions {
     fun keyTest(on: Boolean)
     /** Diagnóstico: procura ganchos de reinício do fabricante (teste-reinicio.txt). */
     fun probeReboot()
+    /** Guarda um ponto no lugar de [spot] (radar, lombada…); [bothWays] ignora o sentido do carro. */
+    fun addPoint(spot: MarkSpot, kind: Int, limit: Int, bothWays: Boolean)
+    /** Apaga o ponto [index] da lista dos pontos do usuário. */
+    fun removePoint(index: Int)
 }
 
 private val TIME = DateTimeFormatter.ofPattern("HH:mm")
@@ -269,6 +278,7 @@ fun HomeScreen(s: HomeState, a: HomeActions) {
                             Sheet.RADIO -> RadioSheet(s, a)
                             Sheet.ABOUT -> AboutSheet(s, a)
                             Sheet.KEYS -> KeyTestSheet(s, a)
+                            Sheet.MARK -> MarkSheet(s, a)
                             else -> AppSheet(s, a)
                         }
                         s.probe?.let { ProbeSheet(s.probeTitle, it) { s.probe = null } }
@@ -571,6 +581,26 @@ private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, mapAllowed: Bo
         ) {
             Ico(Icons.cast, 24.dp, p.text)
             Txt("Android Auto", 18, weight = FontWeight.SemiBold)
+        }
+        // Marcar um radar que falta: discreto, abaixo do atalho do Android Auto; guarda o lugar onde se tocou
+        val lat = g.lat
+        val lon = g.lon
+        if (g.status == GpsStatus.OK && lat != null && lon != null) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 14.dp + 56.dp + 10.dp, end = 14.dp)
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(p.surface2.copy(alpha = 0.8f))
+                    .clickable {
+                        s.markSpot = MarkSpot.of(lat, lon, g.bearing, g.speedKmh, road?.limit)
+                        s.sheet = Sheet.MARK
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Ico(Icons.plus, 26.dp, p.text2)
+            }
         }
         // A placa de limite fica na direita (a mão do motorista tampava a da esquerda); o radar, na esquerda
         Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(14.dp)) {
