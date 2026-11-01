@@ -23,12 +23,14 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -301,7 +303,12 @@ private fun ScanList(s: HomeState, a: HomeActions) {
             Txt(status, 16, color = p.text2, maxLines = 2, modifier = Modifier.weight(1f))
         }
         val found = scan?.found?.sorted().orEmpty()
-        LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // A busca sobe pela faixa, então o resultado novo é sempre o último: durante a busca, a lista rola para o fim
+        val listState = rememberLazyListState()
+        LaunchedEffect(found.size) {
+            if (scan?.running == true && found.isNotEmpty()) listState.animateScrollToItem(found.lastIndex)
+        }
+        LazyColumn(Modifier.fillMaxSize(), state = listState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(found, key = { it }) { khz ->
                 val fav = s.favorites.firstOrNull { it.khz == khz }
                 val current = s.radio?.khz == khz
