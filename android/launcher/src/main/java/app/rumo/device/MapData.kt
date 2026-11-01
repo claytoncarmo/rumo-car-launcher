@@ -18,19 +18,18 @@ import java.io.File
 import java.io.IOException
 
 /**
- * Pasta "Rumo" copiada para o aparelho (gerada pelo GitHub Actions, ver data/): `fontes/` e, em `regioes/<estado>/`,
- * o mapa.pmtiles e o vias.db de cada estado instalado. Procura na memória interna e, se não achar, nos cartões e
+ * Pasta "Rumo" copiada para o aparelho (gerada pelo GitHub Actions, ver data/): `fonts/` e, em `regions/<estado>/`,
+ * o map.pmtiles e o roads.db de cada estado instalado. Procura na memória interna e, se não achar, nos cartões e
  * pendrives. Vários estados valem ao mesmo tempo: o mapa desenha todos e as vias de todos entram na busca da rua atual,
- * então atravessar a divisa não muda nada. Formato antigo (mapa.pmtiles e vias.db direto na pasta Rumo, só SC) ainda é
- * lido enquanto não houver estado novo.
+ * então atravessar a divisa não muda nada.
  */
 class MapData private constructor(val dir: File, private val regions: List<RegionData>) {
 
-    /** Um mapa.pmtiles por estado instalado. */
+    /** Um map.pmtiles por estado instalado. */
     val mapFiles: List<File> = regions.mapNotNull { it.mapFile }
 
     /** Fontes dos nomes de rua (comuns a todos os estados). */
-    val fontsDir = File(dir, "fontes")
+    val fontsDir = File(dir, "fonts")
 
     // Na divisa, os dois estados têm o mesmo radar (a folga de ~8 km se sobrepõe)
     private val osmRadars: List<Radar> = regions.flatMap { it.radars }.distinctBy { it.id }
@@ -116,7 +115,7 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
         return regions.flatMap { it.loadCell(cell) }.filter { seen.add(Triple(it.way.id, it.lat.firstOrNull() ?: 0, it.lon.firstOrNull() ?: 0)) }
     }
 
-    /** vias.db e mapa.pmtiles de um estado. */
+    /** roads.db e map.pmtiles de um estado. */
     private class RegionData(dir: File, private val db: SQLiteDatabase?) {
         private val dir = dir
         val mapFile: File? = File(dir, MAP).takeIf { it.isFile }
@@ -131,8 +130,8 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
         val radars: List<Radar> = db?.let(::loadRadars) ?: emptyList()
         private val info: Map<String, String> = db?.let(::loadInfo) ?: emptyMap()
 
-        // vias.db versão 1 guardava os pontos em pares int32; a 2 (data/roads.py) em diferenças com varint
-        private val legacyPoints = (info["versao"] ?: "1") == "1"
+        // roads.db versão 1 guardava os pontos em pares int32; a 2 (data/roads.py) em diferenças com varint
+        private val legacyPoints = (info["version"] ?: "1") == "1"
         private val ways = HashMap<Long, Way>()
 
         fun close() = db?.close()
@@ -174,10 +173,10 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
 
     companion object {
         const val FOLDER = "Rumo"
-        const val REGIONS = "regioes"
-        const val MAP = "mapa.pmtiles"
-        const val ROADS = "vias.db"
-        const val CONTOUR = "contorno.geojson"
+        const val REGIONS = "regions"
+        const val MAP = "map.pmtiles"
+        const val ROADS = "roads.db"
+        const val CONTOUR = "contour.geojson"
         const val MAPARADAR = "maparadar.csv"
         private const val WAY_SEARCH_M = 45.0
 
@@ -187,7 +186,6 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
                 val folders = File(dir, REGIONS).listFiles().orEmpty()
                     .filter { it.isDirectory && (File(it, ROADS).isFile || File(it, MAP).isFile) }
                     .sortedBy { it.name }
-                    .ifEmpty { listOf(dir).filter { File(it, ROADS).isFile || File(it, MAP).isFile } } // formato antigo
                 if (folders.isEmpty()) continue
                 return MapData(dir, folders.map { RegionData(it, openDb(File(it, ROADS))) })
             }
@@ -214,7 +212,7 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
 
         private fun loadRadars(db: SQLiteDatabase): List<Radar> {
             val out = ArrayList<Radar>()
-            // vias.db antigo não tem a coluna kind (tipo do ponto)
+            // roads.db antigo não tem a coluna kind (tipo do ponto)
             val hasKind = db.rawQuery("PRAGMA table_info(radars)", null).use { c ->
                 generateSequence { if (c.moveToNext()) c.getString(1) else null }.any { it == "kind" }
             }

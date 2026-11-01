@@ -1,8 +1,8 @@
 name: Map data (OSM)
 
-# Dados offline por estado (Sul e Sudeste): cada estado tem mapa.pmtiles (mapa vetorial) e vias.db (ruas, limites e
-# radares); as fontes dos nomes de rua são comuns. O app lê o dados.json, lista os estados e baixa os escolhidos.
-# Publica a pré-release "rumo-dados" (pré-release para nunca ser a "última" release, que é a do APK estável).
+# Dados offline por estado (Sul e Sudeste): cada estado tem map.pmtiles (mapa vetorial) e roads.db (ruas, limites e
+# radares); as fontes dos nomes de rua são comuns. O app lê o data.json, lista os estados e baixa os escolhidos.
+# Publica a pré-release "rumo-data" (pré-release para nunca ser a "última" release, que é a do APK estável).
 # Detalhes do pacote em data/README.md.
 on:
   push:
@@ -70,7 +70,7 @@ jobs:
 
       - name: State name
         run: |
-          NAME=$(python3 -c "import json;print(json.load(open('$CONTOUR', encoding='utf-8'))['properties']['nome'])")
+          NAME=$(python3 -c "import json;print(json.load(open('$CONTOUR', encoding='utf-8'))['properties']['name'])")
           echo "REGION=$NAME" >> "$GITHUB_ENV"
 
       - name: Download the OSM (region ${{ matrix.pbf }}) and cut
@@ -82,10 +82,10 @@ jobs:
 
       - name: Roads, limits and radars
         run: |
-          mkdir -p "Rumo/regioes/$ID"
-          python3 data/roads.py roads.osm.pbf "Rumo/regioes/$ID/vias.db" "$REGION"
+          mkdir -p "Rumo/regions/$ID"
+          python3 data/roads.py roads.osm.pbf "Rumo/regions/$ID/roads.db" "$REGION"
           # O contorno vai junto: o app recorta por ele os radares do MapaRadar (workflow maparadar.yml)
-          cp "$CONTOUR" "Rumo/regioes/$ID/contorno.geojson"
+          cp "$CONTOUR" "Rumo/regions/$ID/contour.geojson"
 
       # Mapa vetorial: recorte do mapa-múndi diário do Protomaps (OSM, licença ODbL)
       - name: Vector map
@@ -99,11 +99,11 @@ jobs:
           ./pmtiles extract "$BUILD" raw-map.pmtiles --region="$CONTOUR" --maxzoom="$ZOOM" --download-threads=8
           ls -la raw-map.pmtiles
           # Só o que o estilo do app desenha (água, rios, vias para carro e seus nomes): ver data/map_filter.py
-          python3 data/map_filter.py raw-map.pmtiles "Rumo/regioes/$ID/mapa.pmtiles"
-          ./pmtiles verify "Rumo/regioes/$ID/mapa.pmtiles"
+          python3 data/map_filter.py raw-map.pmtiles "Rumo/regions/$ID/map.pmtiles"
+          ./pmtiles verify "Rumo/regions/$ID/map.pmtiles"
           # A recodificação descarta geometrias inválidas sem avisar: falha se sumir mais de 1% das vias e da água
-          python3 data/map_check.py raw-map.pmtiles "Rumo/regioes/$ID/mapa.pmtiles"
-          ./pmtiles show "Rumo/regioes/$ID/mapa.pmtiles" | head -30
+          python3 data/map_check.py raw-map.pmtiles "Rumo/regions/$ID/map.pmtiles"
+          ./pmtiles show "Rumo/regions/$ID/map.pmtiles" | head -30
 
       - name: Sizes
         run: |
@@ -113,8 +113,8 @@ jobs:
             echo "| Arquivo | Tamanho |"
             echo "|---|---|"
             echo "| mapa bruto (recorte do Protomaps, antes do filtro) | $(du -h raw-map.pmtiles | cut -f1) |"
-            echo "| mapa.pmtiles | $(du -h Rumo/regioes/$ID/mapa.pmtiles | cut -f1) |"
-            echo "| vias.db | $(du -h Rumo/regioes/$ID/vias.db | cut -f1) |"
+            echo "| map.pmtiles | $(du -h Rumo/regions/$ID/map.pmtiles | cut -f1) |"
+            echo "| roads.db | $(du -h Rumo/regions/$ID/roads.db | cut -f1) |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
@@ -143,7 +143,7 @@ jobs:
       - name: Street-name fonts
         run: |
           for f in "Noto Sans Medium:NotoSansMedium" "Noto Sans Regular:NotoSansRegular"; do
-            NAME="${f%%:*}"; DIR="common/fontes/${f##*:}"
+            NAME="${f%%:*}"; DIR="common/fonts/${f##*:}"
             mkdir -p "$DIR"
             for r in 0-255 256-511 8192-8447; do
               curl -fsSL -o "$DIR/$r.pbf" "https://raw.githubusercontent.com/protomaps/basemaps-assets/main/fonts/${NAME// /%20}/$r.pbf"
@@ -154,43 +154,43 @@ jobs:
         run: |
           ARGS=()
           for id in $STATES; do
-            test -f "states/data-$id/regioes/$id/mapa.pmtiles" -a -f "states/data-$id/regioes/$id/vias.db"
-            INFO=$(python3 -c "import json;p=json.load(open('data/regions/$id.geojson', encoding='utf-8'))['properties'];print(p['nome']+'='+p['grupo'])")
+            test -f "states/data-$id/regions/$id/map.pmtiles" -a -f "states/data-$id/regions/$id/roads.db"
+            INFO=$(python3 -c "import json;p=json.load(open('data/regions/$id.geojson', encoding='utf-8'))['properties'];print(p['name']+'='+p['group'])")
             # id=nome=pasta=grupo
             ARGS+=("$id=${INFO%%=*}=states/data-$id=${INFO##*=}")
           done
           python3 data/manifest.py publish \
-            "https://github.com/$GITHUB_REPOSITORY/releases/download/rumo-dados" common "${ARGS[@]}"
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/rumo-data" common "${ARGS[@]}"
           ls -la publish
 
       # Um zip por estado, para copiar à mão: a pasta Rumo pronta (fontes + o estado)
       - name: Per-state packages
         run: |
           for id in $STATES; do
-            NAME=$(python3 -c "import json;print(json.load(open('data/regions/$id.geojson', encoding='utf-8'))['properties']['nome'])")
+            NAME=$(python3 -c "import json;print(json.load(open('data/regions/$id.geojson', encoding='utf-8'))['properties']['name'])")
             P="package/$id/Rumo"
             mkdir -p "$P"
-            cp -r common/fontes "$P/"
-            cp -r "states/data-$id/regioes" "$P/"
+            cp -r common/fonts "$P/"
+            cp -r "states/data-$id/regions" "$P/"
             {
               echo "Dados do OpenStreetMap (© colaboradores do OpenStreetMap, licença ODbL)."
               echo "Os radares do MapaRadar (CC BY-NC-ND 4.0) o app baixa à parte: copie o maparadar.csv original para a pasta Rumo."
               echo "Estado: $NAME · gerado em $(date -u +%Y-%m-%d)"
               echo "Copie a pasta Rumo para a memória interna do aparelho."
-            } > "$P/LEIAME.txt"
-            (cd "package/$id" && zip -qr "../../rumo-dados-$id.zip" Rumo)
+            } > "$P/README.txt"
+            (cd "package/$id" && zip -qr "../../rumo-data-$id.zip" Rumo)
           done
-          ls -la rumo-dados-*.zip
+          ls -la rumo-data-*.zip
 
       - name: Sizes
         run: |
           {
             echo "## Pacotes"
             echo
-            echo "| Estado | mapa.pmtiles | vias.db | zip |"
+            echo "| Estado | map.pmtiles | roads.db | zip |"
             echo "|---|---|---|---|"
             for id in $STATES; do
-              echo "| $id | $(du -h states/data-$id/regioes/$id/mapa.pmtiles | cut -f1) | $(du -h states/data-$id/regioes/$id/vias.db | cut -f1) | $(du -h rumo-dados-$id.zip | cut -f1) |"
+              echo "| $id | $(du -h states/data-$id/regions/$id/map.pmtiles | cut -f1) | $(du -h states/data-$id/regions/$id/roads.db | cut -f1) | $(du -h rumo-data-$id.zip | cut -f1) |"
             done
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -200,10 +200,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete rumo-dados --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" || true
-          gh release create rumo-dados rumo-dados-*.zip publish/* \
+          gh release delete rumo-data --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" || true
+          gh release create rumo-data rumo-data-*.zip publish/* \
             --repo "$GITHUB_REPOSITORY" \
             --prerelease \
             --target "$GITHUB_SHA" \
             --title "Rumo · dados do mapa (Sul e Sudeste)" \
-            --notes "Mapa, vias, limites e radares dos estados do Sul e do Sudeste, do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL). Os radares, lombadas, pedágios e pontos da polícia rodoviária do MapaRadar (CC BY-NC-ND 4.0, uso pessoal) vão numa release à parte, com o arquivo original. O app lista os estados e baixa os escolhidos sozinho (engrenagem › Configurações da home); para copiar à mão, descompacte o rumo-dados-<estado>.zip e leve a pasta Rumo para a memória interna do aparelho (vários estados: copie cada um para a mesma pasta Rumo). Instruções em data/README.md."
+            --notes "Mapa, vias, limites e radares dos estados do Sul e do Sudeste, do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL). Os radares, lombadas, pedágios e pontos da polícia rodoviária do MapaRadar (CC BY-NC-ND 4.0, uso pessoal) vão numa release à parte, com o arquivo original. O app lista os estados e baixa os escolhidos sozinho (engrenagem › Configurações da home); para copiar à mão, descompacte o rumo-data-<estado>.zip e leve a pasta Rumo para a memória interna do aparelho (vários estados: copie cada um para a mesma pasta Rumo). Instruções em data/README.md."

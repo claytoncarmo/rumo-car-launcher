@@ -15,12 +15,12 @@ class MapaRadarManifestTest(unittest.TestCase):
             csv.write_bytes(content)
             m = mm.generate(csv, Path(d) / "out", "https://exemplo.org/rumo-maparadar/")
             self.assertEqual((Path(d) / "out" / "maparadar.csv").read_bytes(), content)
-            self.assertEqual(m["arquivo"]["sha256"], hashlib.sha256(content).hexdigest())
-            self.assertEqual(m["arquivo"]["tamanho"], len(content))
-            self.assertEqual(m["arquivo"]["url"], "https://exemplo.org/rumo-maparadar/maparadar.csv")
-            self.assertEqual(m["linhas"], 2)
+            self.assertEqual(m["file"]["sha256"], hashlib.sha256(content).hexdigest())
+            self.assertEqual(m["file"]["size"], len(content))
+            self.assertEqual(m["file"]["url"], "https://exemplo.org/rumo-maparadar/maparadar.csv")
+            self.assertEqual(m["lines"], 2)
             read = json.loads((Path(d) / "out" / "maparadar.json").read_text(encoding="utf-8"))
-            self.assertEqual(read["arquivo"]["destino"], "maparadar.csv")
+            self.assertEqual(read["file"]["dest"], "maparadar.csv")
 
 
 if __name__ == "__main__":

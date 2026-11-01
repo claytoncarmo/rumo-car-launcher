@@ -1,5 +1,5 @@
 """
-Enxuga o mapa.pmtiles: deixa só o que o estilo do app desenha (DriveMap.kt).
+Enxuga o map.pmtiles: deixa só o que o estilo do app desenha (DriveMap.kt).
 
 O mapa-múndi do Protomaps traz prédios, pontos de interesse, fronteiras, nomes de lugares, trilhas, calçadas, parques
 etc. O Rumo só desenha água (polígonos e rios), as vias para carro e o nome delas; o resto só ocupa espaço. Este passo
@@ -17,7 +17,7 @@ from multiprocessing import Pool
 
 # Vias que o estilo desenha (o resto de "roads" são trilhas, calçadas, trilhos, pistas de aeroporto...)
 ROADS = {"minor_road", "major_road", "highway"}
-# Vias de serviço (garagens, estacionamentos) ficam fora do desenho; continuam no vias.db para o limite de velocidade
+# Vias de serviço (garagens, estacionamentos) ficam fora do desenho; continuam no roads.db para o limite de velocidade
 DETAIL_OUT = {"service"}
 # Água em polígono: tudo menos piscinas e fontes. Em linha: só rios e canais (riachos pesam metade da água)
 WATER_OUT = {"swimming_pool", "fountain"}

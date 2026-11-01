@@ -7,9 +7,9 @@ import org.junit.Test
 import java.io.File
 
 class MapStyleTest {
-    private val fonts = File("/sdcard/Rumo/fontes")
-    private val sc = File("/sdcard/Rumo/regioes/sc/mapa.pmtiles")
-    private val pr = File("/sdcard/Rumo/regioes/pr/mapa.pmtiles")
+    private val fonts = File("/sdcard/Rumo/fonts")
+    private val sc = File("/sdcard/Rumo/regions/sc/map.pmtiles")
+    private val pr = File("/sdcard/Rumo/regions/pr/map.pmtiles")
 
     private fun ids(json: String): List<String> =
         JSONObject(json).getJSONArray("layers").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("id") } }

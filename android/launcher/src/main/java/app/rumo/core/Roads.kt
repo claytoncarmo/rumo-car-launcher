@@ -4,7 +4,7 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
 
-/** Uma via do vias.db. Limites em km/h por sentido (fwd = sentido do desenho); "estimado" = padrão do CTB. */
+/** Uma via do roads.db. Limites em km/h por sentido (fwd = sentido do desenho); "estimado" = padrão do CTB. */
 class Way(
     val id: Long,
     val name: String?,

@@ -12,8 +12,8 @@ object Endpoints {
     /** `rumo.json` da pré-release nightly, substituída a cada push na main. */
     const val NIGHTLY = "$BASE/download/nightly/rumo.json"
 
-    /** `dados.json` dos dados offline (mapa, vias, radares). */
-    const val DATA = "$BASE/download/rumo-dados/dados.json"
+    /** `data.json` dos dados offline (mapa, vias, radares). */
+    const val DATA = "$BASE/download/rumo-data/data.json"
 
     /** `maparadar.json` da cópia original do maparadar.csv (workflow maparadar.yml). */
     const val MAPARADAR = "$BASE/download/rumo-maparadar/maparadar.json"
@@ -78,7 +78,7 @@ data class Region(val id: String, val name: String, val files: List<RemoteFile>,
 /** [common]: arquivos de qualquer estado (as fontes dos nomes de rua). */
 data class DataManifest(val builtAt: String, val regions: List<Region>, val common: List<RemoteFile> = emptyList())
 
-/** O id vira nome de pasta (`regioes/<id>`) e vem da rede: só letras minúsculas, números e sublinhado. */
+/** O id vira nome de pasta (`regions/<id>`) e vem da rede: só letras minúsculas, números e sublinhado. */
 fun isSafeRegionId(id: String): Boolean = Regex("[a-z0-9_]{1,16}").matches(id)
 
 /** O destino vem da rede: nunca pode sair da pasta Rumo. */
@@ -89,7 +89,7 @@ fun isSafeDestination(dest: String): Boolean =
 private fun parseFiles(arr: org.json.JSONArray?): List<RemoteFile> =
     if (arr == null) emptyList() else (0 until arr.length()).map { k ->
         val f = arr.getJSONObject(k)
-        RemoteFile(f.getString("destino"), f.getLong("tamanho"), f.getString("sha256"), f.getString("url"))
+        RemoteFile(f.getString("dest"), f.getLong("size"), f.getString("sha256"), f.getString("url"))
     }
 
 private fun isValidFile(f: RemoteFile) =
@@ -97,27 +97,27 @@ private fun isValidFile(f: RemoteFile) =
 
 fun parseDataManifest(text: String): DataManifest? = try {
     val j = JSONObject(text)
-    val regions = j.getJSONArray("regioes").let { arr ->
+    val regions = j.getJSONArray("regions").let { arr ->
         (0 until arr.length()).map { i ->
             val r = arr.getJSONObject(i)
-            Region(r.getString("id"), r.getString("nome"), parseFiles(r.getJSONArray("arquivos")), r.optString("grupo"))
+            Region(r.getString("id"), r.getString("name"), parseFiles(r.getJSONArray("files")), r.optString("group"))
         }
     }
-    val common = parseFiles(j.optJSONArray("comum"))
+    val common = parseFiles(j.optJSONArray("common"))
     val valid = regions.isNotEmpty() && regions.map { it.id }.distinct().size == regions.size &&
         common.all(::isValidFile) &&
         regions.all { region ->
             isSafeRegionId(region.id) && region.files.isNotEmpty() && region.files.all(::isValidFile)
         }
-    if (valid) DataManifest(j.optString("geradoEm"), regions, common) else null
+    if (valid) DataManifest(j.optString("generatedAt"), regions, common) else null
 } catch (e: Exception) {
     null
 }
 
 /** O arquivo do `maparadar.json` (o CSV original do MapaRadar), ou null se o manifesto não presta. */
 fun parseMapaRadarManifest(text: String): RemoteFile? = try {
-    val f = JSONObject(text).getJSONObject("arquivo")
-    val file = RemoteFile(f.getString("destino"), f.getLong("tamanho"), f.getString("sha256"), f.getString("url"))
+    val f = JSONObject(text).getJSONObject("file")
+    val file = RemoteFile(f.getString("dest"), f.getLong("size"), f.getString("sha256"), f.getString("url"))
     file.takeIf { it.dest == "maparadar.csv" && isValidFile(it) }
 } catch (e: Exception) {
     null

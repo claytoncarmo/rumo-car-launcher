@@ -1,8 +1,8 @@
 # Dados offline
 
-O Rumo funciona sem internet: o mapa, as vias com limite de velocidade e os radares vêm de uma pasta `Rumo` copiada para o aparelho. O workflow **Map data (OSM)** (`.github/workflows/map-data.yml`) gera essa pasta a partir do OpenStreetMap e a publica em [Releases](../../../releases) como a pré-release **"Rumo · dados do mapa (Sul e Sudeste)"**, com um `rumo-dados-<estado>.zip` por estado.
+O Rumo funciona sem internet: o mapa, as vias com limite de velocidade e os radares vêm de uma pasta `Rumo` copiada para o aparelho. O workflow **Map data (OSM)** (`.github/workflows/map-data.yml`) gera essa pasta a partir do OpenStreetMap e a publica em [Releases](../../../releases) como a pré-release **"Rumo · dados do mapa (Sul e Sudeste)"**, com um `rumo-data-<estado>.zip` por estado.
 
-Hoje o pacote cobre os estados do **Sul** (PR, SC, RS) e do **Sudeste** (SP, RJ, MG, ES). Cada estado tem seu contorno em `data/regions/<id>.geojson` (limite do OSM com ~8 km de folga para andar além da divisa; `contour.py` gera) e é um job próprio do workflow, em paralelo. Os dados são refeitos todo dia 1 do mês e a cada mudança em `data/` ou no workflow. Para incluir outro estado: um contorno novo (`python3 data/contour.py <relação OSM> "<nome>" data/regions/<id>.geojson`, com o `grupo` nas propriedades), uma linha na matriz e em `STATES` do workflow.
+Hoje o pacote cobre os estados do **Sul** (PR, SC, RS) e do **Sudeste** (SP, RJ, MG, ES). Cada estado tem seu contorno em `data/regions/<id>.geojson` (limite do OSM com ~8 km de folga para andar além da divisa; `contour.py` gera) e é um job próprio do workflow, em paralelo. Os dados são refeitos todo dia 1 do mês e a cada mudança em `data/` ou no workflow. Para incluir outro estado: um contorno novo (`python3 data/contour.py <relação OSM> "<nome>" data/regions/<id>.geojson`, com `name` e `group` nas propriedades), uma linha na matriz e em `STATES` do workflow.
 
 ## Instalar no aparelho
 
@@ -10,25 +10,25 @@ Hoje o pacote cobre os estados do **Sul** (PR, SC, RS) e do **Sudeste** (SP, RJ,
 
 **À mão:**
 
-1. Baixe o `rumo-dados-<estado>.zip` de cada estado que quer (ex.: `rumo-dados-sc.zip`) e descompacte no computador: sai uma pasta `Rumo` com as fontes e `regioes/<estado>`.
+1. Baixe o `rumo-data-<estado>.zip` de cada estado que quer (ex.: `rumo-data-sc.zip`) e descompacte no computador: sai uma pasta `Rumo` com as fontes e `regions/<estado>`.
 2. Copie a pasta `Rumo` para a **memória interna** do aparelho (a raiz, ficando `/sdcard/Rumo`); com vários estados, copie cada um para a mesma pasta `Rumo` (as fontes se repetem e podem ser sobrescritas). O Rumo também acha a pasta na raiz de um pendrive ou cartão, mas o mapa fica mais rápido na memória interna.
 3. Abra o Rumo e permita o acesso aos arquivos. Se a pasta for copiada com o Rumo aberto, basta apertar Início.
 
-## Manifesto (`dados.json`)
+## Manifesto (`data.json`)
 
-O workflow publica, ao lado dos zips, cada arquivo como asset solto e um `dados.json` (`manifest.py`, `versao` 2) com os arquivos `comum` (as fontes) e a lista de regiões (`id`, `nome`, `grupo`); em cada arquivo, `destino` dentro da pasta Rumo, `tamanho`, `sha256` e `url`. O app só aceita https, destinos dentro da pasta Rumo e ids de região só com letras minúsculas, números e sublinhado (o id vira a pasta `regioes/<id>`).
+O workflow publica, ao lado dos zips, cada arquivo como asset solto e um `data.json` (`manifest.py`, `version` 3) com os arquivos `common` (as fontes) e a lista `regions` (`id`, `name`, `group`, `files`); em cada arquivo, `dest` dentro da pasta Rumo, `size`, `sha256` e `url`. O app só aceita https, destinos dentro da pasta Rumo e ids de região só com letras minúsculas, números e sublinhado (o id vira a pasta `regions/<id>`).
 
 ## O que tem na pasta
 
 | Arquivo | O que é |
 |---|---|
-| `regioes/<estado>/mapa.pmtiles` | Mapa vetorial (recorte do build diário do [Protomaps](https://docs.protomaps.com/basemaps/downloads) pelo contorno do estado, até o zoom 14, filtrado por `map_filter.py`), lido pelo MapLibre |
-| `regioes/<estado>/vias.db` | SQLite com as vias, o limite de velocidade por sentido e os radares (gerado por `roads.py`) |
-| `fontes/` | Fontes (glifos) dos nomes de rua no mapa |
-| `regioes/<estado>/contorno.geojson` | Contorno do estado (com a folga da divisa), para recortar os radares do MapaRadar no app |
-| `LEIAME.txt` | Estado, data e origem do mapa (só nos zips) |
+| `regions/<estado>/map.pmtiles` | Mapa vetorial (recorte do build diário do [Protomaps](https://docs.protomaps.com/basemaps/downloads) pelo contorno do estado, até o zoom 14, filtrado por `map_filter.py`), lido pelo MapLibre |
+| `regions/<estado>/roads.db` | SQLite com as vias, o limite de velocidade por sentido e os radares (gerado por `roads.py`) |
+| `fonts/` | Fontes (glifos) dos nomes de rua no mapa |
+| `regions/<estado>/contour.geojson` | Contorno do estado (com a folga da divisa), para recortar os radares do MapaRadar no app |
+| `README.txt` | Estado, data e origem do mapa (só nos zips) |
 
-Tamanhos em Santa Catarina: `mapa.pmtiles` ~37 MB, `vias.db` ~38 MB, pacote ~62 MB (o recorte bruto do Protomaps tem 119 MB). Os demais estados estão na tabela de tamanhos do resumo de cada execução do workflow. Quem já tinha o formato antigo (`mapa.pmtiles` e `vias.db` direto em `Rumo/`, só SC) continua funcionando até baixar um estado; depois o app apaga os arquivos antigos.
+Tamanhos em Santa Catarina: `map.pmtiles` ~37 MB, `roads.db` ~38 MB, pacote ~62 MB (o recorte bruto do Protomaps tem 119 MB). Os demais estados estão na tabela de tamanhos do resumo de cada execução do workflow.
 
 ## `map_filter.py`
 
@@ -44,7 +44,7 @@ Se o estilo passar a desenhar outra coisa, mude `filter_layers` junto. `map_chec
 
 `maparadar.csv` é a base do [MapaRadar](https://maparadar.com.br), mantida **à mão**: para atualizar, troque o arquivo (mesmo formato, sem cabeçalho: `longitude,latitude,Tipo - N kmh@N`) e faça o commit. O workflow `maparadar.yml` roda só nessa mudança e publica a release **"Rumo · MapaRadar (arquivo original)"** (`rumo-maparadar`) com uma **cópia idêntica** do CSV e um `maparadar.json` (tamanho e SHA-256). O arquivo tem ~40 mil pontos do Brasil inteiro.
 
-**O app baixa o arquivo original e o processa no aparelho** (`core/MapaRadar.kt`, `MapData.loadMapaRadar`): lê o CSV, recorta pelos contornos dos estados instalados (cada estado leva o seu `contorno.geojson`), acha em cada ponto a via mais perto para saber o sentido e junta com os radares do OSM. O resultado fica em cache no aparelho e só se refaz quando o CSV ou os dados dos estados mudam. Os radares do OSM aparecem logo; os do MapaRadar entram quando o processamento termina (alguns segundos na primeira vez). Nada derivado do CSV é publicado.
+**O app baixa o arquivo original e o processa no aparelho** (`core/MapaRadar.kt`, `MapData.loadMapaRadar`): lê o CSV, recorta pelos contornos dos estados instalados (cada estado leva o seu `contour.geojson`), acha em cada ponto a via mais perto para saber o sentido e junta com os radares do OSM. O resultado fica em cache no aparelho e só se refaz quando o CSV ou os dados dos estados mudam. Os radares do OSM aparecem logo; os do MapaRadar entram quando o processamento termina (alguns segundos na primeira vez). Nada derivado do CSV é publicado.
 
 | Tipo no CSV | `kind` | No app |
 |---|---|---|
@@ -59,18 +59,18 @@ Se o estilo passar a desenhar outra coisa, mude `filter_layers` junto. `map_chec
 
 `kind` 0 é um radar do OSM que não casou com nenhum ponto do MapaRadar (continua valendo, como radar fixo). O CSV não traz o sentido: vale o do radar do OSM a até 50 m (que é o mesmo ponto e sai da lista), senão o da via se for de mão única, senão os dois sentidos. O mesmo ponto tem o mesmo id (o número da linha, negativo) em todos os estados. Linhas fora do Brasil, de tipo novo ou sem o formato são ignoradas. Para copiar à mão, ponha o `maparadar.csv` original na pasta `Rumo`.
 
-**Licença:** a base é CC BY-NC-ND 4.0 (uso pessoal, com atribuição, sem fins comerciais e **sem alterações**). Por isso o projeto só **distribui o arquivo original**, sem alterações, e a conversão acontece no aparelho de cada pessoa (adaptação privada). O `vias.db` e os zips das Releases têm só dados do OpenStreetMap. A atribuição está aqui, nas configurações do app, nas notas da release e no `LEIAME.txt` dos zips. Confira os termos de uso do site do MapaRadar antes de divulgar o projeto mais amplamente.
+**Licença:** a base é CC BY-NC-ND 4.0 (uso pessoal, com atribuição, sem fins comerciais e **sem alterações**). Por isso o projeto só **distribui o arquivo original**, sem alterações, e a conversão acontece no aparelho de cada pessoa (adaptação privada). O `roads.db` e os zips das Releases têm só dados do OpenStreetMap. A atribuição está aqui, nas configurações do app, nas notas da release e no `README.txt` dos zips. Confira os termos de uso do site do MapaRadar antes de divulgar o projeto mais amplamente.
 
 ## `roads.py`
 
-Lê um recorte do OpenStreetMap (`.osm.pbf`, só com `highway` e `highway=speed_camera`) e grava o `vias.db`:
+Lê um recorte do OpenStreetMap (`.osm.pbf`, só com `highway` e `highway=speed_camera`) e grava o `roads.db`:
 
 | Tabela | Conteúdo |
 |---|---|
 | `info` | região, data e contagens |
 | `ways` | uma linha por via: nome, referência (ex.: SC-401), tipo, mão única, limite nos dois sentidos e se cada limite é estimado |
-| `segs` | trechos das vias por célula de 0,01° (`cell`, `way`, `n`), sem rowid; os pontos (`pts`) em micrograus, cada um como diferença para o anterior, em zigue-zague e varint (`info.versao` = 2; a 1 guardava inteiros de 32 bits e o app ainda a lê) |
-| `radars` | posição, limite fiscalizado (0 = não fiscaliza velocidade) e sentido (0–359°, ou −1 para os dois), e `kind` (tipo; no vias.db é sempre 0, os tipos 1 a 8 vêm do MapaRadar no aparelho). O vias.db antigo, sem `kind`, ainda é lido |
+| `segs` | trechos das vias por célula de 0,01° (`cell`, `way`, `n`), sem rowid; os pontos (`pts`) em micrograus, cada um como diferença para o anterior, em zigue-zague e varint (`info.version` = 2; a 1 guardava inteiros de 32 bits e o app ainda a lê) |
+| `radars` | posição, limite fiscalizado (0 = não fiscaliza velocidade) e sentido (0–359°, ou −1 para os dois), e `kind` (tipo; no roads.db é sempre 0, os tipos 1 a 8 vêm do MapaRadar no aparelho). O roads.db antigo, sem `kind`, ainda é lido |
 
 A célula é calculada igual no gerador (`cell_of`) e no app (`core/Geo.kt`), e o app só lê as células perto do carro.
 
@@ -80,11 +80,7 @@ A célula é calculada igual no gerador (`cell_of`) e no app (`core/Geo.kt`), e 
 
 ## Brasil inteiro
 
-Com o filtro e o `vias.db` enxuto, Santa Catarina pesa ~75 MB. Estimando pela área e pela densidade de vias, o Brasil inteiro ficaria na casa de 1,5 a 2 GB no total; como os arquivos são por estado, o limite de 2 GB por arquivo das releases não é problema. Os próximos passos seriam as regiões Centro-Oeste, Nordeste e Norte (uma linha na matriz e um contorno por estado).
-
-## Nomes em português de propósito
-
-O código dos scripts está em inglês, mas o que já está no campo continua com os nomes originais, porque os apps instalados os leem: as tags e os arquivos das releases (`rumo-dados`, `rumo-dados-<estado>.zip`, `rumo-maparadar`, `dados.json`, `maparadar.json`, `maparadar.csv`), as chaves dos manifestos (`versao`, `comum`, `regioes`, `grupo`, `arquivos`, `destino`, `tamanho`…), o layout da pasta Rumo (`regioes/<id>/mapa.pmtiles`, `vias.db`, `contorno.geojson`, `fontes/`, `LEIAME.txt`) e as chaves de `info` do `vias.db` (`versao`, `regiao`…). As propriedades `nome` e `grupo` dos arquivos em `data/regions/` também (o workflow as lê). Nomes novos entram em inglês.
+Com o filtro e o `roads.db` enxuto, Santa Catarina pesa ~75 MB. Estimando pela área e pela densidade de vias, o Brasil inteiro ficaria na casa de 1,5 a 2 GB no total; como os arquivos são por estado, o limite de 2 GB por arquivo das releases não é problema. Os próximos passos seriam as regiões Centro-Oeste, Nordeste e Norte (uma linha na matriz e um contorno por estado).
 
 ## Testes
 
@@ -96,4 +92,4 @@ O gerador precisa de `pyosmium`, e o filtro e o contorno de `pmtiles`, `mapbox-v
 
 ## Licença dos dados
 
-Mapa e vias: © colaboradores do [OpenStreetMap](https://www.openstreetmap.org/copyright), sob a [ODbL](https://opendatacommons.org/licenses/odbl/). Radares, lombadas, pedágios e polícia rodoviária: [MapaRadar](https://maparadar.com.br), sob a [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/), distribuídos só no arquivo original. O pacote não é parte do código-fonte (GPL): é gerado e distribuído à parte, com o crédito no `LEIAME.txt` e no próprio mapa.
+Mapa e vias: © colaboradores do [OpenStreetMap](https://www.openstreetmap.org/copyright), sob a [ODbL](https://opendatacommons.org/licenses/odbl/). Radares, lombadas, pedágios e polícia rodoviária: [MapaRadar](https://maparadar.com.br), sob a [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/), distribuídos só no arquivo original. O pacote não é parte do código-fonte (GPL): é gerado e distribuído à parte, com o crédito no `README.txt` e no próprio mapa.

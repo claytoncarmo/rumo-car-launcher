@@ -2,7 +2,7 @@ package app.rumo.core
 
 import kotlin.math.abs
 
-/** Tipos de ponto do vias.db (`radars.kind`, os mesmos de core/MapaRadar.kt). 0: radar do OSM sem tipo. */
+/** Tipos de ponto do roads.db (`radars.kind`, os mesmos de core/MapaRadar.kt). 0: radar do OSM sem tipo. */
 object RadarKind {
     const val OSM = 0
     const val FIXED = 1
@@ -19,7 +19,7 @@ object RadarKind {
 }
 
 /**
- * Radar (ou outro ponto de atenção) do vias.db: limite fiscalizado (0 = não fiscaliza velocidade: pedágio, lombada
+ * Radar (ou outro ponto de atenção) do roads.db: limite fiscalizado (0 = não fiscaliza velocidade: pedágio, lombada
  * comum, polícia, câmera de semáforo), sentido (graus, ou -1 para os dois) e tipo.
  */
 class Radar(

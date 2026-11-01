@@ -46,12 +46,12 @@ class ReleasesTest {
         assertEquals("build local", installedChannelLabel("0.0.0-dev"))
     }
 
-    private fun dataJson(dest: String = "regioes/sc/mapa.pmtiles", id: String = "sc") =
-        """{"versao":2,"geradoEm":"2026-10-31T03:00:00Z",
-            "comum":[{"destino":"fontes/NotoSansMedium/0-255.pbf","tamanho":5000,"sha256":"${"c".repeat(64)}","url":"https://example.org/f.pbf"}],
-            "regioes":[{"id":"$id","nome":"Santa Catarina","grupo":"Sul","arquivos":[
-            {"destino":"$dest","tamanho":310000000,"sha256":"$sha","url":"https://example.org/mapa.pmtiles"},
-            {"destino":"regioes/sc/vias.db","tamanho":100000000,"sha256":"${"b".repeat(64)}","url":"https://example.org/vias.db"}]}]}"""
+    private fun dataJson(dest: String = "regions/sc/map.pmtiles", id: String = "sc") =
+        """{"version":2,"generatedAt":"2026-10-31T03:00:00Z",
+            "common":[{"dest":"fonts/NotoSansMedium/0-255.pbf","size":5000,"sha256":"${"c".repeat(64)}","url":"https://example.org/f.pbf"}],
+            "regions":[{"id":"$id","name":"Santa Catarina","group":"Sul","files":[
+            {"dest":"$dest","size":310000000,"sha256":"$sha","url":"https://example.org/map.pmtiles"},
+            {"dest":"regions/sc/roads.db","size":100000000,"sha256":"${"b".repeat(64)}","url":"https://example.org/roads.db"}]}]}"""
 
     @Test
     fun readsDataManifest() {
@@ -59,16 +59,16 @@ class ReleasesTest {
         assertEquals("2026-10-31T03:00:00Z", m.builtAt)
         val sc = m.regions.single()
         assertEquals("Santa Catarina", sc.name)
-        assertEquals(listOf("regioes/sc/mapa.pmtiles", "regioes/sc/vias.db"), sc.files.map { it.dest })
+        assertEquals(listOf("regions/sc/map.pmtiles", "regions/sc/roads.db"), sc.files.map { it.dest })
         assertEquals(410_000_000L, sc.totalSize)
         assertEquals("Sul", sc.group)
-        assertEquals(listOf("fontes/NotoSansMedium/0-255.pbf"), m.common.map { it.dest })
+        assertEquals(listOf("fonts/NotoSansMedium/0-255.pbf"), m.common.map { it.dest })
     }
 
     @Test
     fun oldManifestWithoutCommonAndGroupStillReads() {
-        val old = """{"versao":1,"geradoEm":"2026-10-31T03:00:00Z","regioes":[{"id":"sc","nome":"Santa Catarina","arquivos":[
-            {"destino":"mapa.pmtiles","tamanho":100,"sha256":"$sha","url":"https://example.org/mapa.pmtiles"}]}]}"""
+        val old = """{"version":1,"generatedAt":"2026-10-31T03:00:00Z","regions":[{"id":"sc","name":"Santa Catarina","files":[
+            {"dest":"map.pmtiles","size":100,"sha256":"$sha","url":"https://example.org/map.pmtiles"}]}]}"""
         val m = parseDataManifest(old)!!
         assertTrue(m.common.isEmpty())
         assertEquals("", m.regions.single().group)
@@ -93,24 +93,24 @@ class ReleasesTest {
     @Test
     fun rejectsDestOutsideRumoFolder() {
         // "a\\\\b" vira a\\b no JSON, que o parser lê como a\b (com barra invertida)
-        for (bad in listOf("../mapa.pmtiles", "/sdcard/mapa.pmtiles", "a/../b", "a\\\\b", "a//b", "./x", "")) {
+        for (bad in listOf("../map.pmtiles", "/sdcard/map.pmtiles", "a/../b", "a\\\\b", "a//b", "./x", "")) {
             assertNull("dest '$bad' should be rejected", parseDataManifest(dataJson(bad)))
         }
-        assertNotNull(parseDataManifest(dataJson("regioes/sc/outro.pmtiles")))
-        assertTrue(isSafeDestination("mapa.pmtiles"))
+        assertNotNull(parseDataManifest(dataJson("regions/sc/outro.pmtiles")))
+        assertTrue(isSafeDestination("map.pmtiles"))
         assertFalse(isSafeDestination(".."))
     }
 
     @Test
     fun rejectsInvalidDataManifest() {
         assertNull(parseDataManifest("{}"))
-        assertNull(parseDataManifest("""{"regioes":[]}"""))
-        assertNull(parseDataManifest(dataJson().replace("https://example.org/vias.db", "http://example.org/vias.db")))
+        assertNull(parseDataManifest("""{"regions":[]}"""))
+        assertNull(parseDataManifest(dataJson().replace("https://example.org/roads.db", "http://example.org/roads.db")))
         assertNull(parseDataManifest(dataJson().replace("https://example.org/f.pbf", "http://example.org/f.pbf")))
     }
 
-    private val mapFile = RemoteFile("regioes/sc/mapa.pmtiles", 100, sha, "https://example.org/mapa.pmtiles")
-    private val roadsFile = RemoteFile("regioes/sc/vias.db", 50, "b".repeat(64), "https://example.org/vias.db")
+    private val mapFile = RemoteFile("regions/sc/map.pmtiles", 100, sha, "https://example.org/map.pmtiles")
+    private val roadsFile = RemoteFile("regions/sc/roads.db", 50, "b".repeat(64), "https://example.org/roads.db")
     private val region = Region("sc", "Santa Catarina", listOf(mapFile, roadsFile))
 
     @Test
@@ -155,8 +155,8 @@ class ReleasesTest {
     }
 
     private fun radarJson(dest: String = "maparadar.csv", url: String = "https://example.org/maparadar.csv") =
-        """{"versao":1,"geradoEm":"2026-10-31T03:00:00Z","linhas":39975,
-            "arquivo":{"destino":"$dest","tamanho":1700000,"sha256":"$sha","url":"$url"}}"""
+        """{"version":1,"generatedAt":"2026-10-31T03:00:00Z","lines":39975,
+            "file":{"dest":"$dest","size":1700000,"sha256":"$sha","url":"$url"}}"""
 
     @Test
     fun readsMapaRadarManifest() {

@@ -70,7 +70,7 @@ class Updater(private val prefs: SharedPreferences, private val http: Http = Htt
             } catch (e: IOException) {
                 null
             }
-            val common = planOf(Region("comum", "Fontes e radares", manifest.common + listOfNotNull(radarFile)))
+            val common = planOf(Region("common", "Fontes e radares", manifest.common + listOfNotNull(radarFile)))
             DataInfo(manifest, regions, common, null)
         } catch (e: HttpFailure) {
             DataInfo(null, emptyList(), null, if (e.code == 404) "Dados ainda não publicados" else "Erro ${e.code} no servidor")
@@ -101,22 +101,26 @@ class Updater(private val prefs: SharedPreferences, private val http: Http = Htt
             }
         }
 
-    /** Apaga os arquivos de um estado (`regioes/<id>`). O id já foi validado ao ler o manifesto. */
+    /** Apaga os arquivos de um estado (`regions/<id>`). O id já foi validado ao ler o manifesto. */
     suspend fun removeRegion(region: Region) = withContext(Dispatchers.IO) {
         File(rumoDir, "$REGIONS/${region.id}").deleteRecursively()
         region.files.forEach { prefs.edit().remove(KEY + it.dest).apply() }
     }
 
     /**
-     * Antes dos estados, o mapa e as vias ficavam direto na pasta Rumo (só Santa Catarina). Depois que um estado
-     * novo está inteiro no aparelho, os arquivos antigos só ocupam espaço e saem.
+     * Os nomes das pastas e dos arquivos de dados passaram para o inglês (regioes/mapa.pmtiles/vias.db/fontes viraram
+     * regions/map.pmtiles/roads.db/fonts). Depois que um estado novo está inteiro no aparelho, a pasta antiga, que só
+     * ocupa espaço, sai junto com o registro de hashes dela.
      */
-    suspend fun removeLegacy() = withContext(Dispatchers.IO) {
+    suspend fun removeOldLayout() = withContext(Dispatchers.IO) {
         val regions = File(rumoDir, REGIONS).listFiles().orEmpty()
-        val complete = regions.any { File(it, "mapa.pmtiles").isFile && File(it, "vias.db").isFile }
+        val complete = regions.any { File(it, "map.pmtiles").isFile && File(it, "roads.db").isFile }
         if (complete) {
+            listOf("regioes", "fontes").forEach { File(rumoDir, it).deleteRecursively() }
             listOf("mapa.pmtiles", "vias.db", "mapa.pmtiles.part", "vias.db.part").forEach { File(rumoDir, it).delete() }
-            prefs.edit().remove(KEY + "mapa.pmtiles").remove(KEY + "vias.db").apply()
+            val editor = prefs.edit()
+            prefs.all.keys.filter { it.startsWith(OLD_KEY) }.forEach { editor.remove(it) }
+            editor.apply()
         }
     }
 
@@ -149,7 +153,8 @@ class Updater(private val prefs: SharedPreferences, private val http: Http = Htt
     private fun record(f: RemoteFile) = prefs.edit().putString(KEY + f.dest, f.sha256).apply()
 
     private companion object {
-        const val KEY = "dados_"
-        const val REGIONS = "regioes"
+        const val KEY = "data_"
+        const val OLD_KEY = "dados_"
+        const val REGIONS = "regions"
     }
 }

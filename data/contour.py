@@ -41,10 +41,10 @@ if __name__ == "__main__":
     margin = float(args[3]) if len(args) > 3 else MARGIN
     simplification = float(args[4]) if len(args) > 4 else SIMPLIFICATION
     geometry = outline(download(relation), margin, simplification)
-    # As propriedades "nome" e "grupo" dos arquivos em data/regions/ são lidas pelo workflow map-data.yml
+    # As propriedades "name" e "group" dos arquivos em data/regions/ são lidas pelo workflow map-data.yml
     feature = {
         "type": "Feature",
-        "properties": {"nome": name, "origem": f"OSM relation {relation} (ODbL), com margem de ~{round(margin * 111)} km"},
+        "properties": {"name": name, "source": f"OSM relation {relation} (ODbL), com margem de ~{round(margin * 111)} km"},
         "geometry": {"type": geometry["type"], "coordinates": json.loads(json.dumps(geometry["coordinates"]))},
     }
     with open(output, "w", encoding="utf-8") as f:

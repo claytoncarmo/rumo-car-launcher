@@ -3,8 +3,7 @@ Prepara a publicação do maparadar.csv: uma cópia IDÊNTICA do arquivo (a lice
 alterações) e o maparadar.json, com tamanho, SHA-256 e endereço, que o app lê para baixar e conferir.
 
 O app processa o CSV no próprio aparelho (core/MapaRadar.kt): recorta pelos estados instalados e junta com os radares
-do OSM. Nada derivado do arquivo é publicado. As chaves do maparadar.json (arquivo, destino, tamanho…) ficam em
-português: apps já instalados as leem (core/Releases.kt).
+do OSM. Nada derivado do arquivo é publicado.
 
 Uso: python3 maparadar_manifest.py <maparadar.csv> <pasta de saída> <url base>
 """
@@ -24,12 +23,12 @@ def generate(csv, output, base_url):
     shutil.copyfile(csv, copied)
     content = copied.read_bytes()
     manifest = {
-        "versao": 1,
-        "geradoEm": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "linhas": content.count(b"\n"),
-        "arquivo": {
-            "destino": "maparadar.csv",
-            "tamanho": len(content),
+        "version": 1,
+        "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "lines": content.count(b"\n"),
+        "file": {
+            "dest": "maparadar.csv",
+            "size": len(content),
             "sha256": hashlib.sha256(content).hexdigest(),
             "url": f"{base_url.rstrip('/')}/maparadar.csv",
         },

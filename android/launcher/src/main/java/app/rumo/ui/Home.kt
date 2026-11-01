@@ -117,7 +117,7 @@ class HomeState {
     var probe by mutableStateOf<List<String>?>(null)
     var probeTitle by mutableStateOf("Teste do farol")
     var mapStatus by mutableStateOf(MapStatus.LOADING)
-    /** Um mapa.pmtiles por estado instalado (vazio: sem mapa) e a pasta das fontes dos nomes de rua. */
+    /** Um map.pmtiles por estado instalado (vazio: sem mapa) e a pasta das fontes dos nomes de rua. */
     var mapFiles by mutableStateOf<List<File>>(emptyList())
     var fontsDir by mutableStateOf<File?>(null)
     /** Radares e outros pontos de atenção dos estados instalados, desenhados no mapa. */

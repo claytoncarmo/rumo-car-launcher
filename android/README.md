@@ -37,9 +37,9 @@ Três workflows em `.github/workflows/`:
 |---|---|---|
 | `nightly.yml` | A cada push na `main` que mexe no app | Substitui a pré-release **nightly** (`rumo.apk`). Versão `última-tag-nightly.N` (ex.: `0.5.0-nightly.57`), com N = número de commits |
 | `release.yml` | Ao criar uma tag `vX.Y.Z` | Release **estável** com `rumo-X.Y.Z.apk` e `rumo.apk` (nome fixo, para `releases/latest/download/rumo.apk`). Tag com sufixo (`v1.0.0-rc1`) sai como pré-release |
-| `map-data.yml` | Mudança em `data/`, todo dia 1 e sob demanda | Pré-release **rumo-dados** com `rumo-dados-sc.zip` |
+| `map-data.yml` | Mudança em `data/`, todo dia 1 e sob demanda | Pré-release **rumo-data** com `rumo-data-sc.zip` |
 
-Cada publicação do app leva um `rumo.json` (versão, `versionCode`, tamanho, SHA-256, endereço do APK, data e commit; gerado por `.github/scripts/rumo-json.sh`). As configurações da home do app leem os manifestos em endereços fixos: `releases/latest/download/rumo.json` (estável; o GitHub ignora pré-releases no `latest`, então só existe depois da primeira tag `vX.Y.Z`), `releases/download/nightly/rumo.json` e `releases/download/rumo-dados/dados.json` (dados offline, ver `data/README.md`).
+Cada publicação do app leva um `rumo.json` (versão, `versionCode`, tamanho, SHA-256, endereço do APK, data e commit; gerado por `.github/scripts/rumo-json.sh`). As configurações da home do app leem os manifestos em endereços fixos: `releases/latest/download/rumo.json` (estável; o GitHub ignora pré-releases no `latest`, então só existe depois da primeira tag `vX.Y.Z`), `releases/download/nightly/rumo.json` e `releases/download/rumo-data/data.json` (dados offline, ver `data/README.md`).
 
 A seção **Sistema** das configurações da home tem o botão **Reiniciar o Android** (dois toques, só parado; `device/Reboot.kt`). Um app comum não pode reiniciar o Android: o botão tenta `PowerManager.reboot` (permissão `REBOOT`, só de apps do sistema) e `su`; no aparelho do Clayton nenhum dos dois vale. Então usa o serviço de acessibilidade "Rumo" (`device/PowerService.kt`, ligado em Configurações › Acessibilidade), que abre o menu de energia e toca em "Reiniciar" por até 10 s depois do pedido, sem ler nem guardar nada. O diagnóstico **Teste do reinício** grava `reboot-test.txt` com os ganchos de reinício que achar (componentes, textos nos apps do fabricante, métodos da MCU, serviços).
 

@@ -112,7 +112,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private lateinit var gps: Gps
     private lateinit var alerts: Alerts
 
-    // Vias e radares: uma thread só, que lê o vias.db e guarda o estado do casamento com a via
+    // Vias e radares: uma thread só, que lê o roads.db e guarda o estado do casamento com a via
     private val drive = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     private var data: MapData? = null
 
@@ -1007,7 +1007,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
                     )
                 }
                 change.remove.forEach { updater.removeRegion(it) }
-                updater.removeLegacy()
+                updater.removeOldLayout()
                 state.transfer = null
                 state.toast = "Dados do mapa prontos"
                 state.settings = state.settings.copy(checked = false, selected = null)
@@ -1210,25 +1210,25 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private companion object {
         /** Distância do aviso de radar (padrão do protótipo). */
         const val RADAR_ZONE_M = 500
-        const val PREF_THEME = "tema"
+        const val PREF_THEME = "theme"
         /** Quanto esperar o "Reiniciar" aparecer no menu de energia antes de avisar que não achou. */
         const val POWER_MENU_WAIT_MS = 7_000L
         const val MAX_KEY_LOG = 60
         const val GETEVENT_NOTES = 3
         const val PROBE_SECONDS = 20
-        const val PREF_LAT = "ultima_lat"
-        const val PREF_LON = "ultima_lon"
-        const val PREF_BEARING = "ultimo_rumo"
+        const val PREF_LAT = "last_lat"
+        const val PREF_LON = "last_lon"
+        const val PREF_BEARING = "last_bearing"
         const val SAVE_EVERY_MS = 15_000L
         const val HEADLIGHT_EVERY_MS = 2_000L
         const val MEDIA_PROBE_SECONDS = 60
-        const val PREF_SOURCE = "ultima_fonte"
+        const val PREF_SOURCE = "last_source"
         const val RADIO_PKG = "com.hcn.autoradio"
         const val RADIO_EVERY_MS = 1_000L
-        const val PREF_FAVORITES = "favoritas"
-        const val PREF_RADIO_NAMES = "radio_nomes"
-        const val PREF_SCAN = "radio_encontradas"
-        const val PREF_RADIO_MUTED = "radio_mudo"
+        const val PREF_FAVORITES = "favorites"
+        const val PREF_RADIO_NAMES = "radio_names"
+        const val PREF_SCAN = "radio_found"
+        const val PREF_RADIO_MUTED = "radio_muted"
         const val RADIO_LOG_LINES = 300
         const val MAX_ACTIONS = 2_000
         /** As configurações da home só abrem abaixo desta velocidade. */

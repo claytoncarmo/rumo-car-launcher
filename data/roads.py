@@ -1,5 +1,5 @@
 """
-Gera o vias.db do Rumo a partir de um recorte do OpenStreetMap (.osm.pbf).
+Gera o roads.db do Rumo a partir de um recorte do OpenStreetMap (.osm.pbf).
 
 Tabelas:
   info(k, v)                       região, data dos dados, contagens
@@ -8,7 +8,7 @@ Tabelas:
                                    est: bit 1 = fwd estimado, bit 2 = bwd estimado (padrão do CTB)
   segs(cell, way, n, pts)          trechos da via dentro de uma célula de 0,01° (n numera os trechos da via na
                                    célula); pts = pontos (lat, lon) em micrograus, cada um como diferença para o
-                                   anterior, em zigue-zague e varint (encode_points). info.versao = 2; a versão 1
+                                   anterior, em zigue-zague e varint (encode_points). info.version = 2; a versão 1
                                    guardava pares int32 LE, sem n
   radars(id, lat, lon, lim, bearing, kind)
                                    bearing = sentido fiscalizado em graus (0 = norte), -1 = os dois; lim = limite
@@ -323,14 +323,14 @@ def build(src, dst, region):
 
     segs.sort(key=lambda r: r[:3])
     db.executemany("INSERT INTO segs VALUES (?,?,?,?)", segs)
-    # As chaves de info ficam em português: vias.db já está no campo e o app lê info.versao (device/MapData.kt)
+    # O app lê info.version (device/MapData.kt) para saber como decodificar os pontos
     info = {
-        "versao": "2",
-        "regiao": region,
-        "gerado": time.strftime("%Y-%m-%d"),
-        "vias": str(len(c.ways)),
-        "vias_com_limite": str(len(c.ways) - n_est),
-        "radares": str(n_radar),
+        "version": "2",
+        "region": region,
+        "generated": time.strftime("%Y-%m-%d"),
+        "roads": str(len(c.ways)),
+        "roads_with_limit": str(len(c.ways) - n_est),
+        "radars": str(n_radar),
     }
     db.executemany("INSERT INTO info VALUES (?,?)", info.items())
     db.commit()

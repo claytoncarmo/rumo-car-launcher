@@ -42,7 +42,7 @@ class MapStart(val lat: Double, val lon: Double, val bearing: Double)
 
 /**
  * Mapa passivo do card: segue o GPS com a frente do carro para cima, sem gestos (tocar no card abre o Android Auto).
- * Mapa vetorial offline (um mapa.pmtiles por estado instalado, todos desenhados) e fontes dos nomes de rua da pasta
+ * Mapa vetorial offline (um map.pmtiles por estado instalado, todos desenhados) e fontes dos nomes de rua da pasta
  * Rumo; até 30 quadros por segundo.
  */
 @Composable
@@ -145,7 +145,7 @@ private fun zoomFor(kmh: Int): Double = when {
 }
 
 /**
- * Cores do mapa: tons de cinza quase neutros (a água só um pouco diferente do fundo). O mapa.pmtiles do app só traz o que
+ * Cores do mapa: tons de cinza quase neutros (a água só um pouco diferente do fundo). O map.pmtiles do app só traz o que
  * é desenhado aqui (água, rios e vias para carro; `data/map_filter.py`): se incluir outra camada, mude os dois.
  */
 private class MapColors(

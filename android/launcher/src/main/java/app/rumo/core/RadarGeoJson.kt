@@ -1,7 +1,7 @@
 package app.rumo.core
 
 /**
- * Os radares e demais pontos do vias.db como GeoJSON (propriedades `kind` e `lim`), para o MapLibre desenhar no mapa
+ * Os radares e demais pontos do roads.db como GeoJSON (propriedades `kind` e `lim`), para o MapLibre desenhar no mapa
  * (camadas `radar-dot` e `radar-text` de ui/DriveMap.kt).
  */
 fun radarsGeoJson(radars: List<Radar>): String {

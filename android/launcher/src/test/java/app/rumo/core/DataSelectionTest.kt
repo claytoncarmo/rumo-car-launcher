@@ -7,9 +7,9 @@ import org.junit.Test
 class DataSelectionTest {
     private val sha = "a".repeat(64)
     private fun file(dest: String, size: Long = 100) = RemoteFile(dest, size, sha, "https://example.org/" + dest.replace('/', '_'))
-    private fun region(id: String) = Region(id, id.uppercase(), listOf(file("regioes/$id/mapa.pmtiles"), file("regioes/$id/vias.db", 50)))
+    private fun region(id: String) = Region(id, id.uppercase(), listOf(file("regions/$id/map.pmtiles"), file("regions/$id/roads.db", 50)))
 
-    private val font = file("fontes/a.pbf", 5)
+    private val font = file("fonts/a.pbf", 5)
     private val commonMissing = DataPlan(listOf(font), emptyList(), 0)
     private val commonOk = DataPlan(emptyList(), emptyList(), 1)
 
@@ -20,7 +20,7 @@ class DataSelectionTest {
     @Test
     fun downloadsSelectedMissingWithCommonFiles() {
         val c = planChange(listOf(missing("sc"), missing("pr")), commonMissing, setOf("sc"))
-        assertEquals(listOf("fontes/a.pbf", "regioes/sc/mapa.pmtiles", "regioes/sc/vias.db"), c.download.map { it.dest })
+        assertEquals(listOf("fonts/a.pbf", "regions/sc/map.pmtiles", "regions/sc/roads.db"), c.download.map { it.dest })
         assertEquals(155L, c.bytes)
         assertTrue(c.remove.isEmpty())
     }
@@ -28,7 +28,7 @@ class DataSelectionTest {
     @Test
     fun updatesOnlyWhatChanged() {
         val c = planChange(listOf(outdated("sc"), upToDate("pr")), commonOk, setOf("sc", "pr"))
-        assertEquals(listOf("regioes/sc/mapa.pmtiles"), c.download.map { it.dest })
+        assertEquals(listOf("regions/sc/map.pmtiles"), c.download.map { it.dest })
     }
 
     @Test
@@ -57,6 +57,6 @@ class DataSelectionTest {
     fun sameFileInTwoStatesDownloadsOnce() {
         val twin = RegionInfo(region("sc"), DataPlan(listOf(font, region("sc").files[1]), emptyList(), 0))
         val c = planChange(listOf(twin), commonMissing, setOf("sc"))
-        assertEquals(1, c.download.count { it.dest == "fontes/a.pbf" })
+        assertEquals(1, c.download.count { it.dest == "fonts/a.pbf" })
     }
 }

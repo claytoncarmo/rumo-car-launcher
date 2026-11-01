@@ -19,19 +19,11 @@
 
 Nomes próprios não se traduzem: `Rumo`, `MapaRadar` (o serviço de onde vem o CSV de radares), `ZLINK`, `CTB` (Código de Trânsito Brasileiro) e os nomes que o fabricante do aparelho deu aos seus serviços e pacotes.
 
-### Nomes que já estão no campo continuam como estão
+### O que o app grava também é em inglês
 
-Alguns nomes foram publicados ou gravados no aparelho antes desta regra e o app instalado depende deles. Renomear sem migração quebraria o que já funciona, então **eles ficam em português** até haver uma migração planejada:
+Chaves de preferências (`theme`, `favorites`…), a estrutura da pasta `Rumo` no aparelho (`regions/<id>/map.pmtiles`, `roads.db`, `contour.geojson`, `fonts/`), os campos dos manifestos (`data.json`, `maparadar.json`), as chaves da tabela `info` do `roads.db` e as tags e os arquivos das releases seguem a regra. Não se traduzem os nomes próprios: `Rumo`, `MapaRadar` (por isso `maparadar.csv`, `maparadar.json` e a tag `rumo-maparadar`) e os nomes do fabricante do aparelho.
 
-| O quê | Nomes |
-|---|---|
-| Chaves de preferências (`SharedPreferences`) | `tema`, `ultima_lat`, `ultima_lon`, `ultimo_rumo`, `ultima_fonte`, `favoritas`, `radio_nomes`, `radio_encontradas`, `radio_mudo` e o prefixo `dados_` (hash de cada arquivo de dados instalado) |
-| Pasta `Rumo` no aparelho | `regioes/<id>/`, `fontes/`, `mapa.pmtiles`, `vias.db`, `contorno.geojson`, `maparadar.csv` |
-| Manifesto dos dados (`dados.json`) | as chaves que o app lê (`regioes`, `comum`, `grupo`, `destino`, `tamanho` e as demais de `core/Releases.kt`) |
-| Releases | as tags `rumo-dados` e `rumo-maparadar` e os nomes dos arquivos publicados (`dados.json`, `rumo-dados-<estado>.zip`, `maparadar.json`) |
-| Tabelas do `vias.db` | já são em inglês (`ways`, `segs`, `radars`, `info`) |
-
-Quem **cria** um contrato novo (uma chave, um arquivo, um campo de manifesto) nomeia em inglês. Quem quiser trocar um nome da tabela acima precisa fazer o app ler os dois nomes por um tempo (ou migrar o que já foi gravado) e registrar a mudança em `TODO.md`.
+**Cuidado ao renomear algo que já está no campo.** Trocar o nome de uma chave de preferência, de um arquivo gravado no aparelho ou de um campo de manifesto faz o app instalado perder o que tinha guardado (ou deixar de ler os dados publicados). Faça só com uma migração, ou avisando que o app recomeça do zero. Foi o caso da tradução geral de nomes (novembro de 2026): o app novo não lê as preferências antigas e baixa os dados de novo, e `Updater.removeOldLayout` apaga a pasta antiga (`regioes/`, `fontes/`) quando os dados novos estão no aparelho.
 
 ## Código
 

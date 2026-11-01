@@ -63,7 +63,7 @@ fun SettingsState.wanted(): Set<String> {
     return selected?.intersect(regions.map { it.region.id }.toSet()) ?: installedIds(regions)
 }
 
-/** Download em andamento: [key] é o canal (`STABLE`/`NIGHTLY`) ou `dados`. */
+/** Download em andamento: [key] é o canal (`STABLE`/`NIGHTLY`) ou `data`. */
 data class Transfer(val key: String, val label: String, val done: Long, val total: Long)
 
 /**
