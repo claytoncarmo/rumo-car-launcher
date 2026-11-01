@@ -52,6 +52,7 @@ import app.rumo.device.SourceInfo
 import app.rumo.core.MarkSpot
 import app.rumo.core.RadarAlert
 import app.rumo.core.RadarKind
+import app.rumo.core.RadarSettings
 import app.rumo.core.RadarWatch
 import app.rumo.core.UserPoint
 import app.rumo.core.UserPoints
@@ -128,7 +129,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     @Volatile private var minePoints: List<UserPoint>? = null
     private fun minePointsLoaded(): List<UserPoint> = minePoints ?: pointsStore.load().also { minePoints = it }
     private val matcher = RoadMatcher()
-    private val radars = RadarWatch(zoneM = RADAR_ZONE_M)
+    private val radars = RadarWatch()
     private val overSpeed = OverSpeed()
     private var driveJob: Job? = null
     private var systemNight = false
@@ -177,6 +178,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
         alerts = Alerts(this)
         state.favorites = Favorites.decode(prefs.getString(PREF_FAVORITES, null))
         lifecycleScope.launch { state.myPoints = withContext(drive) { minePointsLoaded() } }
+        state.radarZoneM = RadarSettings.zone(prefs.getInt(PREF_RADAR_ZONE, RadarSettings.ZONE_DEFAULT))
+        state.radarMarginKmh = RadarSettings.margin(prefs.getInt(PREF_RADAR_MARGIN, RadarSettings.MARGIN_DEFAULT))
+        radars.zoneM = state.radarZoneM
+        radars.marginKmh = state.radarMarginKmh
         state.radioMuted = prefs.getBoolean(PREF_RADIO_MUTED, false)
         radioNames.load(prefs.getString(PREF_RADIO_NAMES, null))
         state.radioNames = radioNames.valid()
@@ -846,6 +851,20 @@ class HomeActivity : ComponentActivity(), HomeActions {
         if (!state.settings.checked && !state.settings.checking) checkUpdates()
     }
 
+    override fun setRadarZone(meters: Int) {
+        val zone = RadarSettings.zone(meters)
+        state.radarZoneM = zone
+        radars.zoneM = zone
+        prefs.edit().putInt(PREF_RADAR_ZONE, zone).apply()
+    }
+
+    override fun setRadarMargin(kmh: Int) {
+        val margin = RadarSettings.margin(kmh)
+        state.radarMarginKmh = margin
+        radars.marginKmh = margin
+        prefs.edit().putInt(PREF_RADAR_MARGIN, margin).apply()
+    }
+
     override fun addPoint(spot: MarkSpot, kind: Int, limit: Int, bothWays: Boolean) {
         if (minePoints == null) {
             state.toast = "Carregando os pontos salvos: toque de novo"
@@ -1209,7 +1228,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     private companion object {
         /** Distância do aviso de radar (padrão do protótipo). */
-        const val RADAR_ZONE_M = 500
+        const val PREF_RADAR_ZONE = "radar_zone_m"
+        const val PREF_RADAR_MARGIN = "radar_margin_kmh"
         const val PREF_THEME = "theme"
         /** Quanto esperar o "Reiniciar" aparecer no menu de energia antes de avisar que não achou. */
         const val POWER_MENU_WAIT_MS = 7_000L

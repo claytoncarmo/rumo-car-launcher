@@ -74,6 +74,7 @@ import app.rumo.core.MarkSpot
 import app.rumo.core.PT_BR
 import app.rumo.core.Radar
 import app.rumo.core.RadarAlert
+import app.rumo.core.RadarSettings
 import app.rumo.core.radarLabel
 import app.rumo.core.RoadMatch
 import app.rumo.core.UserPoint
@@ -166,6 +167,9 @@ class HomeState {
     var appCode = 0L
     /** Configurações da home: o que a consulta às releases achou e o download em andamento (app ou dados). */
     var settings by mutableStateOf(SettingsState())
+    /** Avisos de radar: distância (m) em que começam e margem (km/h) acima do limite do radar antes de alertar. */
+    var radarZoneM by mutableIntStateOf(RadarSettings.ZONE_DEFAULT)
+    var radarMarginKmh by mutableIntStateOf(RadarSettings.MARGIN_DEFAULT)
     /** Menu da engrenagem aberto (configurações da home ou do Android). */
     var settingsMenu by mutableStateOf(false)
     var transfer by mutableStateOf<Transfer?>(null)
@@ -207,6 +211,10 @@ interface HomeActions {
     fun keyTest(on: Boolean)
     /** Diagnóstico: procura ganchos de reinício do fabricante (reboot-test.txt). */
     fun probeReboot()
+    /** Distância (m) em que o aviso de radar começa; guardada nas preferências. */
+    fun setRadarZone(meters: Int)
+    /** Margem (km/h) acima do limite do radar antes do alerta sonoro; guardada nas preferências. */
+    fun setRadarMargin(kmh: Int)
     /** Guarda um ponto no lugar de [spot] (radar, lombada…); [bothWays] ignora o sentido do carro. */
     fun addPoint(spot: MarkSpot, kind: Int, limit: Int, bothWays: Boolean)
     /** Apaga o ponto [index] da lista dos pontos do usuário. */

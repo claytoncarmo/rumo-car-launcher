@@ -56,10 +56,35 @@ data class RadarAlert(val radar: Radar, val distanceM: Int, val alarm: Boolean) 
 }
 
 /**
- * Acompanha o radar à frente. Entra na zona a até [zoneM] metros, com o radar no rumo do carro e fiscalizando
- * o sentido em que ele anda; sai ao passar do radar ou ao sair do rumo dele (outra rua).
+ * Ajustes dos avisos de radar (Configurações da home): distância em que o aviso começa e margem de velocidade acima do
+ * limite do radar antes de alertar.
  */
-class RadarWatch(var zoneM: Int = 500) {
+object RadarSettings {
+    const val ZONE_DEFAULT = 300
+    const val ZONE_MIN = 100
+    const val ZONE_MAX = 1000
+    const val ZONE_STEP = 50
+    const val MARGIN_DEFAULT = 0
+
+    /** Lombada, pedágio e câmera de semáforo não têm o que reduzir com tanta antecedência: avisam a no máximo isto. */
+    const val NEAR_ZONE = 300
+    const val MARGIN_MAX = 20
+
+    fun zone(meters: Int): Int = meters.coerceIn(ZONE_MIN, ZONE_MAX)
+
+    fun margin(kmh: Int): Int = kmh.coerceIn(0, MARGIN_MAX)
+}
+
+/**
+ * Acompanha o radar à frente. Entra na zona a até [zoneM] metros, com o radar no rumo do carro e fiscalizando
+ * o sentido em que ele anda; sai ao passar do radar ou ao sair do rumo dele (outra rua). O alarme (acima do limite)
+ * só dispara acima do limite do radar mais [marginKmh]. Os dois ajustes mudam a qualquer hora, de outra thread.
+ */
+class RadarWatch(zoneM: Int = RadarSettings.ZONE_DEFAULT, marginKmh: Int = RadarSettings.MARGIN_DEFAULT) {
+    @Volatile var zoneM: Int = zoneM
+
+    @Volatile var marginKmh: Int = marginKmh
+
     var current: RadarAlert? = null
         private set
 
@@ -95,15 +120,14 @@ class RadarWatch(var zoneM: Int = 500) {
         current = null
     }
 
-    private fun alertFor(r: Radar, d: Double, speedKmh: Int) = RadarAlert(r, d.toInt(), r.enforcesSpeed && speedKmh > r.limit)
+    private fun alertFor(r: Radar, d: Double, speedKmh: Int) = RadarAlert(r, d.toInt(), r.enforcesSpeed && speedKmh > r.limit + marginKmh)
 
     /** Lombada, pedágio e câmera de semáforo avisam mais perto: não há o que reduzir com tanta antecedência. */
-    private fun zoneOf(r: Radar) = if (r.chimes) zoneM else minOf(zoneM, NEAR_ZONE_M)
+    private fun zoneOf(r: Radar) = if (r.chimes) zoneM else minOf(zoneM, RadarSettings.NEAR_ZONE)
 
     private companion object {
         const val NEAR_M = 40.0
-        const val NEAR_ZONE_M = 300
-        // ~1 grau de latitude = 111 km: 0,01° (~1,1 km) cobre qualquer zona de aviso
-        const val MAX_DEG = 0.01
+        // ~1 grau de latitude = 111 km: 0,015° (~1,7 km, em longitude ~1,5 km no Sul) cobre qualquer zona de aviso
+        const val MAX_DEG = 0.015
     }
 }

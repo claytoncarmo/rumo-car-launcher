@@ -21,6 +21,7 @@ Hoje só o HCN de referência foi testado (ver "Outros aparelhos" no [`README.md
 
 - [ ] Estados: atualizar o app, abrir as configurações da home, marcar dois estados vizinhos, baixar, ver o mapa nos dois e atravessar a divisa (rua e limite continuam; sem sumir vias na faixa de folga). Conferir o tamanho de MG e SP e se o mapa continua fluido com mais de um estado.
 
+- [ ] Configurações da home em três abas (Configurações, Atualizações, Debug): conferir o layout no 1280×720; testar a distância do aviso (100 a 1000 m) e a margem de velocidade num radar de verdade.
 - [ ] Marcar ponto ("+" no card do mapa): marcar um semáforo com radar que falta ao passar por ele (posição e sentido certos, limite da via), ver o ponto no mapa na hora e o aviso na volta; conferir que continua depois de atualizar o app (OTA) e de reiniciar; listar e apagar em "Meus pontos"; ver se o toque no "+" atrapalha o toque no card (abre o ZLINK).
 - [ ] Volume flutuante: se o volume de música do Android muda o som nesta unidade (senão, achar outro caminho).
 - [x] Teste dos botões: o Android não recebe tecla nenhuma dos botões do lado da tela (ver `CLAUDE.md`). Falta religar a MCU (RST, ou tirar a alimentação da unidade por ~1 min) e repetir o teste; se continuar, é a placa dos botões ou o cabo (garantia/vendedor).

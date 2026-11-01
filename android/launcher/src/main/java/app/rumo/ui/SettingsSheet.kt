@@ -1,5 +1,7 @@
 package app.rumo.ui
 
+import android.os.Build
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -7,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -28,12 +32,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.rumo.core.Channel
 import app.rumo.core.DataChange
 import app.rumo.core.DataStatus
 import app.rumo.core.RegionInfo
+import app.rumo.core.RadarSettings
 import app.rumo.core.installedIds
 import app.rumo.core.planChange
 import app.rumo.core.UpdateKind
@@ -66,13 +73,21 @@ fun SettingsState.wanted(): Set<String> {
 /** Download em andamento: [key] é o canal (`STABLE`/`NIGHTLY`) ou `data`. */
 data class Transfer(val key: String, val label: String, val done: Long, val total: Long)
 
+/** As abas das configurações da home. */
+private enum class SettingsTab(val label: String) {
+    SETTINGS("Configurações"),
+    UPDATES("Atualizações"),
+    DEBUG("Debug"),
+}
+
 /**
- * Configurações da home (engrenagem › "Configurações da home", com o carro parado): versão instalada, atualização do
- * app por canal, dados do mapa, reinício do Android e os diagnósticos.
+ * Configurações da home (engrenagem › "Configurações da home", com o carro parado), em três abas: Configurações (avisos
+ * de radar e reinício do Android), Atualizações (app por canal e dados do mapa) e Debug (diagnósticos e versão).
  */
 @Composable
 fun SettingsSheet(s: HomeState, a: HomeActions) {
     val p = LocalPalette.current
+    var tab by remember { mutableStateOf(SettingsTab.SETTINGS) }
     Column(Modifier.fillMaxSize().card(p).swallowTouches()) {
         Row(
             Modifier.fillMaxWidth().padding(start = 28.dp, end = 14.dp, top = 14.dp, bottom = 10.dp),
@@ -90,24 +105,43 @@ fun SettingsSheet(s: HomeState, a: HomeActions) {
             }
         }
         Row(
+            Modifier.fillMaxWidth().padding(start = 28.dp, end = 28.dp, bottom = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            SettingsTab.entries.forEach { TabPill(it.label, tab == it) { tab = it } }
+        }
+        Row(
             Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, bottom = 22.dp),
             horizontalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Column(
-                Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                AppSection(s, a)
-                SystemSection(a)
-            }
-            Column(
-                Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                DataSection(s, a)
-                DiagnosticsSection(s, a)
-            }
+            TabColumn { if (tab == SettingsTab.SETTINGS) RadarSection(s, a) else if (tab == SettingsTab.UPDATES) AppSection(s, a) else DiagnosticsSection(s, a) }
+            TabColumn { if (tab == SettingsTab.SETTINGS) SystemSection(a) else if (tab == SettingsTab.UPDATES) DataSection(s, a) else VersionSection(s) }
         }
+    }
+}
+
+@Composable
+private fun RowScope.TabColumn(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        content = content,
+    )
+}
+
+@Composable
+private fun TabPill(text: String, on: Boolean, onClick: () -> Unit) {
+    val p = LocalPalette.current
+    Box(
+        Modifier
+            .height(52.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .background(if (on) p.accent else p.surface2)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 26.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Txt(text, 19, color = if (on) p.onAccent else p.text, weight = FontWeight.SemiBold)
     }
 }
 
@@ -270,6 +304,87 @@ private fun DiagnosticsSection(s: HomeState, a: HomeActions) {
             PillButton("Teste do reinício", enabled = true, primary = false) { a.probeReboot() }
             PillButton("Teste dos botões", enabled = true, primary = false) { s.sheet = Sheet.KEYS }
         }
+    }
+}
+
+/** Distância do aviso e margem de velocidade dos radares (core/Radars.kt, `RadarSettings`). */
+@Composable
+private fun RadarSection(s: HomeState, a: HomeActions) {
+    val p = LocalPalette.current
+    SectionCard("Avisos de radar") {
+        StepperRow(
+            title = "Distância do aviso",
+            detail = "O aviso e os bipes começam a esta distância do radar. Lombada, pedágio e câmera de semáforo avisam a no máximo ${RadarSettings.NEAR_ZONE} m.",
+            value = "${s.radarZoneM} m",
+            canDecrease = s.radarZoneM > RadarSettings.ZONE_MIN,
+            canIncrease = s.radarZoneM < RadarSettings.ZONE_MAX,
+            onDecrease = { a.setRadarZone(s.radarZoneM - RadarSettings.ZONE_STEP) },
+            onIncrease = { a.setRadarZone(s.radarZoneM + RadarSettings.ZONE_STEP) },
+        )
+        StepperRow(
+            title = "Margem de velocidade",
+            detail = "Só alerta acima do limite do radar mais a margem: com ${s.radarMarginKmh} km/h, num radar de 50 km/h o alerta começa acima de ${50 + s.radarMarginKmh} km/h. Vale também para o aviso em vermelho.",
+            value = "${s.radarMarginKmh} km/h",
+            canDecrease = s.radarMarginKmh > 0,
+            canIncrease = s.radarMarginKmh < RadarSettings.MARGIN_MAX,
+            onDecrease = { a.setRadarMargin(s.radarMarginKmh - 1) },
+            onIncrease = { a.setRadarMargin(s.radarMarginKmh + 1) },
+        )
+        Row {
+            PillButton(
+                "Restaurar o padrão",
+                enabled = s.radarZoneM != RadarSettings.ZONE_DEFAULT || s.radarMarginKmh != RadarSettings.MARGIN_DEFAULT,
+                primary = false,
+            ) {
+                a.setRadarZone(RadarSettings.ZONE_DEFAULT)
+                a.setRadarMargin(RadarSettings.MARGIN_DEFAULT)
+            }
+        }
+        Txt("Padrão: ${RadarSettings.ZONE_DEFAULT} m e ${RadarSettings.MARGIN_DEFAULT} km/h de margem.", 14, color = p.text3)
+    }
+}
+
+@Composable
+private fun StepperRow(
+    title: String,
+    detail: String,
+    value: String,
+    canDecrease: Boolean,
+    canIncrease: Boolean,
+    onDecrease: () -> Unit,
+    onIncrease: () -> Unit,
+) {
+    val p = LocalPalette.current
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Txt(title, 22, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            RoundStepButton(Icons.minus, canDecrease, onDecrease)
+            Txt(value, 26, weight = FontWeight.Bold, numeric = true, align = TextAlign.Center, modifier = Modifier.width(120.dp))
+            RoundStepButton(Icons.plus, canIncrease, onIncrease)
+        }
+        Txt(detail, 15, color = p.text2, maxLines = 4)
+    }
+}
+
+@Composable
+private fun RoundStepButton(icon: ImageVector, enabled: Boolean, onClick: () -> Unit) {
+    val p = LocalPalette.current
+    Box(
+        Modifier.size(60.dp).alpha(if (enabled) 1f else 0.35f).clip(CircleShape).background(p.surface3).clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Ico(icon, 28.dp, p.text)
+    }
+}
+
+/** Versão instalada e do aparelho, para quem for conferir um relatório de teste. */
+@Composable
+private fun VersionSection(s: HomeState) {
+    val p = LocalPalette.current
+    SectionCard("Esta versão") {
+        Txt("Rumo ${s.appVersion}", 22, weight = FontWeight.SemiBold)
+        Txt("Canal ${installedChannelLabel(s.appVersion)} · código ${s.appCode}", 16, color = p.text2)
+        Txt("Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) · ${Build.MODEL}", 16, color = p.text2, maxLines = 2)
     }
 }
 

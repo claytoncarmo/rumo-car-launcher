@@ -36,6 +36,50 @@ class RadarsTest {
     }
 
     @Test
+    fun speedMarginDelaysTheAlarm() {
+        // Radar de 60 km/h com margem de 2: 62 ainda não alerta, 63 sim
+        val w = RadarWatch(500, marginKmh = 2)
+        w.update(lat0, lon0 + 300 * dLon, 90f, 62, listOf(radar))
+        assertFalse(w.current!!.alarm)
+        w.update(lat0, lon0 + 300 * dLon, 90f, 63, listOf(radar))
+        assertTrue(w.current!!.alarm)
+        // A margem muda a qualquer hora
+        w.marginKmh = 0
+        w.update(lat0, lon0 + 300 * dLon, 90f, 61, listOf(radar))
+        assertTrue(w.current!!.alarm)
+    }
+
+    @Test
+    fun zeroMarginAlertsRightAboveTheLimit() {
+        val w = RadarWatch(500)
+        w.update(lat0, lon0 + 300 * dLon, 90f, 60, listOf(radar))
+        assertFalse(w.current!!.alarm)
+        w.update(lat0, lon0 + 300 * dLon, 90f, 61, listOf(radar))
+        assertTrue(w.current!!.alarm)
+    }
+
+    @Test
+    fun warningDistanceCanChangeWhileDriving() {
+        // Radar a 400 m: fora da zona de 300 m; com 500 m entra
+        val w = RadarWatch()
+        assertEquals(RadarSettings.ZONE_DEFAULT, w.zoneM)
+        assertFalse(w.update(lat0, lon0, 90f, 50, listOf(radar)))
+        w.zoneM = 500
+        assertTrue(w.update(lat0, lon0, 90f, 50, listOf(radar)))
+    }
+
+    @Test
+    fun settingsStayInRange() {
+        assertEquals(RadarSettings.ZONE_MIN, RadarSettings.zone(0))
+        assertEquals(RadarSettings.ZONE_MAX, RadarSettings.zone(5000))
+        assertEquals(350, RadarSettings.zone(350))
+        assertEquals(0, RadarSettings.margin(-3))
+        assertEquals(RadarSettings.MARGIN_MAX, RadarSettings.margin(99))
+        assertEquals(300, RadarSettings.ZONE_DEFAULT)
+        assertEquals(0, RadarSettings.MARGIN_DEFAULT)
+    }
+
+    @Test
     fun outsideZoneOrOppositeDirectionDoesNotWarn() {
         val w = RadarWatch(500)
         assertFalse(w.update(lat0, lon0 - 200 * dLon, 90f, 50, listOf(radar)))  // 600 m
