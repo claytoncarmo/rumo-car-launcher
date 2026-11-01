@@ -37,6 +37,6 @@ Hoje só o HCN de referência foi testado (ver "Outros aparelhos" no [`README.md
 - [ ] Testar andando: rua e limite em cruzamentos e ruas paralelas, avisos de radar, desempenho do mapa e a velocidade do GPS contra o painel do carro.
 - [ ] Radares além do OSM (ANTT, dados abertos de prefeituras).
 - [ ] Pontos do usuário: mandar para o fórum do MapaRadar/OSM direto do app (hoje só copiando o `my-points.csv`), desfazer logo depois de marcar e esconder pontos que o MapaRadar passar a ter a menos de 50 m.
-- [ ] Primeira versão estável: `git tag v0.5.0 && git push origin v0.5.0`, para existir `releases/latest`.
+- [x] Primeira versão estável: `v0.1.0` (canal estável das configurações da home e `releases/latest`).
 - [ ] Fonte Barlow; cartão inteligente só tem a página Viagem; telefone e Bluetooth não integrados.
 - [ ] Servidor de relatórios na rede, para dispensar o pendrive nos testes.

@@ -35,7 +35,7 @@ Três workflows em `.github/workflows/`:
 
 | Workflow | Quando roda | O que publica |
 |---|---|---|
-| `nightly.yml` | A cada push na `main` que mexe no app | Substitui a pré-release **nightly** (`rumo.apk`). Versão `última-tag-nightly.N` (ex.: `0.5.0-nightly.57`), com N = número de commits |
+| `nightly.yml` | A cada push na `main` que mexe no app | Substitui a pré-release **nightly** (`rumo.apk`). Versão `última-tag-nightly.N` (ex.: `0.1.0-nightly.57`), com N = número de commits |
 | `release.yml` | Ao criar uma tag `vX.Y.Z` | Release **estável** com `rumo-X.Y.Z.apk` e `rumo.apk` (nome fixo, para `releases/latest/download/rumo.apk`). Tag com sufixo (`v1.0.0-rc1`) sai como pré-release |
 | `map-data.yml` | Mudança em `data/`, todo dia 1 e sob demanda | Pré-release **rumo-data** com `rumo-data-sc.zip` |
 
@@ -54,8 +54,8 @@ A seção **Sistema** das configurações da home tem o botão **Reiniciar o And
 **Lançar uma versão estável:**
 
 ```bash
-git tag v0.5.0
-git push origin v0.5.0
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
 O número vem da tag; não há versão para editar no código. Pelo botão **Run workflow** do `release.yml` dá para compilar uma versão de teste sem publicar nada.
