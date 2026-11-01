@@ -154,7 +154,7 @@ private fun StationPanel(s: HomeState, a: HomeActions, modifier: Modifier) {
         }
         Spacer(Modifier.height(10.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Txt(s.radioLog.lastOrNull() ?: "", 13, color = p.text3, modifier = Modifier.weight(1f))
+            Spacer(Modifier.weight(1f))
             Box(
                 Modifier.height(40.dp).clip(RoundedCornerShape(12.dp)).clickable { a.radio(RadioCmd.OpenApp) }.padding(horizontal = 8.dp),
                 contentAlignment = Alignment.Center,

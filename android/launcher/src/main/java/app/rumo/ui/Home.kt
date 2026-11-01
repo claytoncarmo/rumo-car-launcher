@@ -146,7 +146,7 @@ class HomeState {
     var radioMuted by mutableStateOf(false)
     /** Memórias do aparelho (kHz), para trazer para as favoritas. */
     var devicePresets by mutableStateOf<List<Int>>(emptyList())
-    /** Registro dos comandos do rádio (teste): a última linha aparece na tela de rádio. */
+    /** Registro dos comandos do rádio (teste): sai no relatório com toque longo no título da tela de rádio. */
     var radioLog by mutableStateOf<List<String>>(emptyList())
     /** Há assistente de voz instalado: sem ele, o botão do microfone some. */
     var hasVoice by mutableStateOf(false)
