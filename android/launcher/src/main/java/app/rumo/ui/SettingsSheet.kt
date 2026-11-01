@@ -323,7 +323,7 @@ private fun RadarSection(s: HomeState, a: HomeActions) {
         )
         StepperRow(
             title = "Margem de velocidade",
-            detail = "Só alerta acima do limite do radar mais a margem: com ${s.radarMarginKmh} km/h, num radar de 50 km/h o alerta começa acima de ${50 + s.radarMarginKmh} km/h. Vale também para o aviso em vermelho.",
+            detail = "Vale só para o som: com ${s.radarMarginKmh} km/h, num radar de 50 km/h os bipes começam acima de ${50 + s.radarMarginKmh} km/h. O aviso em vermelho aparece assim que passar do limite.",
             value = "${s.radarMarginKmh} km/h",
             canDecrease = s.radarMarginKmh > 0,
             canIncrease = s.radarMarginKmh < RadarSettings.MARGIN_MAX,

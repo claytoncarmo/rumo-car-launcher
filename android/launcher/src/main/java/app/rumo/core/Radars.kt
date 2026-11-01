@@ -49,8 +49,11 @@ fun radarLabel(kind: Int): String = when (kind) {
     else -> "Radar"
 }
 
-/** Radar à frente, dentro da zona de aviso. [alarm]: acima do limite dele. */
-data class RadarAlert(val radar: Radar, val distanceM: Int, val alarm: Boolean) {
+/**
+ * Radar à frente, dentro da zona de aviso. [alarm]: acima do limite dele (aviso em vermelho). [sound]: acima do limite
+ * mais a margem de velocidade (bipes).
+ */
+data class RadarAlert(val radar: Radar, val distanceM: Int, val alarm: Boolean, val sound: Boolean = alarm) {
     /** 0 na borda da zona, 1 em cima do radar: ritmo e tom dos bipes. */
     fun closeness(zoneM: Int): Float = (1f - distanceM.toFloat() / zoneM).coerceIn(0f, 1f)
 }
@@ -68,7 +71,7 @@ object RadarSettings {
 
     /** Lombada, pedágio e câmera de semáforo não têm o que reduzir com tanta antecedência: avisam a no máximo isto. */
     const val NEAR_ZONE = 300
-    const val MARGIN_MAX = 20
+    const val MARGIN_MAX = 10
 
     fun zone(meters: Int): Int = meters.coerceIn(ZONE_MIN, ZONE_MAX)
 
@@ -77,8 +80,8 @@ object RadarSettings {
 
 /**
  * Acompanha o radar à frente. Entra na zona a até [zoneM] metros, com o radar no rumo do carro e fiscalizando
- * o sentido em que ele anda; sai ao passar do radar ou ao sair do rumo dele (outra rua). O alarme (acima do limite)
- * só dispara acima do limite do radar mais [marginKmh]. Os dois ajustes mudam a qualquer hora, de outra thread.
+ * o sentido em que ele anda; sai ao passar do radar ou ao sair do rumo dele (outra rua). O aviso em vermelho (acima do limite)
+ * começa logo acima do limite do radar; os bipes, só acima do limite mais [marginKmh]. Os dois ajustes mudam a qualquer hora, de outra thread.
  */
 class RadarWatch(zoneM: Int = RadarSettings.ZONE_DEFAULT, marginKmh: Int = RadarSettings.MARGIN_DEFAULT) {
     @Volatile var zoneM: Int = zoneM
@@ -120,7 +123,7 @@ class RadarWatch(zoneM: Int = RadarSettings.ZONE_DEFAULT, marginKmh: Int = Radar
         current = null
     }
 
-    private fun alertFor(r: Radar, d: Double, speedKmh: Int) = RadarAlert(r, d.toInt(), r.enforcesSpeed && speedKmh > r.limit + marginKmh)
+    private fun alertFor(r: Radar, d: Double, speedKmh: Int) = RadarAlert(r, d.toInt(), r.enforcesSpeed && speedKmh > r.limit, r.enforcesSpeed && speedKmh > r.limit + marginKmh)
 
     /** Lombada, pedágio e câmera de semáforo avisam mais perto: não há o que reduzir com tanta antecedência. */
     private fun zoneOf(r: Radar) = if (r.chimes) zoneM else minOf(zoneM, RadarSettings.NEAR_ZONE)

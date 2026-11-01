@@ -1149,7 +1149,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             state.radar = radar
             state.over = overSpeed.update(info.speedKmh, road?.limit)
             if (entered && radar?.radar?.chimes == true) alerts.chime()
-            alerts.alarm(radar?.takeIf { it.alarm }?.closeness(radars.zoneM))
+            alerts.alarm(radar?.takeIf { it.sound }?.closeness(radars.zoneM))
         }
     }
 

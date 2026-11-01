@@ -36,17 +36,22 @@ class RadarsTest {
     }
 
     @Test
-    fun speedMarginDelaysTheAlarm() {
-        // Radar de 60 km/h com margem de 2: 62 ainda não alerta, 63 sim
+    fun speedMarginDelaysOnlyTheSound() {
+        // Radar de 60 km/h com margem de 2: o vermelho começa em 61, os bipes só em 63
         val w = RadarWatch(500, marginKmh = 2)
-        w.update(lat0, lon0 + 300 * dLon, 90f, 62, listOf(radar))
+        w.update(lat0, lon0 + 300 * dLon, 90f, 60, listOf(radar))
         assertFalse(w.current!!.alarm)
-        w.update(lat0, lon0 + 300 * dLon, 90f, 63, listOf(radar))
+        assertFalse(w.current!!.sound)
+        w.update(lat0, lon0 + 300 * dLon, 90f, 62, listOf(radar))
         assertTrue(w.current!!.alarm)
+        assertFalse(w.current!!.sound)
+        w.update(lat0, lon0 + 300 * dLon, 90f, 63, listOf(radar))
+        assertTrue(w.current!!.sound)
         // A margem muda a qualquer hora
         w.marginKmh = 0
         w.update(lat0, lon0 + 300 * dLon, 90f, 61, listOf(radar))
         assertTrue(w.current!!.alarm)
+        assertTrue(w.current!!.sound)
     }
 
     @Test
@@ -54,8 +59,10 @@ class RadarsTest {
         val w = RadarWatch(500)
         w.update(lat0, lon0 + 300 * dLon, 90f, 60, listOf(radar))
         assertFalse(w.current!!.alarm)
+        assertFalse(w.current!!.sound)
         w.update(lat0, lon0 + 300 * dLon, 90f, 61, listOf(radar))
         assertTrue(w.current!!.alarm)
+        assertTrue(w.current!!.sound)
     }
 
     @Test
@@ -74,6 +81,7 @@ class RadarsTest {
         assertEquals(RadarSettings.ZONE_MAX, RadarSettings.zone(5000))
         assertEquals(350, RadarSettings.zone(350))
         assertEquals(0, RadarSettings.margin(-3))
+        assertEquals(10, RadarSettings.MARGIN_MAX)
         assertEquals(RadarSettings.MARGIN_MAX, RadarSettings.margin(99))
         assertEquals(300, RadarSettings.ZONE_DEFAULT)
         assertEquals(0, RadarSettings.MARGIN_DEFAULT)
