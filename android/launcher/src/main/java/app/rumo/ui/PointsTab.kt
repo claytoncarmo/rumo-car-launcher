@@ -36,6 +36,7 @@ import app.rumo.core.UserPoints
 import app.rumo.core.compassOf
 import app.rumo.core.directionOf
 import app.rumo.core.formatDistance
+import app.rumo.device.GpsInfo
 import app.rumo.device.GpsStatus
 import kotlinx.coroutines.delay
 import java.util.Locale
@@ -183,6 +184,7 @@ private fun PointEditor(s: HomeState, a: HomeActions, index: Int, onClose: () ->
             Modifier.weight(1f).fillMaxSize().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            PointPreview(s, pt)
             SectionCard("Posição") {
                 Txt(String.format(Locale.US, "%.6f, %.6f", pt.lat, pt.lon), 20, weight = FontWeight.SemiBold, numeric = true)
                 val g = s.gps
@@ -216,6 +218,36 @@ private fun PointEditor(s: HomeState, a: HomeActions, index: Int, onClose: () ->
                 }
             }
         }
+    }
+}
+
+/**
+ * O mapa em volta do ponto que está sendo editado, para ver o efeito de cada mudança (posição, tipo, limite). Com sentido,
+ * o mapa gira para o sentido do ponto ficar para cima; sem, fica com o norte para cima.
+ */
+@Composable
+private fun PointPreview(s: HomeState, pt: UserPoint) {
+    val p = LocalPalette.current
+    val fonts = s.fontsDir
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(Modifier.fillMaxWidth().height(260.dp).clip(RoundedCornerShape(22.dp)).background(p.mapBlock)) {
+            if (s.mapFiles.isNotEmpty() && fonts != null) {
+                val position = GpsInfo(
+                    status = GpsStatus.OK,
+                    lat = pt.lat,
+                    lon = pt.lon,
+                    bearing = pt.bearing.takeIf { it >= 0 }?.toFloat(),
+                )
+                DriveMap(s.mapFiles, fonts, s.radars, position, null, p === Night, preview = true)
+            } else {
+                Txt("Sem dados do mapa para mostrar o ponto.", 16, color = p.text2, modifier = Modifier.align(Alignment.Center))
+            }
+        }
+        Txt(
+            if (pt.bearing >= 0) "Mapa com o sentido do ponto (${directionOf(pt.bearing.toFloat())}) para cima."
+            else "Mapa com o norte para cima (ponto nos dois sentidos).",
+            14, color = p.text3, maxLines = 2,
+        )
     }
 }
 

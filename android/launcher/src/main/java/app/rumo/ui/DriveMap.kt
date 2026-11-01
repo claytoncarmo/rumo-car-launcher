@@ -44,9 +44,22 @@ class MapStart(val lat: Double, val lon: Double, val bearing: Double)
  * Mapa passivo do card: segue o GPS com a frente do carro para cima, sem gestos (tocar no card abre o Android Auto).
  * Mapa vetorial offline (um map.pmtiles por estado instalado, todos desenhados) e fontes dos nomes de rua da pasta
  * Rumo; até 30 quadros por segundo.
+ *
+ * [preview]: o mesmo mapa em pequeno, para ver um ponto marcado enquanto ele é editado (aba Pontos): centrado na
+ * "posição" dada, bem mais perto, com o rumo dela para cima (ou o norte, sem rumo), 15 quadros por segundo e em
+ * TextureView, para ficar por cima do mapa da tela inicial (que continua por baixo da folha).
  */
 @Composable
-fun DriveMap(mapFiles: List<File>, fontsDir: File, radars: List<Radar>, gps: GpsInfo, start: MapStart?, night: Boolean, modifier: Modifier = Modifier) {
+fun DriveMap(
+    mapFiles: List<File>,
+    fontsDir: File,
+    radars: List<Radar>,
+    gps: GpsInfo,
+    start: MapStart?,
+    night: Boolean,
+    modifier: Modifier = Modifier,
+    preview: Boolean = false,
+) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
@@ -57,14 +70,14 @@ fun DriveMap(mapFiles: List<File>, fontsDir: File, radars: List<Radar>, gps: Gps
     val view = remember {
         MapLibre.getInstance(context)
         val options = MapLibreMapOptions.createFromAttributes(context)
-            .textureMode(false)
+            .textureMode(preview)
             .logoEnabled(false)
             .attributionEnabled(false)
             .compassEnabled(false)
-            .maxZoomPreference(18.0)
+            .maxZoomPreference(if (preview) PREVIEW_ZOOM else 18.0)
         MapView(context, options).apply {
             onCreate(null)
-            setMaximumFps(30)
+            setMaximumFps(if (preview) 15 else 30)
             getMapAsync { m ->
                 m.uiSettings.setAllGesturesEnabled(false)
                 map = m
@@ -114,19 +127,21 @@ fun DriveMap(mapFiles: List<File>, fontsDir: File, radars: List<Radar>, gps: Gps
         // Sem GPS ainda: a última posição guardada
         val lat = gps.lat ?: start?.lat ?: return@LaunchedEffect
         val lon = gps.lon ?: start?.lon ?: return@LaunchedEffect
-        // Centro da área abaixo do recuo = altura do carro no card
-        val top = (height * (2 * CAR_Y - 1)).toDouble()
+        // Centro da área abaixo do recuo = altura do carro no card (na pré-visualização, o meio)
+        val top = if (preview) 0.0 else (height * (2 * CAR_Y - 1)).toDouble()
         val position = CameraPosition.Builder()
             .target(LatLng(lat, lon))
-            .zoom(zoomFor(gps.speedKmh ?: 0))
-            .bearing(gps.bearing?.toDouble() ?: start?.bearing ?: m.cameraPosition.bearing)
+            .zoom(if (preview) PREVIEW_ZOOM else zoomFor(gps.speedKmh ?: 0))
+            .bearing(
+                if (preview) gps.bearing?.toDouble() ?: 0.0 else gps.bearing?.toDouble() ?: start?.bearing ?: m.cameraPosition.bearing,
+            )
             .tilt(0.0)
             .padding(0.0, top, 0.0, 0.0)
             .build()
         val update = CameraUpdateFactory.newCameraPosition(position)
         if (placed[0]) {
             // Uma posição por segundo: desliza até a próxima no mesmo tempo, sem tranco
-            m.easeCamera(update, 1000, false)
+            m.easeCamera(update, if (preview) 250 else 1000, false)
         } else {
             m.moveCamera(update)
             placed[0] = true
@@ -135,6 +150,9 @@ fun DriveMap(mapFiles: List<File>, fontsDir: File, radars: List<Radar>, gps: Gps
 
     AndroidView(factory = { view }, modifier = modifier.fillMaxSize().onSizeChanged { height = it.height })
 }
+
+/** Zoom da pré-visualização de um ponto: perto o bastante para ver 5 m de diferença. */
+private const val PREVIEW_ZOOM = 19.0
 
 /** Mais perto na cidade, mais longe na estrada. */
 private fun zoomFor(kmh: Int): Double = when {
