@@ -47,7 +47,7 @@ import app.rumo.device.PowerService
 import kotlinx.coroutines.delay
 
 /** O que a consulta às releases encontrou: um canal por vez (estável e nightly) e os dados do mapa. */
-data class AboutState(
+data class SettingsState(
     val checking: Boolean = false,
     val checked: Boolean = false,
     val stable: ChannelInfo? = null,
@@ -58,7 +58,7 @@ data class AboutState(
 )
 
 /** Estados que o usuário quer no aparelho: os marcados ou, sem escolha ainda, os instalados. */
-fun AboutState.wanted(): Set<String> {
+fun SettingsState.wanted(): Set<String> {
     val regions = data?.regions.orEmpty()
     return selected?.intersect(regions.map { it.region.id }.toSet()) ?: installedIds(regions)
 }
@@ -67,11 +67,11 @@ fun AboutState.wanted(): Set<String> {
 data class Transfer(val key: String, val label: String, val done: Long, val total: Long)
 
 /**
- * Painel "Rumo" (7 toques no relógio, com o carro parado): versão instalada, atualização do app por canal, dados do
- * mapa e os diagnósticos.
+ * Configurações da home (engrenagem › "Configurações da home", com o carro parado): versão instalada, atualização do
+ * app por canal, dados do mapa, reinício do Android e os diagnósticos.
  */
 @Composable
-fun AboutSheet(s: HomeState, a: HomeActions) {
+fun SettingsSheet(s: HomeState, a: HomeActions) {
     val p = LocalPalette.current
     Column(Modifier.fillMaxSize().card(p).swallowTouches()) {
         Row(
@@ -79,8 +79,8 @@ fun AboutSheet(s: HomeState, a: HomeActions) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Txt("Rumo", 30, weight = FontWeight.SemiBold)
-                Txt("Versão ${s.appVersion} · ${installedChannelLabel(s.appVersion)}", 16, color = p.text2)
+                Txt("Configurações da home", 30, weight = FontWeight.SemiBold)
+                Txt("Rumo ${s.appVersion} · ${installedChannelLabel(s.appVersion)}", 16, color = p.text2)
             }
             Box(
                 Modifier.size(76.dp, 64.dp).clip(RoundedCornerShape(20.dp)).background(p.surface2).clickable { s.sheet = Sheet.NONE },
@@ -126,16 +126,16 @@ private fun SectionCard(title: String, content: @Composable ColumnScope.() -> Un
 @Composable
 private fun AppSection(s: HomeState, a: HomeActions) {
     val p = LocalPalette.current
-    val about = s.about
+    val settings = s.settings
     SectionCard("Aplicativo") {
         Txt(
-            if (about.checking) "Consultando as versões publicadas…" else "Versões publicadas no GitHub",
+            if (settings.checking) "Consultando as versões publicadas…" else "Versões publicadas no GitHub",
             16, color = p.text2,
         )
-        ChannelRow(Channel.STABLE, about.stable, s, a)
-        ChannelRow(Channel.NIGHTLY, about.nightly, s, a)
+        ChannelRow(Channel.STABLE, settings.stable, s, a)
+        ChannelRow(Channel.NIGHTLY, settings.nightly, s, a)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            PillButton("Buscar de novo", enabled = !about.checking && s.transfer == null, primary = false) { a.checkUpdates() }
+            PillButton("Buscar de novo", enabled = !settings.checking && s.transfer == null, primary = false) { a.checkUpdates() }
         }
         Txt(
             "A nightly sai a cada mudança no código e pode ser instável. O Android não deixa voltar para uma versão mais antiga que a instalada.",
@@ -182,15 +182,15 @@ private fun ChannelRow(channel: Channel, info: ChannelInfo?, s: HomeState, a: Ho
 @Composable
 private fun DataSection(s: HomeState, a: HomeActions) {
     val p = LocalPalette.current
-    val about = s.about
-    val data = about.data
-    val wanted = about.wanted()
+    val settings = s.settings
+    val data = settings.data
+    val wanted = settings.wanted()
     val change = data?.let { planChange(it.regions, it.common, wanted) }
     val transfer = s.transfer?.takeIf { it.key == DATA_KEY }
     SectionCard("Mapas por estado") {
         Txt(
             when {
-                data == null -> if (about.checking) "Consultando…" else "—"
+                data == null -> if (settings.checking) "Consultando…" else "—"
                 data.problem != null -> data.problem
                 else -> "Marque os estados que quer no carro e toque no botão. Vários funcionam juntos, inclusive ao cruzar a divisa."
             },

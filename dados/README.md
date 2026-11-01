@@ -6,7 +6,7 @@ Hoje o pacote cobre os estados do **Sul** (PR, SC, RS) e do **Sudeste** (SP, RJ,
 
 ## Instalar no aparelho
 
-**Pelo app (recomendado):** abra o painel Rumo (7 toques no relógio, com o carro parado, ou toque em "Sem dados do mapa" no card do mapa). Em "Mapas por estado" estão os estados disponíveis, agrupados em Sul e Sudeste, com o tamanho de cada um. Marque os que quer e toque no botão: o app baixa os marcados que faltam (ou estão desatualizados) e remove os desmarcados que estavam instalados. Os estados instalados vêm marcados. Cada arquivo vai direto para `/sdcard/Rumo`, com retomada, confere o SHA-256 e depois só baixa de novo o que mudou. Arquivos copiados à mão são reconhecidos pelo hash. Vários estados valem ao mesmo tempo: o mapa desenha todos e a rua atual e o limite vêm das vias de todos, então cruzar a divisa não muda nada.
+**Pelo app (recomendado):** abra a engrenagem › Configurações da home (com o carro parado, ou toque em "Sem dados do mapa" no card do mapa). Em "Mapas por estado" estão os estados disponíveis, agrupados em Sul e Sudeste, com o tamanho de cada um. Marque os que quer e toque no botão: o app baixa os marcados que faltam (ou estão desatualizados) e remove os desmarcados que estavam instalados. Os estados instalados vêm marcados. Cada arquivo vai direto para `/sdcard/Rumo`, com retomada, confere o SHA-256 e depois só baixa de novo o que mudou. Arquivos copiados à mão são reconhecidos pelo hash. Vários estados valem ao mesmo tempo: o mapa desenha todos e a rua atual e o limite vêm das vias de todos, então cruzar a divisa não muda nada.
 
 **À mão:**
 
@@ -59,7 +59,7 @@ Se o estilo passar a desenhar outra coisa, mude `filtrar` junto. `mapa_confere.p
 
 `kind` 0 é um radar do OSM que não casou com nenhum ponto do MapaRadar (continua valendo, como radar fixo). O CSV não traz o sentido: vale o do radar do OSM a até 50 m (que é o mesmo ponto e sai da lista), senão o da via se for de mão única, senão os dois sentidos. O mesmo ponto tem o mesmo id (o número da linha, negativo) em todos os estados. Linhas fora do Brasil, de tipo novo ou sem o formato são ignoradas. Para copiar à mão, ponha o `maparadar.csv` original na pasta `Rumo`.
 
-**Licença:** a base é CC BY-NC-ND 4.0 (uso pessoal, com atribuição, sem fins comerciais e **sem alterações**). Por isso o projeto só **distribui o arquivo original**, sem alterações, e a conversão acontece no aparelho de cada pessoa (adaptação privada). O `vias.db` e os zips das Releases têm só dados do OpenStreetMap. A atribuição está aqui, no painel do app, nas notas da release e no `LEIAME.txt` dos zips. Confira os termos de uso do site do MapaRadar antes de divulgar o projeto mais amplamente.
+**Licença:** a base é CC BY-NC-ND 4.0 (uso pessoal, com atribuição, sem fins comerciais e **sem alterações**). Por isso o projeto só **distribui o arquivo original**, sem alterações, e a conversão acontece no aparelho de cada pessoa (adaptação privada). O `vias.db` e os zips das Releases têm só dados do OpenStreetMap. A atribuição está aqui, nas configurações do app, nas notas da release e no `LEIAME.txt` dos zips. Confira os termos de uso do site do MapaRadar antes de divulgar o projeto mais amplamente.
 
 ## `vias.py`
 

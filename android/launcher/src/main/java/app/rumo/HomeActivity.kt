@@ -76,7 +76,7 @@ import app.rumo.device.Updater
 import app.rumo.device.UserPointsStore
 import app.rumo.core.PT_BR
 import app.rumo.device.NightSignal
-import app.rumo.ui.AboutState
+import app.rumo.ui.SettingsState
 import app.rumo.ui.wanted
 import app.rumo.ui.DATA_KEY
 import app.rumo.ui.HomeActions
@@ -830,20 +830,20 @@ class HomeActivity : ComponentActivity(), HomeActions {
         start(intent)
     }
 
-    override fun systemSettings() = start(Intent(Settings.ACTION_SETTINGS))
+    override fun openAndroidSettings() = start(Intent(Settings.ACTION_SETTINGS))
 
     override fun askLocation() = permissions.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
 
     override fun askFiles() = permissions.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
 
-    /** Painel Rumo: só com o carro parado, para não pedir atenção do motorista. Consulta as versões ao abrir. */
-    override fun openAbout() {
+    /** Configurações da home: só com o carro parado, para não pedir atenção do motorista. Consulta as versões ao abrir. */
+    override fun openSettings() {
         if ((state.gps.speedKmh ?: 0) >= PARKED_BELOW_KMH) {
-            state.toast = "Pare o carro para abrir o painel Rumo"
+            state.toast = "Pare o carro para abrir as configurações da home"
             return
         }
-        state.sheet = Sheet.ABOUT
-        if (!state.about.checked && !state.about.checking) checkUpdates()
+        state.sheet = Sheet.SETTINGS
+        if (!state.settings.checked && !state.settings.checking) checkUpdates()
     }
 
     override fun addPoint(spot: MarkSpot, kind: Int, limit: Int, bothWays: Boolean) {
@@ -929,8 +929,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
     }
 
     override fun checkUpdates() {
-        if (state.about.checking || state.transfer != null) return
-        state.about = state.about.copy(checking = true)
+        if (state.settings.checking || state.transfer != null) return
+        state.settings = state.settings.copy(checking = true)
         lifecycleScope.launch {
             val (stable, nightly, data) = coroutineScope {
                 val stable = async { updater.fetchChannel(Channel.STABLE) }
@@ -938,16 +938,16 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 val data = async { updater.fetchData() }
                 Triple(stable.await(), nightly.await(), data.await())
             }
-            state.about = AboutState(
+            state.settings = SettingsState(
                 checking = false, checked = true, stable = stable, nightly = nightly, data = data,
-                selected = state.about.selected,
+                selected = state.settings.selected,
             )
         }
     }
 
     override fun installApp(channel: Channel) {
         if (state.transfer != null) return
-        val info = if (channel == Channel.STABLE) state.about.stable else state.about.nightly
+        val info = if (channel == Channel.STABLE) state.settings.stable else state.settings.nightly
         val release = info?.release ?: return
         transferCancelled = false
         val key = channel.name
@@ -975,15 +975,15 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     override fun toggleRegion(id: String) {
         if (state.transfer != null) return
-        val about = state.about
-        val wanted = about.wanted()
-        state.about = about.copy(selected = if (id in wanted) wanted - id else wanted + id)
+        val settings = state.settings
+        val wanted = settings.wanted()
+        state.settings = settings.copy(selected = if (id in wanted) wanted - id else wanted + id)
     }
 
     override fun applyData() {
-        val data = state.about.data ?: return
+        val data = state.settings.data ?: return
         if (state.transfer != null) return
-        val change = planChange(data.regions, data.common, state.about.wanted())
+        val change = planChange(data.regions, data.common, state.settings.wanted())
         if (change.isEmpty) return
         // Android 9: gravar em /sdcard/Rumo pede a permissão de escrita
         if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
@@ -1010,7 +1010,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 updater.removeLegacy()
                 state.transfer = null
                 state.toast = "Dados do mapa prontos"
-                state.about = state.about.copy(checked = false, selected = null)
+                state.settings = state.settings.copy(checked = false, selected = null)
                 if (touchesMaps) {
                     recreate()
                 } else {
@@ -1021,7 +1021,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 state.transfer = null
                 state.toast = transferError(e)
                 // O que já foi baixado vale: atualiza o que falta
-                state.about = state.about.copy(checked = false)
+                state.settings = state.settings.copy(checked = false)
             }
         }
     }
@@ -1229,7 +1229,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_RADIO_MUTED = "radio_mudo"
         const val RADIO_LOG_LINES = 300
         const val MAX_ACTIONS = 2_000
-        /** Painel Rumo só abre abaixo desta velocidade. */
+        /** As configurações da home só abrem abaixo desta velocidade. */
         const val PARKED_BELOW_KMH = 5
         const val PROGRESS_EVERY_MS = 250L
     }

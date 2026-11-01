@@ -19,15 +19,15 @@ Foi desenvolvido e testado num aparelho HCN com Android 9 ([detalhes](docs/estud
 1. Em [Releases](../../releases), baixe o `rumo.apk`: da **última versão estável** ou do **nightly** (pré-release compilada a cada mudança, pode ser instável).
 2. Copie para o aparelho (por exemplo num pendrive), abra e instale; permita "instalar apps desconhecidos" se pedir.
 3. Aperte Início e escolha o Rumo como tela inicial ("Sempre").
-4. Para o mapa, os limites e os radares, abra o **painel Rumo** (7 toques no relógio, com o carro parado) ou toque em "Sem dados do mapa" no card do mapa e baixe os dados pelo wi-fi. Também dá para copiá-los à mão: veja [`dados/README.md`](dados/README.md).
+4. Para o mapa, os limites e os radares, toque na engrenagem (canto de cima, à direita) e em **Configurações da home** (com o carro parado) ou toque em "Sem dados do mapa" no card do mapa e baixe os dados pelo wi-fi. Também dá para copiá-los à mão: veja [`dados/README.md`](dados/README.md).
 
 ## Atualizar
 
-O **painel Rumo** (7 toques no relógio, só abaixo de 5 km/h) mostra a versão instalada e as últimas publicadas nos canais **estável** e **nightly**. **Instalar** baixa o APK (com retomada se a conexão cair), confere o hash e abre o instalador do Android. O mesmo painel baixa e atualiza os dados do mapa. O Android não deixa instalar uma versão mais antiga que a instalada: de nightly só se volta para a estável quando ela for mais nova.
+As **configurações da home** (engrenagem › Configurações da home, só abaixo de 5 km/h) mostram a versão instalada e as últimas publicadas nos canais **estável** e **nightly**. **Instalar** baixa o APK (com retomada se a conexão cair), confere o hash e abre o instalador do Android. A mesma tela baixa e atualiza os dados do mapa. O Android não deixa instalar uma versão mais antiga que a instalada: de nightly só se volta para a estável quando ela for mais nova.
 
 ## Outros aparelhos
 
-Só foi testado no aparelho HCN acima. O que usa só Android comum, GPS e dados do OpenStreetMap deve funcionar em qualquer Android 8 ou superior: tela inicial, dock, apps, painel Rumo (atualização e dados), mapa offline, rua e limite, radares, tema por horário, Viagem, volume flutuante e reinício pelo menu de energia. Hoje o APK só traz código nativo de 32 bits ARM (`armeabi-v7a`).
+Só foi testado no aparelho HCN acima. O que usa só Android comum, GPS e dados do OpenStreetMap deve funcionar em qualquer Android 8 ou superior: tela inicial, dock, apps, configurações da home (atualização e dados), mapa offline, rua e limite, radares, tema por horário, Viagem, volume flutuante e reinício pelo menu de energia. Hoje o APK só traz código nativo de 32 bits ARM (`armeabi-v7a`).
 
 O que depende do fabricante da unidade e **não** deve aparecer em outro aparelho sem investigação própria:
 
@@ -36,7 +36,7 @@ O que depende do fabricante da unidade e **não** deve aparecer em outro aparelh
 - **Rádio** (estação, nomes, busca, mudo): serviço `fmradio` e app `com.hcn.autoradio`.
 - **Android Auto:** o atalho abre o ZLINK (`com.zjinnova.zlink`).
 
-Outros fabricantes usam outros serviços para as mesmas coisas. Os diagnósticos do painel (farol, rádio, reinício, botões) gravam um relatório com o que existe no aparelho novo e encurtam essa investigação. As tarefas para dar suporte a mais aparelhos estão em [`TODO.md`](TODO.md).
+Outros fabricantes usam outros serviços para as mesmas coisas. Os diagnósticos das configurações da home (farol, rádio, reinício, botões) gravam um relatório com o que existe no aparelho novo e encurtam essa investigação. As tarefas para dar suporte a mais aparelhos estão em [`TODO.md`](TODO.md).
 
 ## Compilar
 

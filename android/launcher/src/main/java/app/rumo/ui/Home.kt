@@ -39,7 +39,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -96,7 +95,7 @@ import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-enum class Sheet { NONE, APPS, AUDIO, PHONE, RADIO, ABOUT, KEYS, MARK }
+enum class Sheet { NONE, APPS, AUDIO, PHONE, RADIO, SETTINGS, KEYS, MARK }
 
 /**
  * De onde vem o som: pelo serviço sourceinfo do multimídia (avisa a cada troca de fonte, inclusive pelo volante)
@@ -165,8 +164,10 @@ class HomeState {
     /** Versão instalada (nome e código), para comparar com as publicadas. */
     var appVersion = ""
     var appCode = 0L
-    /** Painel Rumo: o que a consulta às releases achou e o download em andamento (app ou dados). */
-    var about by mutableStateOf(AboutState())
+    /** Configurações da home: o que a consulta às releases achou e o download em andamento (app ou dados). */
+    var settings by mutableStateOf(SettingsState())
+    /** Menu da engrenagem aberto (configurações da home ou do Android). */
+    var settingsMenu by mutableStateOf(false)
     var transfer by mutableStateOf<Transfer?>(null)
 }
 
@@ -181,14 +182,15 @@ interface HomeActions {
     fun askUsageAccess()
     fun mediaKey(keyCode: Int)
     fun voice()
-    fun systemSettings()
+    /** Abre os ajustes do Android. */
+    fun openAndroidSettings()
     fun askLocation()
     fun askFiles()
     fun chooseTheme(mode: ThemeMode)
     fun probeHeadlight()
     fun probeMedia()
-    /** Painel Rumo (só com o carro parado): consulta as versões e os dados ao abrir. */
-    fun openAbout()
+    /** Configurações da home (só com o carro parado): consulta as versões e os dados ao abrir. */
+    fun openSettings()
     fun checkUpdates()
     fun installApp(channel: Channel)
     /** Marca ou desmarca um estado na lista de dados do mapa (só muda a escolha; [applyData] baixa e remove). */
@@ -218,8 +220,6 @@ private const val VOLUME_DRAG_DP = 56
 private const val VOLUME_HIDE_MS = 4_000L
 private const val VOLUME_REPEAT_AFTER_MS = 400L
 private const val VOLUME_REPEAT_MS = 160L
-private const val CLOCK_TAPS = 7
-private const val CLOCK_TAP_GAP_MS = 1_500L
 private val CARD_RADIUS = 28.dp
 private val CARD = RoundedCornerShape(CARD_RADIUS)
 
@@ -261,6 +261,7 @@ fun HomeScreen(s: HomeState, a: HomeActions) {
     BackHandler {
         s.sheet = Sheet.NONE
         s.volumeOpen = false
+        s.settingsMenu = false
     }
 
     val night = s.theme.night(s.now.hour, isSystemInDarkTheme(), s.headlight)
@@ -276,7 +277,7 @@ fun HomeScreen(s: HomeState, a: HomeActions) {
                         when (s.sheet) {
                             Sheet.NONE -> {}
                             Sheet.RADIO -> RadioSheet(s, a)
-                            Sheet.ABOUT -> AboutSheet(s, a)
+                            Sheet.SETTINGS -> SettingsSheet(s, a)
                             Sheet.KEYS -> KeyTestSheet(s, a)
                             Sheet.MARK -> MarkSheet(s, a)
                             else -> AppSheet(s, a)
@@ -286,7 +287,55 @@ fun HomeScreen(s: HomeState, a: HomeActions) {
                 }
             }
             if (s.volumeOpen) VolumeControl(s, a, Modifier.align(Alignment.CenterStart).padding(start = DOCK_WIDTH + 12.dp))
+            if (s.settingsMenu) SettingsMenu(s, a)
             s.toast?.let { Toast(it, Modifier.align(Alignment.BottomCenter)) }
+        }
+    }
+}
+
+/**
+ * Menu da engrenagem: as configurações da home (versão, atualização, mapas, diagnósticos) ou as do Android. Tocar fora
+ * fecha. Fica por cima de tudo, então o toque que o fecha não chega ao que estiver embaixo.
+ */
+@Composable
+private fun SettingsMenu(s: HomeState, a: HomeActions) {
+    val p = LocalPalette.current
+    Box(Modifier.fillMaxSize()) {
+        Box(
+            Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                s.settingsMenu = false
+            },
+        )
+        Column(
+            Modifier.align(Alignment.TopEnd).padding(top = 68.dp, end = 20.dp).width(440.dp).card(p).swallowTouches().padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            SettingsMenuItem(Icons.home, "Configurações da home", "Versão, atualização, mapas e diagnósticos") {
+                s.settingsMenu = false
+                a.openSettings()
+            }
+            SettingsMenuItem(Icons.gear, "Configurações do Android", "Wi-fi, Bluetooth, som e o resto do sistema") {
+                s.settingsMenu = false
+                a.openAndroidSettings()
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsMenuItem(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
+    val p = LocalPalette.current
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Box(Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(p.surface2), contentAlignment = Alignment.Center) {
+            Ico(icon, 30.dp, p.text)
+        }
+        Column(Modifier.weight(1f)) {
+            Txt(title, 22, weight = FontWeight.SemiBold)
+            Txt(subtitle, 15, color = p.text2, maxLines = 2)
         }
     }
 }
@@ -428,21 +477,7 @@ private fun StatusBar(s: HomeState, a: HomeActions) {
         Modifier.fillMaxWidth().height(64.dp).padding(start = 22.dp, end = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 7 toques seguidos no relógio abrem o painel Rumo (versão, atualização e dados do mapa)
-        var taps by remember { mutableIntStateOf(0) }
-        var lastTap by remember { mutableLongStateOf(0L) }
-        Txt(
-            s.now.format(TIME), 36, weight = FontWeight.SemiBold, numeric = true, lineHeight = 1f,
-            modifier = Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                val t = System.currentTimeMillis()
-                taps = if (t - lastTap > CLOCK_TAP_GAP_MS) 1 else taps + 1
-                lastTap = t
-                if (taps >= CLOCK_TAPS) {
-                    taps = 0
-                    a.openAbout()
-                }
-            },
-        )
+        Txt(s.now.format(TIME), 36, weight = FontWeight.SemiBold, numeric = true, lineHeight = 1f)
         Spacer(Modifier.width(12.dp))
         Txt(s.now.format(DATE), 18, color = p.text2)
         Spacer(Modifier.weight(1f))
@@ -463,7 +498,7 @@ private fun StatusBar(s: HomeState, a: HomeActions) {
         }
         Spacer(Modifier.width(8.dp))
         Box(
-            Modifier.size(56.dp).clip(RoundedCornerShape(18.dp)).clickable { a.systemSettings() },
+            Modifier.size(56.dp).clip(RoundedCornerShape(18.dp)).clickable { s.settingsMenu = !s.settingsMenu },
             contentAlignment = Alignment.Center,
         ) {
             Ico(Icons.gear, 28.dp, p.text)
@@ -560,7 +595,7 @@ private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, mapAllowed: Bo
                 s.mapStatus == MapStatus.MISSING ->
                     Txt(
                         "Sem dados do mapa. Toque para baixar", 22, color = p.accentInk, weight = FontWeight.SemiBold, maxLines = 2,
-                        modifier = Modifier.clickable { a.openAbout() },
+                        modifier = Modifier.clickable { a.openSettings() },
                     )
                 road != null -> Txt(road.way.label, 28, weight = FontWeight.SemiBold, lineHeight = 1.1f)
                 g.status == GpsStatus.OK && s.mapStatus == MapStatus.READY ->
