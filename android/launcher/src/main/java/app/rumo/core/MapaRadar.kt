@@ -146,8 +146,11 @@ object MapaRadar {
         (lat / Geo.CELL).roundToLong() * KEY_ROW + (lon / Geo.CELL).roundToLong()
 }
 
-/** Via mais perto de um ponto: rumo do trecho (graus) e se é de mão única. */
-class WayHint(val bearing: Double, val oneway: Boolean)
+/**
+ * Via mais perto de um ponto: rumo do trecho (graus), se é de mão única e o ponto da via mais perto ([lat], [lon]; NaN
+ * quando não calculado).
+ */
+class WayHint(val bearing: Double, val oneway: Boolean, val lat: Double = Double.NaN, val lon: Double = Double.NaN)
 
 /** Via mais perto do ponto entre os [runs], a até [maxM] metros; null se nenhuma. */
 fun nearestWayHint(runs: List<Run>, lat: Double, lon: Double, maxM: Double = 40.0): WayHint? {
@@ -173,6 +176,9 @@ fun nearestWayHint(runs: List<Run>, lat: Double, lon: Double, maxM: Double = 40.
                 best = WayHint(
                     Geo.bearing(run.lat[i] / 1e6, run.lon[i] / 1e6, run.lat[i + 1] / 1e6, run.lon[i + 1] / 1e6),
                     run.way.oneway,
+                    // O ponto da via mais perto, de volta em graus (kx e ky são metros por micrograu)
+                    lat + (ay + t * dy) / ky / 1e6,
+                    lon + (ax + t * dx) / kx / 1e6,
                 )
             }
         }

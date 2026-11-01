@@ -811,7 +811,16 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private fun setRadioMuted(on: Boolean) {
         state.radioMuted = on
         prefs.edit().putBoolean(PREF_RADIO_MUTED, on).apply()
-        lifecycleScope.launch { radioLog(withContext(Dispatchers.IO) { radioControl.mute(on) }) }
+        lifecycleScope.launch {
+            radioLog(withContext(Dispatchers.IO) { radioControl.mute(on) })
+            // O mudo do fmradio sozinho não calou o rádio no aparelho. O serviço do rádio só existe enquanto o Rumo
+            // está ligado nele (ao atualizar o app ele morre e o rádio cala): soltar a ligação o encerra. Para voltar,
+            // o play liga de novo (ensureRadio), o que põe o rádio para tocar.
+            if (on) {
+                radioControl.disconnect()
+                radioLog("ligação com o serviço do rádio solta")
+            }
+        }
     }
 
     private fun sendMediaKey(keyCode: Int) {
@@ -889,15 +898,23 @@ class HomeActivity : ComponentActivity(), HomeActions {
             state.toast = "Carregando os pontos salvos: toque de novo"
             return
         }
-        val point = UserPoint(
-            spot.lat, spot.lon, kind,
-            if (kind in RadarKind.ENFORCING) limit else 0,
-            if (bothWays) -1 else spot.bearing ?: -1,
-            LocalDate.now().toString(),
-        )
         state.sheet = Sheet.NONE
-        savePoints(UserPoints.add(state.myPoints, point))
-        state.toast = "${UserPoints.label(point)} salvo"
+        lifecycleScope.launch {
+            // Encaixa o ponto na rua: o GPS e o toque no "+" (um pouco depois do radar) deixam o ponto de lado da pista
+            val onRoad = withContext(drive) {
+                data?.let { d -> nearestWayHint(d.runsNear(spot.lat, spot.lon, SNAP_SEARCH_M), spot.lat, spot.lon, SNAP_MAX_M) }
+            }
+            val point = UserPoint(
+                onRoad?.lat?.takeUnless { it.isNaN() } ?: spot.lat,
+                onRoad?.lon?.takeUnless { it.isNaN() } ?: spot.lon,
+                kind,
+                if (kind in RadarKind.ENFORCING) limit else 0,
+                if (bothWays) -1 else spot.bearing ?: -1,
+                LocalDate.now().toString(),
+            )
+            savePoints(UserPoints.add(state.myPoints, point))
+            state.toast = "${UserPoints.label(point)} salvo"
+        }
     }
 
     override fun removePoint(index: Int) {
@@ -918,23 +935,30 @@ class HomeActivity : ComponentActivity(), HomeActions {
         if (minePoints == null) return
         val point = state.myPoints.getOrNull(index) ?: return
         lifecycleScope.launch {
-            val axis = if (point.bearing >= 0) {
-                point.bearing
-            } else {
-                withContext(drive) {
-                    data?.let { d ->
-                        nearestWayHint(d.runsNear(point.lat, point.lon, MOVE_WAY_SEARCH_M), point.lat, point.lon)
-                            ?.bearing?.roundToInt()?.mod(360)
-                    }
+            // Eixo (sentido do ponto ou, nos dois sentidos, o da rua mais perto) e o ponto novo, encaixado na rua
+            val moved = withContext(drive) {
+                val d = data
+                val axis: Int? = if (point.bearing >= 0) {
+                    point.bearing
+                } else {
+                    d?.let { nearestWayHint(it.runsNear(point.lat, point.lon, MOVE_WAY_SEARCH_M), point.lat, point.lon) }
+                        ?.bearing?.roundToInt()?.mod(360)
                 }
+                if (axis == null) return@withContext null
+                val raw = UserPoints.move(point, meters, axis)
+                // Numa curva, andar em linha reta tira o ponto da rua: volta para a rua mais perto
+                val onRoad = d?.let { nearestWayHint(it.runsNear(raw.lat, raw.lon, MOVE_WAY_SEARCH_M), raw.lat, raw.lon, SNAP_MOVE_M) }
+                val snapped = if (onRoad != null && !onRoad.lat.isNaN()) raw.copy(lat = onRoad.lat, lon = onRoad.lon) else raw
+                axis to snapped
             }
-            if (axis == null) {
+            if (moved == null) {
                 state.toast = "Sem rua do mapa perto deste ponto para mover"
                 return@launch
             }
             // A lista pode ter mudado enquanto a rua era procurada
             if (state.myPoints.getOrNull(index) != point) return@launch
-            savePoints(UserPoints.replace(state.myPoints, index, UserPoints.move(point, meters, axis)))
+            val (axis, newPoint) = moved
+            savePoints(UserPoints.replace(state.myPoints, index, newPoint))
             val heading = if (meters >= 0) axis else (axis + 180) % 360
             state.toast = "Ponto movido ${abs(meters)} m para o ${directionOf(heading.toFloat())}"
         }
@@ -1284,6 +1308,13 @@ class HomeActivity : ComponentActivity(), HomeActions {
         /** Distância do aviso de radar (padrão do protótipo). */
         /** Raio em que se procura a rua do ponto a mover. */
         const val MOVE_WAY_SEARCH_M = 45.0
+
+        /** Ao marcar um ponto, a rua mais perto que vale para encaixá-lo (raio da busca e distância máxima). */
+        const val SNAP_SEARCH_M = 40.0
+        const val SNAP_MAX_M = 30.0
+
+        /** Depois de mover um ponto, só volta para uma rua a até esta distância. */
+        const val SNAP_MOVE_M = 12.0
         const val PREF_RADAR_ZONE = "radar_zone_m"
         const val PREF_RADAR_MARGIN = "radar_margin_kmh"
         const val PREF_THEME = "theme"

@@ -177,6 +177,17 @@ class MapaRadarTest {
     }
 
     @Test
+    fun hintCarriesTheClosestPointOnTheWay() {
+        // Via para leste, 20 m ao norte do ponto: o ponto mais perto fica na via, na mesma longitude
+        val dLat = 20 / Geo.M_PER_DEG_LAT
+        val east = run(false, (-27.6 + dLat) to -48.51, (-27.6 + dLat) to -48.49)
+        val hint = nearestWayHint(listOf(east), -27.6, -48.5)!!
+        assertEquals(-27.6 + dLat, hint.lat, 1e-6)
+        assertEquals(-48.5, hint.lon, 1e-6)
+        assertTrue(hint.lat.isFinite())
+    }
+
+    @Test
     fun picksNearestAndNotAboveLimit() {
         val dNear = 10 / Geo.M_PER_DEG_LAT
         val dFar = 30 / Geo.M_PER_DEG_LAT

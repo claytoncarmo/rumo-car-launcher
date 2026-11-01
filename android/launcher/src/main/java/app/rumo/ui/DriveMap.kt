@@ -48,6 +48,9 @@ class MapStart(val lat: Double, val lon: Double, val bearing: Double)
  * [preview]: o mesmo mapa em pequeno, para ver um ponto marcado enquanto ele é editado (aba Pontos): centrado na
  * "posição" dada, bem mais perto, com o rumo dela para cima (ou o norte, sem rumo), 15 quadros por segundo e em
  * TextureView, para ficar por cima do mapa da tela inicial (que continua por baixo da folha).
+ *
+ * [active] falso (uma folha cobre o mapa): desenha 1 quadro por segundo em vez do normal, para não gastar o aparelho
+ * com um mapa que ninguém vê.
  */
 @Composable
 fun DriveMap(
@@ -59,6 +62,7 @@ fun DriveMap(
     night: Boolean,
     modifier: Modifier = Modifier,
     preview: Boolean = false,
+    active: Boolean = true,
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -77,7 +81,7 @@ fun DriveMap(
             .maxZoomPreference(if (preview) PREVIEW_ZOOM else 18.0)
         MapView(context, options).apply {
             onCreate(null)
-            setMaximumFps(if (preview) 15 else 30)
+            setMaximumFps(if (preview) PREVIEW_FPS else FPS)
             getMapAsync { m ->
                 m.uiSettings.setAllGesturesEnabled(false)
                 map = m
@@ -103,6 +107,10 @@ fun DriveMap(
             if (state.isAtLeast(Lifecycle.State.STARTED)) view.onStop()
             view.onDestroy()
         }
+    }
+
+    LaunchedEffect(view, active) {
+        view.setMaximumFps(if (!active) IDLE_FPS else if (preview) PREVIEW_FPS else FPS)
     }
 
     // Os radares mais recentes, para o estilo novo já nascer com eles
@@ -150,6 +158,10 @@ fun DriveMap(
 
     AndroidView(factory = { view }, modifier = modifier.fillMaxSize().onSizeChanged { height = it.height })
 }
+
+private const val FPS = 30
+private const val PREVIEW_FPS = 15
+private const val IDLE_FPS = 1
 
 /** Zoom da pré-visualização de um ponto: perto o bastante para ver 5 m de diferença. */
 private const val PREVIEW_ZOOM = 19.0

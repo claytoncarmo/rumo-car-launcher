@@ -48,7 +48,7 @@ HCN, Android **9 (API 28)** embora exiba "15", 32 bits (`armeabi-v7a`), 8× Cort
 
 A lista viva de tarefas (incluindo suporte a outros aparelhos) está em `TODO.md`.
 
-- Validar o **mudo do `fmradio`** (`setMute`) como "parar" do play do card de mídia no rádio.
+- Validar o play do card de mídia no rádio como "parar": o mudo do `fmradio` sozinho não calou o rádio; o Rumo agora também solta a ligação com o serviço do rádio (que só existe enquanto alguém está ligado nele) e liga de novo ao tocar.
 - Testar andando: rua e limite em cruzamentos e ruas paralelas, avisos de radar, desempenho do mapa e a velocidade do GPS contra o painel do carro.
 - Completar os radares além do OSM (ANTT, dados abertos de prefeituras).
 - Fonte Barlow ainda não adicionada; o cartão inteligente só tem a página Viagem; telefone/Bluetooth não integrados.

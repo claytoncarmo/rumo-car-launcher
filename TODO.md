@@ -29,7 +29,7 @@ Hoje só o HCN de referência foi testado (ver "Outros aparelhos" no [`README.md
 - [ ] Reiniciar o Android pelo menu de energia (serviço de acessibilidade) e o relatório do Teste do reinício.
 - [ ] Configurações da home: TLS e relógio do aparelho nas conexões https, tela de "instalar apps desconhecidos", instalação por cima, troca do mapa com ele aberto.
 - [ ] Mapa novo (zoom 14 ampliado até 16,5, sem parques, riachos e vias de serviço): ver se ficou bom andando.
-- [ ] Mudo do `fmradio` (`setMute`) como "parar" do play do card de mídia no rádio.
+- [ ] Play do card no rádio como "parar": agora é o mudo do `fmradio` mais soltar a ligação com o serviço do rádio; conferir que o rádio cala e volta ao tocar de novo (e que o card diz "Rádio parado").
 - [ ] Rádio: se vale a procura parar uns 6 a 8 s em cada estação para ler o nome RDS.
 
 ## Outras

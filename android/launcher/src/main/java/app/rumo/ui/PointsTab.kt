@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -39,7 +40,6 @@ import app.rumo.core.formatDistance
 import app.rumo.device.GpsInfo
 import app.rumo.device.GpsStatus
 import kotlinx.coroutines.delay
-import java.util.Locale
 
 /** Metros que cada toque move o ponto ao longo da rua. */
 private const val MOVE_M = 5
@@ -180,28 +180,9 @@ private fun PointEditor(s: HomeState, a: HomeActions, index: Int, onClose: () ->
                 )
             }
         }
-        Column(
-            Modifier.weight(1f).fillMaxSize().verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            PointPreview(s, pt)
-            SectionCard("Posição") {
-                Txt(String.format(Locale.US, "%.6f, %.6f", pt.lat, pt.lon), 20, weight = FontWeight.SemiBold, numeric = true)
-                val g = s.gps
-                val glat = g.lat
-                val glon = g.lon
-                if (g.status == GpsStatus.OK && glat != null && glon != null) {
-                    Txt("Você está a ${formatDistance(Geo.distanceM(glat, glon, pt.lat, pt.lon).toInt())} do ponto.", 16, color = p.text2)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    MoveButton("−$MOVE_M m", Modifier.weight(1f)) { a.movePoint(index, -MOVE_M) }
-                    MoveButton("+$MOVE_M m", Modifier.weight(1f)) { a.movePoint(index, MOVE_M) }
-                }
-                Txt(
-                    "Move o ponto $MOVE_M m por toque, ao longo da rua. O + vai no sentido do ponto (nos dois sentidos, no sentido em que a rua está desenhada no mapa); o aviso embaixo diz para onde ele andou. O ponto novo aparece no mapa da tela inicial.",
-                    14, color = p.text3, maxLines = 5,
-                )
-            }
+        // Sem rolagem: o mapa ocupa o que sobra e "Voltar à lista" e "Apagar ponto" ficam sempre à vista
+        Column(Modifier.weight(1f).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            PointPreview(s, a, index, pt, Modifier.weight(1f))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 PillButton("Voltar à lista", enabled = true, primary = false, onClick = onClose)
                 PillButton(
@@ -222,32 +203,36 @@ private fun PointEditor(s: HomeState, a: HomeActions, index: Int, onClose: () ->
 }
 
 /**
- * O mapa em volta do ponto que está sendo editado, para ver o efeito de cada mudança (posição, tipo, limite). Com sentido,
- * o mapa gira para o sentido do ponto ficar para cima; sem, fica com o norte para cima.
+ * O mapa em volta do ponto que está sendo editado, com os botões que o movem ao longo da rua em cima dele, para ver o
+ * efeito de cada mudança (posição, tipo, limite). Com sentido, o mapa gira para o sentido do ponto ficar para cima (o
+ * + sobe e o − desce); sem, fica com o norte para cima.
  */
 @Composable
-private fun PointPreview(s: HomeState, pt: UserPoint) {
+private fun PointPreview(s: HomeState, a: HomeActions, index: Int, pt: UserPoint, modifier: Modifier) {
     val p = LocalPalette.current
     val fonts = s.fontsDir
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(Modifier.fillMaxWidth().height(260.dp).clip(RoundedCornerShape(22.dp)).background(p.mapBlock)) {
-            if (s.mapFiles.isNotEmpty() && fonts != null) {
-                val position = GpsInfo(
-                    status = GpsStatus.OK,
-                    lat = pt.lat,
-                    lon = pt.lon,
-                    bearing = pt.bearing.takeIf { it >= 0 }?.toFloat(),
-                )
-                DriveMap(s.mapFiles, fonts, s.radars, position, null, p === Night, preview = true)
-            } else {
-                Txt("Sem dados do mapa para mostrar o ponto.", 16, color = p.text2, modifier = Modifier.align(Alignment.Center))
+    Box(modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(p.mapBlock)) {
+        if (s.mapFiles.isNotEmpty() && fonts != null) {
+            val position = GpsInfo(
+                status = GpsStatus.OK,
+                lat = pt.lat,
+                lon = pt.lon,
+                bearing = pt.bearing.takeIf { it >= 0 }?.toFloat(),
+            )
+            DriveMap(s.mapFiles, fonts, s.radars, position, null, p === Night, preview = true)
+            Txt(
+                if (pt.bearing >= 0) "Sentido do ponto (${directionOf(pt.bearing.toFloat())}) para cima" else "Norte para cima",
+                14, color = p.text2,
+                modifier = Modifier.align(Alignment.BottomStart).padding(12.dp).clip(RoundedCornerShape(10.dp))
+                    .background(p.surface.copy(alpha = 0.85f)).padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+            Column(Modifier.align(Alignment.CenterEnd).padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                MoveButton("+$MOVE_M m", Modifier.width(112.dp)) { a.movePoint(index, MOVE_M) }
+                MoveButton("−$MOVE_M m", Modifier.width(112.dp)) { a.movePoint(index, -MOVE_M) }
             }
+        } else {
+            Txt("Sem dados do mapa para mostrar o ponto.", 16, color = p.text2, modifier = Modifier.align(Alignment.Center))
         }
-        Txt(
-            if (pt.bearing >= 0) "Mapa com o sentido do ponto (${directionOf(pt.bearing.toFloat())}) para cima."
-            else "Mapa com o norte para cima (ponto nos dois sentidos).",
-            14, color = p.text3, maxLines = 2,
-        )
     }
 }
 
@@ -255,7 +240,7 @@ private fun PointPreview(s: HomeState, pt: UserPoint) {
 private fun MoveButton(text: String, modifier: Modifier, onClick: () -> Unit) {
     val p = LocalPalette.current
     Box(
-        modifier.height(84.dp).clip(RoundedCornerShape(22.dp)).background(p.surface3).clickable(onClick = onClick),
+        modifier.height(76.dp).clip(RoundedCornerShape(22.dp)).background(p.surface.copy(alpha = 0.92f)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Txt(text, 30, weight = FontWeight.Bold, numeric = true, align = TextAlign.Center)

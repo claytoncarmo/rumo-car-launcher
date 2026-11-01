@@ -554,7 +554,7 @@ private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, mapAllowed: Bo
     val hasMap = mapFiles.isNotEmpty()
     val road = s.road
     Box(modifier.card(p, p.mapBlock)) {
-        s.fontsDir?.let { fonts -> if (hasMap && mapAllowed) DriveMap(mapFiles, fonts, s.radars, g, s.mapStart, night) }
+        s.fontsDir?.let { fonts -> if (hasMap && mapAllowed) DriveMap(mapFiles, fonts, s.radars, g, s.mapStart, night, active = s.sheet == Sheet.NONE) }
         val fade = p.surface.copy(alpha = 0.92f)
         Box(
             Modifier
