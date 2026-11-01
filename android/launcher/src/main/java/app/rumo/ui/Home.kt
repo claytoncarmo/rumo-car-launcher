@@ -322,7 +322,7 @@ private fun SettingsMenu(s: HomeState, a: HomeActions) {
                 s.settingsMenu = false
                 a.openSettings()
             }
-            SettingsMenuItem(Icons.gear, "Configurações do Android", "Wi-fi, Bluetooth, som e o resto do sistema") {
+            SettingsMenuItem(Icons.gear, "Configurações do sistema", "Wi-fi, Bluetooth, som e o resto do sistema") {
                 s.settingsMenu = false
                 a.openAndroidSettings()
             }

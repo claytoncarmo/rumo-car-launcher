@@ -90,6 +90,7 @@ O app oferece um serviço para outros apps: ação `com.hcn.autoradio.FM_PLUG_SE
 Comportamento:
 - **Ligar o rádio:** ligar o serviço com `BIND_AUTO_CREATE` liga o rádio, que assume o áudio. Sem esse flag, só conecta se o rádio já estiver rodando.
 - **Android Auto:** quando o ZLINK toma o áudio, o serviço do rádio morre (`DeadObjectException`). Se a ligação ficar aberta, o Android recria o serviço e o rádio volta brigando com o Android Auto: ao receber `onServiceDisconnected`, solte a ligação e só religue por ação do usuário.
+- **Atualizar o app:** o serviço do rádio existe enquanto o Rumo está ligado nele. Ao atualizar o app (ou se o Android encerrar o processo) a ligação cai, o serviço morre e o rádio fica mudo, enquanto o card ainda diz que toca. Ao abrir, com o rádio como fonte e sem o mudo do Rumo, o app liga de novo (`resumeRadio`), e o play do card só para o rádio se o Rumo estiver ligado no serviço (`radioPlayStarts`).
 - **Busca de estações:** a faixa FM vai de 87,5 a 107,9 MHz e as estações do Brasil ficam em frequências de final ímpar (passo de 0,2 MHz). Para listar as estações, vá para 87,5 e repita a busca para cima até dar a volta.
 - **Parar o rádio:** a tecla play/pausa não chega ao app de rádio (não tem `MediaSession`). A saída é o mudo do `fmradio` (`setMute`, transação 14); ainda a validar no aparelho.
 - O app tem também `registerRadioClientBinder`/`unRegisterRadioClientBinder` (1 e 2) e um ouvinte `IRadioCallBack.onEvent(int, String)`: o Rumo não os usa; o ouvinte foi aceito mas não mandou avisos.

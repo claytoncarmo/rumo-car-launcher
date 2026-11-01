@@ -54,6 +54,8 @@ import app.rumo.core.RadarAlert
 import app.rumo.core.RadarKind
 import app.rumo.core.RadarSettings
 import app.rumo.core.RadarWatch
+import app.rumo.core.radioPlayStarts
+import app.rumo.core.shouldResumeRadio
 import app.rumo.core.UserPoint
 import app.rumo.core.UserPoints
 import app.rumo.core.RoadMatch
@@ -254,10 +256,23 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 // Aparelho sem o serviço: estima pelo último app de áudio aberto
                 sourceInfoMissing = true
                 detectSource()
+                resumeRadio()
                 return@launch
             }
             state.sourceLive = true
             applyAudioOwner(now.ifBlank { prefs.getString(PREF_SOURCE, null).orEmpty() })
+            resumeRadio()
+        }
+    }
+
+    /**
+     * O serviço do rádio só existe enquanto o Rumo está ligado nele: ao atualizar o app (ou o Android encerrar o
+     * processo) ele morre junto e o rádio fica mudo, com o card ainda dizendo que toca. Com o rádio como fonte, liga de
+     * novo, o que põe o rádio para tocar.
+     */
+    private fun resumeRadio() {
+        if (shouldResumeRadio(state.source == Source.RADIO, state.radioMuted, radioControl.connected)) {
+            lifecycleScope.launch { ensureRadio() }
         }
     }
 
@@ -761,7 +776,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     override fun mediaKey(keyCode: Int) {
         if (state.source == Source.RADIO && keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
             // O sourceinfo informa vazio quando o rádio não está tocando
-            if (state.radioMuted || lastRawOwner == "") radio(RadioCmd.Play) else setRadioMuted(true)
+            if (radioPlayStarts(state.radioMuted, lastRawOwner, radioControl.connected)) radio(RadioCmd.Play) else setRadioMuted(true)
             return
         }
         if (state.source == Source.RADIO && state.favorites.isNotEmpty()) {
