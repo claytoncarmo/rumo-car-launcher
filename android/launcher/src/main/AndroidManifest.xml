@@ -26,6 +26,8 @@
 
     <!-- Configurações da home: ver versões novas, baixar os dados do mapa e instalar o APK baixado -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Saber quando a internet volta, para a aba Atualizações consultar de novo -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Configurações da home › Reiniciar o Android: só vale se o Rumo for app privilegiado (senão tenta `su`) -->

@@ -21,6 +21,7 @@ Hoje só o HCN de referência foi testado (ver "Outros aparelhos" no [`README.md
 
 - [ ] Estados: atualizar o app, abrir as configurações da home, marcar dois estados vizinhos, baixar, ver o mapa nos dois e atravessar a divisa (rua e limite continuam; sem sumir vias na faixa de folga). Conferir o tamanho de MG e SP e se o mapa continua fluido com mais de um estado.
 
+- [ ] Aba Atualizações: conferir que consulta sozinha ao entrar, que sem internet (desligar o Wi-Fi/dados) a lista da última consulta continua na tela com o aviso, e que consulta de novo sozinha quando a internet volta.
 - [ ] Configurações da home em três abas (Configurações, Atualizações, Debug): conferir o layout no 1280×720; testar a distância do aviso (100 a 1000 m) e a margem de velocidade num radar de verdade.
 - [ ] Aba Pontos das configurações: editar tipo, limite e sentido de um ponto marcado; os botões −5 m / +5 m movem o ponto ao longo da rua (ver o resultado no mapa da tela inicial); apagar. A edição tem um mapa pequeno com o ponto: conferir que aparece, que acompanha as mudanças e que o aparelho aguenta dois mapas (o da tela inicial fica por baixo).
 - [ ] Marcar ponto ("+" no card do mapa): marcar um semáforo com radar que falta ao passar por ele (posição e sentido certos, limite da via), ver o ponto no mapa na hora e o aviso na volta; conferir que continua depois de atualizar o app (OTA) e de reiniciar; listar e apagar em "Meus pontos"; ver se o toque no "+" atrapalha o toque no card (abre o ZLINK).

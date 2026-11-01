@@ -12,6 +12,8 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.media.AudioManager
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Bundle
 import android.os.Environment
 import android.os.Process
@@ -78,6 +80,7 @@ import app.rumo.device.PowerService
 import app.rumo.device.Reboot
 import app.rumo.device.RebootProbe
 import app.rumo.device.Updater
+import app.rumo.device.keepingLast
 import app.rumo.device.UserPointsStore
 import app.rumo.core.PT_BR
 import app.rumo.device.NightSignal
@@ -140,6 +143,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var driveJob: Job? = null
     private var systemNight = false
     private var probeJob: Job? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var savedAt = 0L
     private val sourceInfo = SourceInfo { name ->
         runOnUiThread {
@@ -248,6 +252,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     override fun onStart() {
         super.onStart()
         gps.start()
+        watchNetwork()
         // A pasta Rumo pode ter sido copiada com o Rumo fora da tela
         if (state.mapStatus != MapStatus.READY) loadMapData()
         // Ouvinte do fmradio, só para o texto RDS (sem ele o rádio não decodifica o texto)
@@ -291,9 +296,37 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }
         savePosition(state.gps)
         gps.stop()
+        unwatchNetwork()
         alerts.stop()
         state.radar = null
         super.onStop()
+    }
+
+    /** Acompanha se há rede, para a aba Atualizações consultar de novo quando a conexão volta. */
+    private fun watchNetwork() {
+        val manager = getSystemService(ConnectivityManager::class.java) ?: return
+        state.online = manager.activeNetwork != null
+        if (networkCallback != null) return
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) = runOnUiThread { state.online = true }
+            override fun onLost(network: Network) = runOnUiThread { state.online = false }
+        }
+        try {
+            manager.registerDefaultNetworkCallback(callback)
+            networkCallback = callback
+        } catch (e: RuntimeException) {
+            // Sem acompanhar a rede, só o botão "Buscar de novo" e a entrada na aba consultam
+        }
+    }
+
+    private fun unwatchNetwork() {
+        val callback = networkCallback ?: return
+        networkCallback = null
+        try {
+            getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(callback)
+        } catch (e: IllegalArgumentException) {
+            // Já tinha sido solto
+        }
     }
 
     override fun onResume() {
@@ -869,14 +902,13 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     override fun askFiles() = permissions.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
 
-    /** Configurações da home: só com o carro parado, para não pedir atenção do motorista. Consulta as versões ao abrir. */
+    /** Configurações da home: só com o carro parado, para não pedir atenção do motorista. */
     override fun openSettings() {
         if ((state.gps.speedKmh ?: 0) >= PARKED_BELOW_KMH) {
             state.toast = "Pare o carro para abrir as configurações da home"
             return
         }
         state.sheet = Sheet.SETTINGS
-        if (!state.settings.checked && !state.settings.checking) checkUpdates()
     }
 
     override fun setRadarZone(meters: Int) {
@@ -1035,9 +1067,14 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 val data = async { updater.fetchData() }
                 Triple(stable.await(), nightly.await(), data.await())
             }
-            state.settings = SettingsState(
-                checking = false, checked = true, stable = stable, nightly = nightly, data = data,
-                selected = state.settings.selected,
+            // Sem conexão fica o que já se sabia (a tela não esvazia); o resto do estado (escolha de estados) continua
+            val last = state.settings
+            state.settings = last.copy(
+                checking = false,
+                offline = stable.offline || nightly.offline || data.offline,
+                stable = stable.keepingLast(last.stable),
+                nightly = nightly.keepingLast(last.nightly),
+                data = data.keepingLast(last.data),
             )
         }
     }
@@ -1107,7 +1144,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 updater.removeOldLayout()
                 state.transfer = null
                 state.toast = "Dados do mapa prontos"
-                state.settings = state.settings.copy(checked = false, selected = null)
+                // O plano guardado ficou velho (o que faltava baixar já está no aparelho): só vale uma consulta nova
+                state.settings = state.settings.copy(data = null, selected = null)
                 if (touchesMaps) {
                     recreate()
                 } else {
@@ -1117,8 +1155,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
             } catch (e: IOException) {
                 state.transfer = null
                 state.toast = transferError(e)
-                // O que já foi baixado vale: atualiza o que falta
-                state.settings = state.settings.copy(checked = false)
+                // O que já foi baixado vale: consulta de novo para saber o que falta (sem conexão, fica a lista de antes)
+                checkUpdates()
             }
         }
     }

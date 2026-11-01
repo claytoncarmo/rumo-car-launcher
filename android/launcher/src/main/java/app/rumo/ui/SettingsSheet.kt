@@ -53,10 +53,13 @@ import app.rumo.device.DataInfo
 import app.rumo.device.PowerService
 import kotlinx.coroutines.delay
 
-/** O que a consulta às releases encontrou: um canal por vez (estável e nightly) e os dados do mapa. */
+/**
+ * O que a consulta às releases encontrou: um canal por vez (estável e nightly) e os dados do mapa. Sem conexão, o que
+ * já tinha sido encontrado continua na tela e [offline] avisa que não é de agora.
+ */
 data class SettingsState(
     val checking: Boolean = false,
-    val checked: Boolean = false,
+    val offline: Boolean = false,
     val stable: ChannelInfo? = null,
     val nightly: ChannelInfo? = null,
     val data: DataInfo? = null,
@@ -69,6 +72,9 @@ fun SettingsState.wanted(): Set<String> {
     val regions = data?.regions.orEmpty()
     return selected?.intersect(regions.map { it.region.id }.toSet()) ?: installedIds(regions)
 }
+
+/** Quanto esperar (ms) depois que a conexão volta antes de consultar: a rede acabou de subir e o DNS ainda pode falhar. */
+private const val RECONNECT_WAIT_MS = 1500L
 
 /** Download em andamento: [key] é o canal (`STABLE`/`NIGHTLY`) ou `data`. */
 data class Transfer(val key: String, val label: String, val done: Long, val total: Long)
@@ -89,6 +95,15 @@ private enum class SettingsTab(val label: String) {
 fun SettingsSheet(s: HomeState, a: HomeActions) {
     val p = LocalPalette.current
     var tab by remember { mutableStateOf(SettingsTab.SETTINGS) }
+    // Ao entrar na aba Atualizações consulta sozinho; sem conexão, tenta de novo quando ela volta (com um respiro para
+    // a rede firmar antes da consulta)
+    LaunchedEffect(tab) { if (tab == SettingsTab.UPDATES) a.checkUpdates() }
+    LaunchedEffect(s.online, tab) {
+        if (tab == SettingsTab.UPDATES && s.online && s.settings.offline) {
+            delay(RECONNECT_WAIT_MS)
+            a.checkUpdates()
+        }
+    }
     Column(Modifier.fillMaxSize().card(p).swallowTouches()) {
         Row(
             Modifier.fillMaxWidth().padding(start = 28.dp, end = 14.dp, top = 14.dp, bottom = 10.dp),
@@ -168,8 +183,12 @@ private fun AppSection(s: HomeState, a: HomeActions) {
     val settings = s.settings
     SectionCard("Aplicativo") {
         Txt(
-            if (settings.checking) "Consultando as versões publicadas…" else "Versões publicadas no GitHub",
-            16, color = p.text2,
+            when {
+                settings.checking -> "Consultando as versões publicadas…"
+                settings.offline -> "Sem conexão com o GitHub: mostrando a última consulta. Busca de novo quando a internet voltar."
+                else -> "Versões publicadas no GitHub"
+            },
+            16, color = p.text2, maxLines = 3,
         )
         ChannelRow(Channel.STABLE, settings.stable, s, a)
         ChannelRow(Channel.NIGHTLY, settings.nightly, s, a)
@@ -231,6 +250,7 @@ private fun DataSection(s: HomeState, a: HomeActions) {
             when {
                 data == null -> if (settings.checking) "Consultando…" else "—"
                 data.problem != null -> data.problem
+                settings.offline -> "Sem conexão com o GitHub: mostrando a última consulta."
                 else -> "Marque os estados que quer no carro e toque no botão. Vários funcionam juntos, inclusive ao cruzar a divisa."
             },
             16, color = p.text2, maxLines = 3,

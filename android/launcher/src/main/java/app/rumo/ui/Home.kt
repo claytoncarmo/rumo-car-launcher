@@ -167,6 +167,8 @@ class HomeState {
     var appCode = 0L
     /** Configurações da home: o que a consulta às releases achou e o download em andamento (app ou dados). */
     var settings by mutableStateOf(SettingsState())
+    /** O aparelho tem rede (Wi-Fi ou dados): quando volta, a aba Atualizações consulta de novo se estava sem conexão. */
+    var online by mutableStateOf(true)
     /** Avisos de radar: distância (m) em que começam e margem (km/h) acima do limite do radar antes de alertar. */
     var radarZoneM by mutableIntStateOf(RadarSettings.ZONE_DEFAULT)
     var radarMarginKmh by mutableIntStateOf(RadarSettings.MARGIN_DEFAULT)

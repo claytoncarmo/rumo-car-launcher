@@ -23,8 +23,15 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 
-/** O que se sabe de um canal (estável ou nightly): a versão publicada ou o motivo de não haver. */
-data class ChannelInfo(val release: AppRelease?, val problem: String?)
+/**
+ * O que se sabe de um canal (estável ou nightly): a versão publicada ou o motivo de não haver. [offline]: a consulta
+ * falhou por falta de conexão (e não porque o GitHub respondeu erro).
+ */
+data class ChannelInfo(val release: AppRelease?, val problem: String?, val offline: Boolean = false)
+
+/** Sem conexão a consulta não apaga o que já se sabia: fica a última que deu certo. */
+fun ChannelInfo.keepingLast(previous: ChannelInfo?): ChannelInfo =
+    if (offline && previous?.release != null) previous else this
 
 /**
  * Dados offline: o manifesto, cada estado com o que falta baixar, o que falta dos arquivos comuns (fontes) e, se deu
@@ -35,7 +42,12 @@ data class DataInfo(
     val regions: List<RegionInfo>,
     val common: DataPlan?,
     val problem: String?,
+    val offline: Boolean = false,
 )
+
+/** Sem conexão a consulta não apaga o que já se sabia: fica a última que deu certo. */
+fun DataInfo.keepingLast(previous: DataInfo?): DataInfo =
+    if (offline && previous?.manifest != null) previous else this
 
 /**
  * Consulta as releases do repositório e baixa o app e os dados offline (mapa, vias, radares) para o aparelho.
@@ -54,7 +66,7 @@ class Updater(private val prefs: SharedPreferences, private val http: Http = Htt
         } catch (e: HttpFailure) {
             ChannelInfo(null, if (e.code == 404) "Nenhuma versão publicada" else "Erro ${e.code} no servidor")
         } catch (e: IOException) {
-            ChannelInfo(null, "Sem conexão com o GitHub")
+            ChannelInfo(null, "Sem conexão com o GitHub", offline = true)
         }
     }
 
@@ -75,7 +87,7 @@ class Updater(private val prefs: SharedPreferences, private val http: Http = Htt
         } catch (e: HttpFailure) {
             DataInfo(null, emptyList(), null, if (e.code == 404) "Dados ainda não publicados" else "Erro ${e.code} no servidor")
         } catch (e: IOException) {
-            DataInfo(null, emptyList(), null, "Sem conexão com o GitHub")
+            DataInfo(null, emptyList(), null, "Sem conexão com o GitHub", offline = true)
         }
     }
 
