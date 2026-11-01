@@ -47,7 +47,8 @@ class MapStart(val lat: Double, val lon: Double, val bearing: Double)
  *
  * [preview]: o mesmo mapa em pequeno, para ver um ponto marcado enquanto ele é editado (aba Pontos): centrado na
  * "posição" dada, bem mais perto, com o rumo dela para cima (ou o norte, sem rumo), 15 quadros por segundo e em
- * TextureView, para ficar por cima do mapa da tela inicial (que continua por baixo da folha).
+ * TextureView, para ficar por cima do mapa da tela inicial (que continua por baixo da folha). [previewZoom] é o zoom
+ * dela (de [PREVIEW_ZOOM_MIN] a [PREVIEW_ZOOM_MAX]); quem chama muda para aproximar ou afastar.
  *
  * [active] falso (uma folha cobre o mapa): desenha 1 quadro por segundo em vez do normal, para não gastar o aparelho
  * com um mapa que ninguém vê.
@@ -62,6 +63,7 @@ fun DriveMap(
     night: Boolean,
     modifier: Modifier = Modifier,
     preview: Boolean = false,
+    previewZoom: Double = PREVIEW_ZOOM,
     active: Boolean = true,
 ) {
     val context = LocalContext.current
@@ -78,7 +80,7 @@ fun DriveMap(
             .logoEnabled(false)
             .attributionEnabled(false)
             .compassEnabled(false)
-            .maxZoomPreference(if (preview) PREVIEW_ZOOM else 18.0)
+            .maxZoomPreference(if (preview) PREVIEW_ZOOM_MAX else 18.0)
         MapView(context, options).apply {
             onCreate(null)
             setMaximumFps(if (preview) PREVIEW_FPS else FPS)
@@ -130,7 +132,7 @@ fun DriveMap(
         m.getStyle { style -> style.getSourceAs<GeoJsonSource>(RADAR_SOURCE)?.setGeoJson(points) }
     }
 
-    LaunchedEffect(map, gps.lat, gps.lon, gps.bearing, height, start) {
+    LaunchedEffect(map, gps.lat, gps.lon, gps.bearing, height, start, previewZoom) {
         val m = map ?: return@LaunchedEffect
         // Sem GPS ainda: a última posição guardada
         val lat = gps.lat ?: start?.lat ?: return@LaunchedEffect
@@ -139,7 +141,7 @@ fun DriveMap(
         val top = if (preview) 0.0 else (height * (2 * CAR_Y - 1)).toDouble()
         val position = CameraPosition.Builder()
             .target(LatLng(lat, lon))
-            .zoom(if (preview) PREVIEW_ZOOM else zoomFor(gps.speedKmh ?: 0))
+            .zoom(if (preview) previewZoom else zoomFor(gps.speedKmh ?: 0))
             .bearing(
                 if (preview) gps.bearing?.toDouble() ?: 0.0 else gps.bearing?.toDouble() ?: start?.bearing ?: m.cameraPosition.bearing,
             )
@@ -163,8 +165,10 @@ private const val FPS = 30
 private const val PREVIEW_FPS = 15
 private const val IDLE_FPS = 1
 
-/** Zoom da pré-visualização de um ponto: perto o bastante para ver 5 m de diferença. */
-private const val PREVIEW_ZOOM = 19.0
+/** Zoom da pré-visualização de um ponto: o padrão é perto o bastante para ver 5 m de diferença. */
+const val PREVIEW_ZOOM = 19.0
+const val PREVIEW_ZOOM_MIN = 16.0
+const val PREVIEW_ZOOM_MAX = 21.0
 
 /** Mais perto na cidade, mais longe na estrada. */
 private fun zoomFor(kmh: Int): Double = when {

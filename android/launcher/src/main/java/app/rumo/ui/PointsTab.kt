@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -211,6 +212,7 @@ private fun PointEditor(s: HomeState, a: HomeActions, index: Int, onClose: () ->
 private fun PointPreview(s: HomeState, a: HomeActions, index: Int, pt: UserPoint, modifier: Modifier) {
     val p = LocalPalette.current
     val fonts = s.fontsDir
+    var zoom by remember { mutableDoubleStateOf(PREVIEW_ZOOM) }
     Box(modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(p.mapBlock)) {
         if (s.mapFiles.isNotEmpty() && fonts != null) {
             val position = GpsInfo(
@@ -219,7 +221,7 @@ private fun PointPreview(s: HomeState, a: HomeActions, index: Int, pt: UserPoint
                 lon = pt.lon,
                 bearing = pt.bearing.takeIf { it >= 0 }?.toFloat(),
             )
-            DriveMap(s.mapFiles, fonts, s.radars, position, null, p === Night, preview = true)
+            DriveMap(s.mapFiles, fonts, s.radars, position, null, p === Night, preview = true, previewZoom = zoom)
             Txt(
                 if (pt.bearing >= 0) "Sentido do ponto (${directionOf(pt.bearing.toFloat())}) para cima" else "Norte para cima",
                 14, color = p.text2,
@@ -230,6 +232,10 @@ private fun PointPreview(s: HomeState, a: HomeActions, index: Int, pt: UserPoint
                 MoveButton("+$MOVE_M m", Modifier.width(112.dp)) { a.movePoint(index, MOVE_M) }
                 MoveButton("−$MOVE_M m", Modifier.width(112.dp)) { a.movePoint(index, -MOVE_M) }
             }
+            Column(Modifier.align(Alignment.CenterStart).padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                MoveButton("+", Modifier.width(76.dp), enabled = zoom < PREVIEW_ZOOM_MAX) { zoom = (zoom + 1).coerceAtMost(PREVIEW_ZOOM_MAX) }
+                MoveButton("−", Modifier.width(76.dp), enabled = zoom > PREVIEW_ZOOM_MIN) { zoom = (zoom - 1).coerceAtLeast(PREVIEW_ZOOM_MIN) }
+            }
         } else {
             Txt("Sem dados do mapa para mostrar o ponto.", 16, color = p.text2, modifier = Modifier.align(Alignment.Center))
         }
@@ -237,13 +243,14 @@ private fun PointPreview(s: HomeState, a: HomeActions, index: Int, pt: UserPoint
 }
 
 @Composable
-private fun MoveButton(text: String, modifier: Modifier, onClick: () -> Unit) {
+private fun MoveButton(text: String, modifier: Modifier, enabled: Boolean = true, onClick: () -> Unit) {
     val p = LocalPalette.current
     Box(
-        modifier.height(76.dp).clip(RoundedCornerShape(22.dp)).background(p.surface.copy(alpha = 0.92f)).clickable(onClick = onClick),
+        modifier.height(76.dp).clip(RoundedCornerShape(22.dp)).background(p.surface.copy(alpha = 0.92f))
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Txt(text, 30, weight = FontWeight.Bold, numeric = true, align = TextAlign.Center)
+        Txt(text, 30, color = if (enabled) p.text else p.text3, weight = FontWeight.Bold, numeric = true, align = TextAlign.Center)
     }
 }
 
