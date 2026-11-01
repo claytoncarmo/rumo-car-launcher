@@ -185,7 +185,9 @@ private fun AppSection(s: HomeState, a: HomeActions) {
         Txt(
             when {
                 settings.checking -> "Consultando as versões publicadas…"
-                settings.offline -> "Sem conexão com o GitHub: mostrando a última consulta. Busca de novo quando a internet voltar."
+                settings.offline && (settings.stable?.release != null || settings.nightly?.release != null) ->
+                    "Sem conexão com o GitHub: mostrando a última consulta. Busca de novo quando a internet voltar."
+                settings.offline -> "Sem conexão com o GitHub. Busca de novo quando a internet voltar."
                 else -> "Versões publicadas no GitHub"
             },
             16, color = p.text2, maxLines = 3,
