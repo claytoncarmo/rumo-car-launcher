@@ -8,20 +8,20 @@ class PointsTest {
     private fun bytes(hex: String) = ByteArray(hex.length / 2) { hex.substring(2 * it, 2 * it + 2).toInt(16).toByte() }
 
     @Test
-    fun decodificaOVetorDoGerador() {
-        // O mesmo vetor está em dados/vias_test.py (test_pontos_formato_fixo)
+    fun decodesGeneratorVector() {
+        // O mesmo vetor está em data/roads_test.py (test_points_fixed_format)
         val p = decodePoints(bytes("b7c5a81abfa2a62ec801c801"))
         assertArrayEquals(intArrayOf(-27595100, -27595000), p.lat)
         assertArrayEquals(intArrayOf(-48548000, -48547900), p.lon)
     }
 
     @Test
-    fun semBytesNaoHaPontos() {
+    fun noBytesNoPoints() {
         assertEquals(0, decodePoints(ByteArray(0)).lat.size)
     }
 
     @Test
-    fun formatoAntigoEmParesLittleEndian() {
+    fun legacyLittleEndianPairsFormat() {
         val lat = -27595100
         val lon = 258
         val blob = ByteArray(8) { i ->

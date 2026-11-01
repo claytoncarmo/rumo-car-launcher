@@ -205,7 +205,7 @@ interface HomeActions {
     fun volume(delta: Int)
     /** Teste dos botões: liga/desliga o registro das teclas e dos avisos de tela enquanto a folha está aberta. */
     fun keyTest(on: Boolean)
-    /** Diagnóstico: procura ganchos de reinício do fabricante (teste-reinicio.txt). */
+    /** Diagnóstico: procura ganchos de reinício do fabricante (reboot-test.txt). */
     fun probeReboot()
     /** Guarda um ponto no lugar de [spot] (radar, lombada…); [bothWays] ignora o sentido do carro. */
     fun addPoint(spot: MarkSpot, kind: Int, limit: Int, bothWays: Boolean)

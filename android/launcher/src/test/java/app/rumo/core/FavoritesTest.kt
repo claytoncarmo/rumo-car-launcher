@@ -8,14 +8,14 @@ class FavoritesTest {
     private val list = listOf(Favorite(88700, "Atlântida"), Favorite(95900, "CBN"), Favorite(102700))
 
     @Test
-    fun guardaELe() {
+    fun saveAndLoad() {
         assertEquals(list, Favorites.decode(Favorites.encode(list)))
         assertEquals(emptyList<Favorite>(), Favorites.decode(null))
         assertEquals(listOf(Favorite(90500)), Favorites.decode("90500\n\nlixo\t?"))
     }
 
     @Test
-    fun favoritaEmOrdemDeFrequenciaETira() {
+    fun favoritesInFrequencyOrderAndRemoves() {
         assertEquals(listOf(88700, 90500, 95900, 102700), Favorites.toggle(list, 90500).map { it.khz })
         assertEquals(listOf(Favorite(88700, "Atlântida"), Favorite(102700)), Favorites.toggle(list, 95900))
         // Lista antiga fora de ordem volta ordenada
@@ -23,12 +23,12 @@ class FavoritesTest {
     }
 
     @Test
-    fun renomeia() {
+    fun renames() {
         assertEquals("Itapema", Favorites.rename(list, 102700, " Itapema ").last().name)
     }
 
     @Test
-    fun ajusteFinoPelosImpares() {
+    fun fineStepByOddNumbers() {
         assertEquals(88300, fineStep(88100, true))
         assertEquals(87900, fineStep(88100, false))
         assertEquals(90700, fineStep(90600, true))
@@ -38,7 +38,7 @@ class FavoritesTest {
     }
 
     @Test
-    fun anteriorEProximaDaoAVolta() {
+    fun previousAndNextWrapAround() {
         assertEquals(102700, Favorites.step(list, 95900, true)?.khz)
         assertEquals(88700, Favorites.step(list, 102700, true)?.khz)
         assertEquals(102700, Favorites.step(list, 88700, false)?.khz)

@@ -1,8 +1,8 @@
 # Dados offline
 
-O Rumo funciona sem internet: o mapa, as vias com limite de velocidade e os radares vêm de uma pasta `Rumo` copiada para o aparelho. O workflow **Dados do mapa (OSM)** gera essa pasta a partir do OpenStreetMap e a publica em [Releases](../../../releases) como a pré-release **"Rumo · dados do mapa (Sul e Sudeste)"**, com um `rumo-dados-<estado>.zip` por estado.
+O Rumo funciona sem internet: o mapa, as vias com limite de velocidade e os radares vêm de uma pasta `Rumo` copiada para o aparelho. O workflow **Map data (OSM)** (`.github/workflows/map-data.yml`) gera essa pasta a partir do OpenStreetMap e a publica em [Releases](../../../releases) como a pré-release **"Rumo · dados do mapa (Sul e Sudeste)"**, com um `rumo-dados-<estado>.zip` por estado.
 
-Hoje o pacote cobre os estados do **Sul** (PR, SC, RS) e do **Sudeste** (SP, RJ, MG, ES). Cada estado tem seu contorno em `regioes/<id>.geojson` (limite do OSM com ~8 km de folga para andar além da divisa; `contorno.py` gera) e é um job próprio do workflow, em paralelo. Os dados são refeitos todo dia 1 do mês e a cada mudança em `dados/` ou no workflow. Para incluir outro estado: um contorno novo (`python3 contorno.py <relação OSM> "<nome>" regioes/<id>.geojson`, com o `grupo` nas propriedades), uma linha na matriz e em `ESTADOS` do workflow.
+Hoje o pacote cobre os estados do **Sul** (PR, SC, RS) e do **Sudeste** (SP, RJ, MG, ES). Cada estado tem seu contorno em `data/regions/<id>.geojson` (limite do OSM com ~8 km de folga para andar além da divisa; `contour.py` gera) e é um job próprio do workflow, em paralelo. Os dados são refeitos todo dia 1 do mês e a cada mudança em `data/` ou no workflow. Para incluir outro estado: um contorno novo (`python3 data/contour.py <relação OSM> "<nome>" data/regions/<id>.geojson`, com o `grupo` nas propriedades), uma linha na matriz e em `STATES` do workflow.
 
 ## Instalar no aparelho
 
@@ -16,21 +16,21 @@ Hoje o pacote cobre os estados do **Sul** (PR, SC, RS) e do **Sudeste** (SP, RJ,
 
 ## Manifesto (`dados.json`)
 
-O workflow publica, ao lado dos zips, cada arquivo como asset solto e um `dados.json` (`manifesto.py`, `versao` 2) com os arquivos `comum` (as fontes) e a lista de regiões (`id`, `nome`, `grupo`); em cada arquivo, `destino` dentro da pasta Rumo, `tamanho`, `sha256` e `url`. O app só aceita https, destinos dentro da pasta Rumo e ids de região só com letras minúsculas, números e sublinhado (o id vira a pasta `regioes/<id>`).
+O workflow publica, ao lado dos zips, cada arquivo como asset solto e um `dados.json` (`manifest.py`, `versao` 2) com os arquivos `comum` (as fontes) e a lista de regiões (`id`, `nome`, `grupo`); em cada arquivo, `destino` dentro da pasta Rumo, `tamanho`, `sha256` e `url`. O app só aceita https, destinos dentro da pasta Rumo e ids de região só com letras minúsculas, números e sublinhado (o id vira a pasta `regioes/<id>`).
 
 ## O que tem na pasta
 
 | Arquivo | O que é |
 |---|---|
-| `regioes/<estado>/mapa.pmtiles` | Mapa vetorial (recorte do build diário do [Protomaps](https://docs.protomaps.com/basemaps/downloads) pelo contorno do estado, até o zoom 14, filtrado por `mapa_filtro.py`), lido pelo MapLibre |
-| `regioes/<estado>/vias.db` | SQLite com as vias, o limite de velocidade por sentido e os radares (gerado por `vias.py`) |
+| `regioes/<estado>/mapa.pmtiles` | Mapa vetorial (recorte do build diário do [Protomaps](https://docs.protomaps.com/basemaps/downloads) pelo contorno do estado, até o zoom 14, filtrado por `map_filter.py`), lido pelo MapLibre |
+| `regioes/<estado>/vias.db` | SQLite com as vias, o limite de velocidade por sentido e os radares (gerado por `roads.py`) |
 | `fontes/` | Fontes (glifos) dos nomes de rua no mapa |
 | `regioes/<estado>/contorno.geojson` | Contorno do estado (com a folga da divisa), para recortar os radares do MapaRadar no app |
 | `LEIAME.txt` | Estado, data e origem do mapa (só nos zips) |
 
 Tamanhos em Santa Catarina: `mapa.pmtiles` ~37 MB, `vias.db` ~38 MB, pacote ~62 MB (o recorte bruto do Protomaps tem 119 MB). Os demais estados estão na tabela de tamanhos do resumo de cada execução do workflow. Quem já tinha o formato antigo (`mapa.pmtiles` e `vias.db` direto em `Rumo/`, só SC) continua funcionando até baixar um estado; depois o app apaga os arquivos antigos.
 
-## `mapa_filtro.py`
+## `map_filter.py`
 
 O mapa-múndi do Protomaps traz prédios, pontos de interesse, fronteiras, nomes de lugares, trilhas, calçadas e parques que o Rumo não desenha. O filtro abre cada tile e deixa só o que o estilo do app (`DriveMap.kt`) usa:
 
@@ -38,7 +38,7 @@ O mapa-múndi do Protomaps traz prédios, pontos de interesse, fronteiras, nomes
 - **vias:** `minor_road`, `major_road` e `highway`, sem as de serviço (garagens, estacionamentos), com o nome a partir do zoom 14;
 - tudo mais (prédios, lugares, fronteiras, parques, terra, trilhas, trilhos) sai.
 
-Se o estilo passar a desenhar outra coisa, mude `filtrar` junto. `mapa_confere.py` compara uma amostra de tiles do resultado com o que devia ficar e falha o workflow se sumir mais de 1% das feições (a recodificação descarta geometrias inválidas sem avisar). O zoom 14 é o máximo: acima dele o MapLibre amplia o último nível, e o app chega ao zoom 16,5 nas ruas da cidade.
+Se o estilo passar a desenhar outra coisa, mude `filter_layers` junto. `map_check.py` compara uma amostra de tiles do resultado com o que devia ficar e falha o workflow se sumir mais de 1% das feições (a recodificação descarta geometrias inválidas sem avisar). O zoom 14 é o máximo: acima dele o MapLibre amplia o último nível, e o app chega ao zoom 16,5 nas ruas da cidade.
 
 ## Radares e outros pontos: MapaRadar
 
@@ -61,7 +61,7 @@ Se o estilo passar a desenhar outra coisa, mude `filtrar` junto. `mapa_confere.p
 
 **Licença:** a base é CC BY-NC-ND 4.0 (uso pessoal, com atribuição, sem fins comerciais e **sem alterações**). Por isso o projeto só **distribui o arquivo original**, sem alterações, e a conversão acontece no aparelho de cada pessoa (adaptação privada). O `vias.db` e os zips das Releases têm só dados do OpenStreetMap. A atribuição está aqui, nas configurações do app, nas notas da release e no `LEIAME.txt` dos zips. Confira os termos de uso do site do MapaRadar antes de divulgar o projeto mais amplamente.
 
-## `vias.py`
+## `roads.py`
 
 Lê um recorte do OpenStreetMap (`.osm.pbf`, só com `highway` e `highway=speed_camera`) e grava o `vias.db`:
 
@@ -82,10 +82,14 @@ A célula é calculada igual no gerador (`cell_of`) e no app (`core/Geo.kt`), e 
 
 Com o filtro e o `vias.db` enxuto, Santa Catarina pesa ~75 MB. Estimando pela área e pela densidade de vias, o Brasil inteiro ficaria na casa de 1,5 a 2 GB no total; como os arquivos são por estado, o limite de 2 GB por arquivo das releases não é problema. Os próximos passos seriam as regiões Centro-Oeste, Nordeste e Norte (uma linha na matriz e um contorno por estado).
 
+## Nomes em português de propósito
+
+O código dos scripts está em inglês, mas o que já está no campo continua com os nomes originais, porque os apps instalados os leem: as tags e os arquivos das releases (`rumo-dados`, `rumo-dados-<estado>.zip`, `rumo-maparadar`, `dados.json`, `maparadar.json`, `maparadar.csv`), as chaves dos manifestos (`versao`, `comum`, `regioes`, `grupo`, `arquivos`, `destino`, `tamanho`…), o layout da pasta Rumo (`regioes/<id>/mapa.pmtiles`, `vias.db`, `contorno.geojson`, `fontes/`, `LEIAME.txt`) e as chaves de `info` do `vias.db` (`versao`, `regiao`…). As propriedades `nome` e `grupo` dos arquivos em `data/regions/` também (o workflow as lê). Nomes novos entram em inglês.
+
 ## Testes
 
 ```bash
-python3 -m unittest discover -s dados -p "*_test.py" -v
+python3 -m unittest discover -s data -p "*_test.py" -v
 ```
 
 O gerador precisa de `pyosmium`, e o filtro e o contorno de `pmtiles`, `mapbox-vector-tile` e `shapely` (`pip install osmium pmtiles mapbox-vector-tile==2.2.0 shapely`). O workflow roda os testes antes de gerar.

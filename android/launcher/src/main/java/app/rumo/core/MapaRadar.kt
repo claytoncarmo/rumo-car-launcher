@@ -13,7 +13,7 @@ import kotlin.math.hypot
 import kotlin.math.roundToLong
 
 /**
- * Base do MapaRadar (dados/maparadar.csv, CC BY-NC-ND 4.0): o app baixa o arquivo ORIGINAL e o processa aqui, no
+ * Base do MapaRadar (data/maparadar.csv, CC BY-NC-ND 4.0): o app baixa o arquivo ORIGINAL e o processa aqui, no
  * aparelho, sem publicar nada derivado dele. Sem cabeçalho: `longitude,latitude,Tipo - N kmh@N` (sem acentos), um ponto
  * por linha e sem o sentido. Tipos: Radar Fixo, Semaforo com Radar, Radar Movel, Lombada (0 km/h é lombada comum; com
  * limite, eletrônica), Semaforo com Camera, Policia Rodoviaria, Pedagio.

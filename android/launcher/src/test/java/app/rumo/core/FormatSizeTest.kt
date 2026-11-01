@@ -6,7 +6,7 @@ import java.time.ZoneOffset
 
 class FormatSizeTest {
     @Test
-    fun tamanhoDeArquivo() {
+    fun fileSize() {
         assertEquals("800 B", formatSize(800))
         assertEquals("12 kB", formatSize(12_345))
         assertEquals("18 MB", formatSize(18_022_389))
@@ -15,7 +15,7 @@ class FormatSizeTest {
     }
 
     @Test
-    fun dataDaPublicacaoNoFusoDoAparelho() {
+    fun publishDateInDeviceTimeZone() {
         assertEquals("31/10 03:00", formatBuiltAt("2026-10-31T03:00:00Z", ZoneOffset.UTC))
         assertEquals("31/10 00:00", formatBuiltAt("2026-10-31T03:00:00Z", ZoneOffset.ofHours(-3)))
         assertEquals("", formatBuiltAt("ontem", ZoneOffset.UTC))

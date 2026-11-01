@@ -2,7 +2,7 @@ package app.rumo.core
 
 import kotlin.math.abs
 
-/** Tipos de ponto do vias.db (`radars.kind`, os mesmos de dados/maparadar.py). 0: radar do OSM sem tipo. */
+/** Tipos de ponto do vias.db (`radars.kind`, os mesmos de core/MapaRadar.kt). 0: radar do OSM sem tipo. */
 object RadarKind {
     const val OSM = 0
     const val FIXED = 1

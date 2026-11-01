@@ -7,12 +7,12 @@ import org.junit.Test
 class TripMeterTest {
 
     @Test
-    fun umMilesimoDeGrauDeLatitude() {
+    fun oneThousandthOfLatitudeDegree() {
         assertEquals(111.19, distanceM(0.0, 0.0, 0.001, 0.0), 0.05)
     }
 
     @Test
-    fun somaSoEmMovimentoEComBoaPrecisao() {
+    fun sumsOnlyWhenMovingWithGoodAccuracy() {
         val t = TripMeter()
         t.add(-23.5, -46.6, 0, 10f, 5f)
         t.add(-23.501, -46.6, 1000, 10f, 5f)   // +111 m
@@ -23,7 +23,7 @@ class TripMeterTest {
     }
 
     @Test
-    fun mediaSoDepoisDeUmMinuto() {
+    fun averageOnlyAfterOneMinute() {
         val t = TripMeter()
         var lat = 0.0
         for (i in 0..60) {

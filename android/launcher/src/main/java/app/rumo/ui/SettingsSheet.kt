@@ -348,4 +348,4 @@ private fun PillButton(text: String, enabled: Boolean, primary: Boolean, onClick
 private const val CONFIRM_MS = 5_000L
 
 /** Chave do download dos dados em [Transfer]. */
-const val DATA_KEY = "dados"
+const val DATA_KEY = "data"

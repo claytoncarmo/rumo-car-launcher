@@ -8,7 +8,7 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-    <!-- Relatório do teste do farol (teste-farol.txt na pasta Rumo) -->
+    <!-- Relatório do teste do farol (headlight-test.txt na pasta Rumo) -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />

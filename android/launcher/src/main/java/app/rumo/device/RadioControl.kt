@@ -14,7 +14,7 @@ import kotlin.coroutines.resume
 /**
  * Comandos do rádio do aparelho, para a tela de rádio do Rumo. Usa o serviço do próprio app de rádio
  * (com.hcn.autoradio, FMPlugService, IRadioServiceAPI), para o app original continuar em dia com a estação, e lê a
- * frequência no serviço de sistema "fmradio". Números de transação lidos no aparelho (docs/integracao-aparelho.md).
+ * frequência no serviço de sistema "fmradio". Números de transação lidos no aparelho (docs/device-integration.md).
  *
  * Nunca grava nas memórias do aparelho: a procura de estações usa a busca (seek), não o "AS" (auto store), que
  * sobrescreve as 6 memórias.

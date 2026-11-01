@@ -26,7 +26,7 @@ class Way(
         }
 
     companion object {
-        // Mesma ordem de KINDS em dados/vias.py
+        // Mesma ordem de KINDS em data/roads.py
         val KIND_LABELS = listOf(
             "Rodovia", "Rodovia", "Avenida sem nome", "Avenida sem nome", "Rua sem nome",
             "Estrada sem nome", "Rua sem nome", "Rua sem nome", "Acesso", "Via sem nome",

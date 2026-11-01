@@ -324,7 +324,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     /**
      * Teste do farol: ouve os avisos (broadcasts) que parecem do farol; fotografa os ajustes do sistema. Não se
      * registra mais na MCU (mcu_service): o teste antigo fazia isso e os botões do aparelho pararam logo depois; dá [PROBE_SECONDS] para acender e apagar o farol; mostra o que chegou e o que mudou e
-     * salva o relatório completo em teste-farol.txt (memória interna, pasta Rumo, e pendrive/cartão quando der).
+     * salva o relatório completo em headlight-test.txt (memória interna, pasta Rumo, e pendrive/cartão quando der).
      */
     override fun probeHeadlight() {
         if (probeJob?.isActive == true) return
@@ -388,7 +388,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 add("Avisos encontrados nos apps (${candidates.size}):")
                 addAll(candidates.map { "${it.action} · ${it.pkg}" })
             }
-            showReport("Teste do farol", "teste-farol.txt", summary, full)
+            showReport("Teste do farol", "headlight-test.txt", summary, full)
         }
     }
 
@@ -396,7 +396,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
      * Teste do rádio: o sourceinfo diz a fonte, mas não a estação. O app de rádio do aparelho tem um serviço para
      * outros apps (FMPlugService, IRadioServiceAPI): o teste liga nele, lê todas as funções de leitura (get…/is…),
      * inscreve o ouvinte dele (IRadioCallBack) e, por [MEDIA_PROBE_SECONDS], anota o que muda enquanto o motorista
-     * troca de estação. Também escuta os avisos (broadcasts) do app de rádio. Salva teste-radio.txt.
+     * troca de estação. Também escuta os avisos (broadcasts) do app de rádio. Salva radio-test.txt.
      */
     override fun probeMedia() {
         if (probeJob?.isActive == true) return
@@ -453,7 +453,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 listOf("Linha do tempo (${timeline.size}):") + timeline.ifEmpty { listOf("nada") }
             val full = summary + listOf("Classes do rádio:") + classes +
                 listOf("Serviços de rádio do sistema:") + systemRadio.ifEmpty { listOf("nenhum") }
-            showReport("Teste do rádio", "teste-radio.txt", summary, full)
+            showReport("Teste do rádio", "radio-test.txt", summary, full)
         }
     }
 
@@ -707,7 +707,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             }
             RadioCmd.StopScan -> scanCancelled = true
             RadioCmd.SaveLog -> lifecycleScope.launch {
-                val saved = withContext(Dispatchers.IO) { saveReport("Teste dos comandos do rádio", "teste-comandos.txt", state.radioLog) }
+                val saved = withContext(Dispatchers.IO) { saveReport("Teste dos comandos do rádio", "radio-commands-test.txt", state.radioLog) }
                 state.toast = if (saved.isEmpty()) "Não consegui salvar o registro" else "Registro salvo: ${saved.first()}"
             }
         }
@@ -912,7 +912,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     override fun accessibilitySettings() = start(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
 
-    /** Teste do reinício: procura no aparelho um gancho que reinicie (componentes, textos, serviços). Salva teste-reinicio.txt. */
+    /** Teste do reinício: procura no aparelho um gancho que reinicie (componentes, textos, serviços). Salva reboot-test.txt. */
     override fun probeReboot() {
         if (probeJob?.isActive == true) return
         if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
@@ -924,7 +924,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             state.toast = "Teste do reinício: procurando nos apps e serviços do aparelho…"
             val report = withContext(Dispatchers.IO) { RebootProbe.run(this@HomeActivity) }
             state.toast = null
-            showReport("Teste do reinício", "teste-reinicio.txt", report.summary, report.full)
+            showReport("Teste do reinício", "reboot-test.txt", report.summary, report.full)
         }
     }
 
@@ -1057,7 +1057,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
         lifecycleScope.launch {
             val merged = withContext(Dispatchers.IO) {
                 try {
-                    found.loadMapaRadar(File(filesDir, "radares.bin"))
+                    // O cache tinha outro nome (radares.bin) antes de o código passar para o inglês
+                    File(filesDir, "radares.bin").delete()
+                    found.loadMapaRadar(File(filesDir, "radars.bin"))
                 } catch (e: Exception) {
                     null
                 }

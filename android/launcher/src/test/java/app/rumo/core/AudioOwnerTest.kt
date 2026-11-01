@@ -6,7 +6,7 @@ import org.junit.Test
 
 class AudioOwnerTest {
     @Test
-    fun valoresVistosNoAparelho() {
+    fun valuesSeenOnDevice() {
         assertEquals(AudioOwner.ZLINK, audioOwnerOf("com.zjinnova.zlink"))
         assertEquals(AudioOwner.ZLINK, audioOwnerOf("com.zjinnova.android.zlink.features.main.MainActivity"))
         assertEquals(AudioOwner.RADIO, audioOwnerOf("com.hcn.autoradio"))
@@ -15,7 +15,7 @@ class AudioOwnerTest {
     }
 
     @Test
-    fun vazioNaoMudaAFonte() {
+    fun emptyKeepsSource() {
         assertNull(audioOwnerOf(""))
         assertNull(audioOwnerOf(null))
     }

@@ -16,7 +16,7 @@ Tabelas:
                                    0 (radar do OSM sem tipo). O app junta, no aparelho, os pontos do MapaRadar (tipos 1 a 8,
                                    core/MapaRadar.kt) e usa a mesma coluna
 
-Uso: python3 vias.py entrada.osm.pbf saida.db "Santa Catarina"
+Uso: python3 roads.py entrada.osm.pbf saida.db "Santa Catarina"
 """
 
 import math
@@ -116,11 +116,11 @@ def ctb_default(kind, link, urban, oneway, paved, ref):
             "tertiary": 40,                  # coletora
         }.get(k, 30)                         # locais
     else:
-        rodovia = paved is True or (paved is None and ref is not None)
+        is_highway = paved is True or (paved is None and ref is not None)
         if k in ("motorway", "trunk", "primary", "secondary"):
             v = 110 if oneway else 100       # pista dupla / simples
         elif k in ("tertiary", "unclassified", "road"):
-            v = 100 if rodovia else 60       # rodovia / estrada
+            v = 100 if is_highway else 60    # rodovia / estrada
         else:
             v = 30
     return min(v, 60) if link else v
@@ -323,6 +323,7 @@ def build(src, dst, region):
 
     segs.sort(key=lambda r: r[:3])
     db.executemany("INSERT INTO segs VALUES (?,?,?,?)", segs)
+    # As chaves de info ficam em português: vias.db já está no campo e o app lê info.versao (device/MapData.kt)
     info = {
         "versao": "2",
         "regiao": region,

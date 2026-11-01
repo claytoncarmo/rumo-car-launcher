@@ -1,13 +1,13 @@
-name: MapaRadar (arquivo original)
+name: MapaRadar (original file)
 
-# Publica a pré-release "rumo-maparadar" com uma cópia IDÊNTICA do dados/maparadar.csv (base do MapaRadar, CC BY-NC-ND 4.0,
+# Publica a pré-release "rumo-maparadar" com uma cópia IDÊNTICA do data/maparadar.csv (base do MapaRadar, CC BY-NC-ND 4.0,
 # que o Clayton atualiza à mão) e o maparadar.json (tamanho e SHA-256). O app baixa e processa o arquivo no aparelho;
-# nada derivado dele é publicado. Detalhes em dados/README.md.
+# nada derivado dele é publicado. Detalhes em data/README.md.
 on:
   push:
     paths:
-      - "dados/maparadar.csv"
-      - "dados/maparadar_manifesto*.py"
+      - "data/maparadar.csv"
+      - "data/maparadar_manifest*.py"
       - ".github/workflows/maparadar.yml"
   workflow_dispatch:
 
@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  publicar:
+  publish:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -29,25 +29,25 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Teste
-        run: python3 -m unittest discover -s dados -p "maparadar_manifesto_test.py" -v
+      - name: Test
+        run: python3 -m unittest discover -s data -p "maparadar_manifest_test.py" -v
 
-      - name: Manifesto e cópia idêntica
+      - name: Manifest and identical copy
         run: |
-          python3 dados/maparadar_manifesto.py dados/maparadar.csv publicar \
+          python3 data/maparadar_manifest.py data/maparadar.csv publish \
             "https://github.com/$GITHUB_REPOSITORY/releases/download/rumo-maparadar"
-          cmp dados/maparadar.csv publicar/maparadar.csv
-          cat publicar/maparadar.json
-          wc -l dados/maparadar.csv
+          cmp data/maparadar.csv publish/maparadar.csv
+          cat publish/maparadar.json
+          wc -l data/maparadar.csv
 
       # Só a main publica
-      - name: Publicar em Releases
+      - name: Publish to Releases
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete rumo-maparadar --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" || true
-          gh release create rumo-maparadar publicar/* \
+          gh release create rumo-maparadar publish/* \
             --repo "$GITHUB_REPOSITORY" \
             --prerelease \
             --target "$GITHUB_SHA" \

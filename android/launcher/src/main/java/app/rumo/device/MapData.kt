@@ -18,7 +18,7 @@ import java.io.File
 import java.io.IOException
 
 /**
- * Pasta "Rumo" copiada para o aparelho (gerada pelo GitHub Actions, ver dados/): `fontes/` e, em `regioes/<estado>/`,
+ * Pasta "Rumo" copiada para o aparelho (gerada pelo GitHub Actions, ver data/): `fontes/` e, em `regioes/<estado>/`,
  * o mapa.pmtiles e o vias.db de cada estado instalado. Procura na memória interna e, se não achar, nos cartões e
  * pendrives. Vários estados valem ao mesmo tempo: o mapa desenha todos e as vias de todos entram na busca da rua atual,
  * então atravessar a divisa não muda nada. Formato antigo (mapa.pmtiles e vias.db direto na pasta Rumo, só SC) ainda é
@@ -125,13 +125,13 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
 
         /** Muda quando os dados do estado mudam (entra na assinatura do cache dos radares). */
         fun signature(): String {
-            val vias = File(dir, ROADS)
-            return "${dir.name}:${vias.length()}:${vias.lastModified()}:${contourFile()?.length() ?: 0}"
+            val roadsFile = File(dir, ROADS)
+            return "${dir.name}:${roadsFile.length()}:${roadsFile.lastModified()}:${contourFile()?.length() ?: 0}"
         }
         val radars: List<Radar> = db?.let(::loadRadars) ?: emptyList()
         private val info: Map<String, String> = db?.let(::loadInfo) ?: emptyMap()
 
-        // vias.db versão 1 guardava os pontos em pares int32; a 2 (dados/vias.py) em diferenças com varint
+        // vias.db versão 1 guardava os pontos em pares int32; a 2 (data/roads.py) em diferenças com varint
         private val legacyPoints = (info["versao"] ?: "1") == "1"
         private val ways = HashMap<Long, Way>()
 

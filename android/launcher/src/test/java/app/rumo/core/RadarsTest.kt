@@ -17,7 +17,7 @@ class RadarsTest {
     private val radar = Radar(1, lat0, lon0 + 400 * dLon, 60, 90)
 
     @Test
-    fun entraNaZonaUmaVezSo() {
+    fun entersZoneOnlyOnce() {
         val w = RadarWatch(500)
         assertTrue(w.update(lat0, lon0, 90f, 50, listOf(radar)))
         assertEquals(400.0, w.current!!.distanceM.toDouble(), 2.0)
@@ -27,7 +27,7 @@ class RadarsTest {
     }
 
     @Test
-    fun acimaDoLimiteDoRadarDisparaOAlarme() {
+    fun aboveRadarLimitTriggersAlarm() {
         val w = RadarWatch(500)
         w.update(lat0, lon0 + 300 * dLon, 90f, 72, listOf(radar))
         val a = w.current!!
@@ -36,7 +36,7 @@ class RadarsTest {
     }
 
     @Test
-    fun foraDaZonaOuNoSentidoContrarioNaoAvisa() {
+    fun outsideZoneOrOppositeDirectionDoesNotWarn() {
         val w = RadarWatch(500)
         assertFalse(w.update(lat0, lon0 - 200 * dLon, 90f, 50, listOf(radar)))  // 600 m
         assertNull(w.current)
@@ -46,17 +46,17 @@ class RadarsTest {
     }
 
     @Test
-    fun radarDeOutroSentidoNaoAvisa() {
+    fun radarForOtherDirectionDoesNotWarn() {
         val w = RadarWatch(500)
-        val paraOeste = Radar(2, lat0, lon0 + 300 * dLon, 60, 270)
-        assertFalse(w.update(lat0, lon0, 90f, 50, listOf(paraOeste)))
+        val westbound = Radar(2, lat0, lon0 + 300 * dLon, 60, 270)
+        assertFalse(w.update(lat0, lon0, 90f, 50, listOf(westbound)))
         assertNull(w.current)
         // sem sentido definido (-1): avisa
         assertTrue(w.update(lat0, lon0, 90f, 50, listOf(Radar(3, lat0, lon0 + 300 * dLon, 60, -1))))
     }
 
     @Test
-    fun saiDaZonaDepoisDePassar() {
+    fun leavesZoneAfterPassing() {
         val w = RadarWatch(500)
         w.update(lat0, lon0 + 390 * dLon, 90f, 50, listOf(radar))
         assertNotNull(w.current)
@@ -65,63 +65,63 @@ class RadarsTest {
     }
 
     @Test
-    fun distanciaFormatada() {
+    fun formattedDistance() {
         assertEquals("350 m", formatDistance(347))
         assertEquals("10 m", formatDistance(3))
         assertEquals("1,2 km", formatDistance(1234))
     }
 
     @Test
-    fun frequenciaDoRadio() {
+    fun radioFrequency() {
         assertEquals("102,7 FM", formatRadioFreq(102700))
         assertEquals("88,1 FM", formatRadioFreq(88100))
         assertEquals("1020 AM", formatRadioFreq(1020))
     }
 
     @Test
-    fun celulasIguaisAoGerador() {
-        // mesmos números de dados/vias.py (cell_of)
+    fun cellsMatchGenerator() {
+        // mesmos números de data/roads.py (cell_of)
         assertEquals(Geo.cellOf(-27.5951, -48.5480), Geo.cellOf(-27.5901, -48.5401))
         assertEquals(226777100L, Geo.cellOf(-27.0005, -48.9995))
         assertTrue(Geo.cellsAround(-27.0, -49.0, 40.0).size in 1..4)
     }
 
     @Test
-    fun semLimiteNuncaDisparaOAlarme() {
+    fun noLimitNeverTriggersAlarm() {
         val w = RadarWatch(500)
-        val pedagio = Radar(4, lat0, lon0 + 200 * dLon, 0, -1, RadarKind.TOLL)
-        assertTrue(w.update(lat0, lon0, 90f, 110, listOf(pedagio)))
+        val toll = Radar(4, lat0, lon0 + 200 * dLon, 0, -1, RadarKind.TOLL)
+        assertTrue(w.update(lat0, lon0, 90f, 110, listOf(toll)))
         assertFalse(w.current!!.alarm)
-        assertFalse(pedagio.enforcesSpeed)
-        assertFalse(pedagio.chimes)
+        assertFalse(toll.enforcesSpeed)
+        assertFalse(toll.chimes)
     }
 
     @Test
-    fun quemFiscalizaEPoliciaAvisamComSom() {
+    fun enforcersAndPoliceChime() {
         assertTrue(Radar(5, lat0, lon0, 60, -1, RadarKind.FIXED).chimes)
         assertTrue(Radar(6, lat0, lon0, 0, -1, RadarKind.POLICE).chimes)
         assertFalse(Radar(7, lat0, lon0, 0, -1, RadarKind.BUMP).chimes)
     }
 
     @Test
-    fun lombadaEPedagioAvisamMaisPerto() {
+    fun bumpAndTollWarnCloser() {
         val w = RadarWatch(500)
-        val lombada = Radar(8, lat0, lon0 + 400 * dLon, 0, -1, RadarKind.BUMP)
-        assertFalse(w.update(lat0, lon0, 90f, 50, listOf(lombada)))  // 400 m: fora da zona de 300 m
+        val bump = Radar(8, lat0, lon0 + 400 * dLon, 0, -1, RadarKind.BUMP)
+        assertFalse(w.update(lat0, lon0, 90f, 50, listOf(bump)))  // 400 m: fora da zona de 300 m
         assertNull(w.current)
-        assertTrue(w.update(lat0, lon0 + 150 * dLon, 90f, 50, listOf(lombada)))  // 250 m
+        assertTrue(w.update(lat0, lon0 + 150 * dLon, 90f, 50, listOf(bump)))  // 250 m
     }
 
     @Test
-    fun pontosLongeNemEntramNaConta() {
+    fun farPointsAreNotEvenConsidered() {
         val w = RadarWatch(500)
-        val longe = Radar(9, lat0 + 0.5, lon0, 60, -1, RadarKind.FIXED)
-        assertFalse(w.update(lat0, lon0, 90f, 50, listOf(longe)))
+        val far = Radar(9, lat0 + 0.5, lon0, 60, -1, RadarKind.FIXED)
+        assertFalse(w.update(lat0, lon0, 90f, 50, listOf(far)))
         assertNull(w.current)
     }
 
     @Test
-    fun nomesDosTipos() {
+    fun kindNames() {
         assertEquals("Radar", radarLabel(RadarKind.OSM))
         assertEquals("Radar", radarLabel(RadarKind.FIXED))
         assertEquals("Pedágio", radarLabel(RadarKind.TOLL))

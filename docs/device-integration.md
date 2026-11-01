@@ -2,7 +2,7 @@
 
 Como o Rumo obtém do multimídia (fabricante **HCN**, Android 9) o que o Android não expõe: o farol, a fonte de áudio e a estação do rádio. Tudo foi descoberto lendo os serviços do sistema do próprio aparelho; os valores abaixo foram observados nele e podem variar em outros modelos ou firmwares.
 
-O perfil de hardware está em [`estudo-telas-iniciais.md`](estudo-telas-iniciais.md#aparelho-de-referência-medido).
+O perfil de hardware está em [`home-screen-study.md`](home-screen-study.md#aparelho-de-referência-medido).
 
 ## Como falar com os serviços
 
@@ -117,9 +117,9 @@ Para investigar outro aparelho (ou outra versão de firmware) o Rumo traz ferram
 
 | Como abrir | O que faz | Relatório |
 |---|---|---|
-| Toque longo no botão de tema (barra de cima) | Por 20 s, enquanto se acende e apaga o farol: ouve a MCU e os avisos (broadcasts) do sistema, compara os ajustes e lista as classes do fabricante e as interfaces dos serviços do carro | `teste-farol.txt` |
-| Toque longo no card de mídia | Por 60 s: liga nos serviços do rádio, lê as funções de leitura, registra os ouvintes e anota o que muda ao trocar de estação | `teste-radio.txt` |
-| Toque longo no título "Rádio" (tela de rádio) | Registro dos comandos mandados ao rádio | `teste-comandos.txt` |
+| Toque longo no botão de tema (barra de cima) | Por 20 s, enquanto se acende e apaga o farol: ouve a MCU e os avisos (broadcasts) do sistema, compara os ajustes e lista as classes do fabricante e as interfaces dos serviços do carro | `headlight-test.txt` |
+| Toque longo no card de mídia | Por 60 s: liga nos serviços do rádio, lê as funções de leitura, registra os ouvintes e anota o que muda ao trocar de estação | `radio-test.txt` |
+| Toque longo no título "Rádio" (tela de rádio) | Registro dos comandos mandados ao rádio | `radio-commands-test.txt` |
 
 Os relatórios vão para `Rumo/` na memória interna e para `Android/data/app.rumo/files/` de cada pendrive ou cartão. O código está em `device/` (`BroadcastHunt`, `CarSourceProbe`, `NightSignal`, `RadioProbe`).
 

@@ -146,7 +146,7 @@ private fun zoomFor(kmh: Int): Double = when {
 
 /**
  * Cores do mapa: tons de cinza quase neutros (a água só um pouco diferente do fundo). O mapa.pmtiles do app só traz o que
- * é desenhado aqui (água, rios e vias para carro; `dados/mapa_filtro.py`): se incluir outra camada, mude os dois.
+ * é desenhado aqui (água, rios e vias para carro; `data/map_filter.py`): se incluir outra camada, mude os dois.
  */
 private class MapColors(
     val land: String, val water: String, val minor: String,

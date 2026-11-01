@@ -1,4 +1,4 @@
-name: Release estável
+name: Stable release
 
 # Ao criar uma tag vX.Y.Z (ou vX.Y.Z-rc1): compila com essa versão, testa e publica a release com
 # rumo-X.Y.Z.apk (nome com a versão) e rumo.apk (nome fixo, para releases/latest/download/rumo.apk).
@@ -23,7 +23,7 @@ jobs:
       version_name: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
     secrets: inherit
 
-  publicar:
+  publish:
     needs: build
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -35,7 +35,7 @@ jobs:
           name: rumo-apk
           path: dist
 
-      - name: Publicar a release
+      - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.build.outputs.version_name }}

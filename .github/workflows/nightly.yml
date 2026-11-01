@@ -23,7 +23,7 @@ jobs:
     uses: ./.github/workflows/build.yml
     secrets: inherit
 
-  publicar:
+  publish:
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -34,7 +34,7 @@ jobs:
           name: rumo-apk
           path: dist
 
-      - name: Publicar a pré-release nightly
+      - name: Publish the nightly pre-release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.build.outputs.version_name }}

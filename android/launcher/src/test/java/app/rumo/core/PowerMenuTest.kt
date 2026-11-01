@@ -6,7 +6,7 @@ import org.junit.Test
 
 class PowerMenuTest {
     @Test
-    fun reconheceOBotaoDeReiniciar() {
+    fun recognizesRestartButton() {
         assertTrue(isRestartLabel("Reiniciar"))
         assertTrue(isRestartLabel("  REINICIAR "))
         assertTrue(isRestartLabel("Restart"))
@@ -14,7 +14,7 @@ class PowerMenuTest {
     }
 
     @Test
-    fun naoConfundeComOutrosBotoes() {
+    fun doesNotConfuseOtherButtons() {
         assertFalse(isRestartLabel(null))
         assertFalse(isRestartLabel(""))
         assertFalse(isRestartLabel("Desligar"))
@@ -23,7 +23,7 @@ class PowerMenuTest {
     }
 
     @Test
-    fun reconheceGanchosDeReinicio() {
+    fun recognizesRebootHooks() {
         assertTrue(looksLikeRebootHook("com.hcn.settings.RebootReceiver"))
         assertTrue(looksLikeRebootHook("android.intent.action.ACTION_SHUTDOWN"))
         assertTrue(looksLikeRebootHook("setPowerOff"))

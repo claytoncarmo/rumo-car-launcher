@@ -8,7 +8,7 @@ import kotlin.math.hypot
 
 /** Contas de distância e rumo em metros, numa projeção plana local (boa para algumas centenas de metros). */
 object Geo {
-    /** Grade de 0,01° do vias.db (dados/vias.py usa a mesma). */
+    /** Grade de 0,01° do vias.db (data/roads.py usa a mesma). */
     const val CELL = 0.01
     const val M_PER_DEG_LAT = 110_540.0
     const val M_PER_DEG_LON = 111_320.0

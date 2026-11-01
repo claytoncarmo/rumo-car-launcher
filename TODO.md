@@ -11,7 +11,7 @@ Hoje só o HCN de referência foi testado (ver "Outros aparelhos" no [`README.md
 - [ ] **Esconder o que o aparelho não tem:** dock e cards sem rádio, sem Android Auto e sem farol quando não houver.
 - [ ] **Android Auto configurável:** escolher o app de navegação/projeção em vez de fixar o ZLINK.
 - [ ] **Mais arquiteturas:** compilar também `arm64-v8a` (e `x86_64` para emulador); conferir o tamanho do APK com o MapLibre.
-- [ ] **Roteiro para aparelho novo** (`docs/novo-aparelho.md`): ordem dos diagnósticos (farol, rádio, reinício, botões), o que olhar em cada relatório e como transformar o resultado num perfil.
+- [ ] **Roteiro para aparelho novo** (`docs/new-device.md`): ordem dos diagnósticos (farol, rádio, reinício, botões), o que olhar em cada relatório e como transformar o resultado num perfil.
 - [x] **Mais de um estado nos dados:** Sul e Sudeste (PR, SC, RS, SP, RJ, MG, ES), lista e seleção nas configurações da home, vários mapas e vias ao mesmo tempo. Falta validar no carro (ver abaixo) e, se der certo, as outras regiões do país.
 
 ## A validar no aparelho
@@ -34,7 +34,8 @@ Hoje só o HCN de referência foi testado (ver "Outros aparelhos" no [`README.md
 
 - [ ] Testar andando: rua e limite em cruzamentos e ruas paralelas, avisos de radar, desempenho do mapa e a velocidade do GPS contra o painel do carro.
 - [ ] Radares além do OSM (ANTT, dados abertos de prefeituras).
-- [ ] Pontos do usuário: mandar para o fórum do MapaRadar/OSM direto do app (hoje só copiando o `meus-pontos.csv`), desfazer logo depois de marcar e esconder pontos que o MapaRadar passar a ter a menos de 50 m.
+- [ ] Nomes em português que já estão no campo (chaves de preferências, `Rumo/regioes/…`, chaves do `dados.json`, tags das releases; lista em `CONTRIBUTING.md`): migrar para inglês com leitura dos dois nomes por um tempo, para não quebrar o app já instalado.
+- [ ] Pontos do usuário: mandar para o fórum do MapaRadar/OSM direto do app (hoje só copiando o `my-points.csv`), desfazer logo depois de marcar e esconder pontos que o MapaRadar passar a ter a menos de 50 m.
 - [ ] Primeira versão estável: `git tag v0.5.0 && git push origin v0.5.0`, para existir `releases/latest`.
 - [ ] Fonte Barlow; cartão inteligente só tem a página Viagem; telefone e Bluetooth não integrados.
 - [ ] Servidor de relatórios na rede, para dispensar o pendrive nos testes.

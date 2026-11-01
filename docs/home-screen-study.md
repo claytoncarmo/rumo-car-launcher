@@ -3,7 +3,7 @@
 **Projeto:** Rumo, um launcher para multimídia Android aftermarket (instalação num Honda)
 **Data:** outubro de 2026
 **Protótipo:** [`prototype/index.html`](../prototype/index.html)
-**Integração com o aparelho de referência:** [`integracao-aparelho.md`](integracao-aparelho.md)
+**Integração com o aparelho de referência:** [`device-integration.md`](device-integration.md)
 
 ---
 
@@ -49,7 +49,7 @@ O aparelho em que o Rumo é desenvolvido e testado. A tela "Informações" do fa
 | Música pelo ZLINK | — | Sessão de mídia **vazia** (sem estado nem título), notificação **sem texto** e comandos da sessão ignorados. **Teclas de mídia funcionam** (anterior, play/pausa, próxima) |
 | Rádio do aparelho | — | Sem sessão de mídia e sem texto na notificação; o app de rádio não recebe a tecla play/pausa |
 
-O estado do carro (farol), a fonte de áudio e a estação do rádio vêm de serviços do fabricante, descritos em [`integracao-aparelho.md`](integracao-aparelho.md).
+O estado do carro (farol), a fonte de áudio e a estação do rádio vêm de serviços do fabricante, descritos em [`device-integration.md`](device-integration.md).
 
 **Consequências para o projeto:**
 - Alvo real é **Android 9**: `minSdk 26`/`28` serve; não há `RoleManager` (a escolha da tela inicial é pelo seletor do sistema, "Sempre").
@@ -262,7 +262,7 @@ Detalhes:
 | Recurso | Como implementar | Risco |
 |---|---|---|
 | Ser a tela inicial | `Activity` com `intent-filter` `MAIN` + `HOME` + `DEFAULT`; o usuário escolhe o Rumo como padrão | Baixo; alguns aparelhos reativam o launcher de fábrica e exigem ajuste no menu do fabricante |
-| Mídia (fonte, estação e controles) | Apps com `MediaSession` (Spotify, YouTube Music, Deezer): `NotificationListenerService` + `MediaSessionManager.getActiveSessions()` + `MediaController`. No aparelho de referência o Android Auto e o rádio não publicam sessão: a fonte vem do serviço `sourceinfo`, a estação do `fmradio` e os controles por teclas de mídia (`AudioManager.dispatchMediaKeyEvent`); ver `integracao-aparelho.md` | Depende do fabricante do aparelho |
+| Mídia (fonte, estação e controles) | Apps com `MediaSession` (Spotify, YouTube Music, Deezer): `NotificationListenerService` + `MediaSessionManager.getActiveSessions()` + `MediaController`. No aparelho de referência o Android Auto e o rádio não publicam sessão: a fonte vem do serviço `sourceinfo`, a estação do `fmradio` e os controles por teclas de mídia (`AudioManager.dispatchMediaKeyEvent`); ver `device-integration.md` | Depende do fabricante do aparelho |
 | Abrir o Android Auto | Abrir o app que faz o Android Auto no aparelho (o nome varia: app próprio do fabricante, ZLink, AutoKit…); pacote escolhido nas configurações | Baixo |
 | Mapa passivo na home | MapLibre com mapas OSM, posição e rumo pelo GPS do aparelho; sem rota | Baixo |
 | Rua atual e limite da via | Associar a posição GPS à via mais próxima (*map matching*) numa extração offline do OpenStreetMap; usar a etiqueta `maxspeed`. Sem `maxspeed`, estimar pelos padrões do CTB (urbanas: trânsito rápido 80, arterial 60, coletora 40, local 30; rodovias: pista dupla 110, pista simples 100) e mostrar como estimado | **Médio**: a cobertura de `maxspeed` no Brasil é desigual |

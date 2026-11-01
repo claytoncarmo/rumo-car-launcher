@@ -34,7 +34,7 @@ class MarkSpot(val lat: Double, val lon: Double, val bearing: Int?, val limit: I
  * (graus) e o dia podem faltar. Linhas em branco, `#` e as que não prestam são ignoradas ao ler.
  */
 object UserPoints {
-    const val FILE = "meus-pontos.csv"
+    const val FILE = "my-points.csv"
     const val MIN_LIMIT = 20
     const val MAX_LIMIT = 120
     const val DEFAULT_LIMIT = 60

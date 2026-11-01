@@ -6,7 +6,7 @@ import org.junit.Test
 
 class RadarGeoJsonTest {
     @Test
-    fun umaFeicaoPorPontoComTipoELimite() {
+    fun oneFeaturePerPointWithKindAndLimit() {
         val json = JSONObject(
             radarsGeoJson(
                 listOf(
@@ -26,7 +26,7 @@ class RadarGeoJsonTest {
     }
 
     @Test
-    fun semPontosEUmaColecaoVazia() {
+    fun noPointsIsEmptyCollection() {
         assertEquals(0, JSONObject(radarsGeoJson(emptyList())).getJSONArray("features").length())
     }
 }

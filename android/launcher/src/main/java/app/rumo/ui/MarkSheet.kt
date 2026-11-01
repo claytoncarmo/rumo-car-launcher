@@ -226,7 +226,7 @@ private fun PointList(s: HomeState, a: HomeActions) {
             }
         }
         Txt(
-            "Arquivo: Rumo/meus-pontos.csv, na memória interna. As três primeiras colunas são as do CSV do MapaRadar: dá para copiar as linhas e mandar ao fórum deles.",
+            "Arquivo: Rumo/my-points.csv, na memória interna. As três primeiras colunas são as do CSV do MapaRadar: dá para copiar as linhas e mandar ao fórum deles.",
             14, color = p.text3, maxLines = 2,
         )
     }

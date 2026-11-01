@@ -8,14 +8,14 @@ import org.junit.Test
 
 class BroadcastHuntTest {
     @Test
-    fun reconheceNomesDeAvisoDoFarol() {
+    fun recognizesHeadlightBroadcastNames() {
         assertTrue(BroadcastHunt.looksLikeAction("com.android.intent.action.ILL_ON"))
         assertTrue(BroadcastHunt.looksLikeAction("com.zjinnova.zlink.action.NIGHT_MODE"))
         assertTrue(BroadcastHunt.looksLikeAction("com.mcu.car.headlight_state"))
     }
 
     @Test
-    fun nomeDaClasseDoCarsource() {
+    fun carsourceClassName() {
         assertEquals("android.carsource.McuService", BroadcastHunt.carsourceClass("android.carsource.McuService.BACKLIGHT"))
         assertEquals("android.carsource.McuService", BroadcastHunt.carsourceClass("Landroid/carsource/McuService;"))
         assertEquals("android.carsource.McuService\$Listener", BroadcastHunt.carsourceClass("Landroid/carsource/McuService\$Listener;"))
@@ -23,10 +23,10 @@ class BroadcastHuntTest {
     }
 
     @Test
-    fun ignoraClassesETextosComuns() {
+    fun ignoresCommonClassesAndTexts() {
         assertFalse(BroadcastHunt.looksLikeAction("android.graphics.drawable.LightingColorFilter"))
         assertFalse(BroadcastHunt.looksLikeAction("androidx.core.app.NightModeHelper.night"))
         assertFalse(BroadcastHunt.looksLikeAction("Night mode is on"))
-        assertFalse(BroadcastHunt.looksLikeAction("com.empresa.app.ACTION_PLAY"))
+        assertFalse(BroadcastHunt.looksLikeAction("com.company.app.ACTION_PLAY"))
     }
 }

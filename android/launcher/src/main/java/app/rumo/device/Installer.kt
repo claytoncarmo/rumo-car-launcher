@@ -21,8 +21,8 @@ enum class InstallResult {
 
 /** Instala um APK já baixado pelo instalador do Android (sempre com a confirmação do usuário). */
 object Installer {
-    /** Pasta do APK baixado: em `cache/atualizacoes`, a mesma do `res/xml/file_paths.xml`. */
-    fun folder(context: Context): File = File(context.cacheDir, "atualizacoes").also { it.mkdirs() }
+    /** Pasta do APK baixado: em `cache/updates`, a mesma do `res/xml/file_paths.xml`. */
+    fun folder(context: Context): File = File(context.cacheDir, "updates").also { it.mkdirs() }
 
     fun install(context: Context, apk: File): InstallResult {
         if (!context.packageManager.canRequestPackageInstalls()) {

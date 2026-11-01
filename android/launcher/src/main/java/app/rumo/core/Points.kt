@@ -4,7 +4,7 @@ package app.rumo.core
 class Points(val lat: IntArray, val lon: IntArray)
 
 /**
- * Pontos do `vias.db` versão 2 (`dados/vias.py`, `encode_points`): cada coordenada é a diferença para o ponto anterior
+ * Pontos do `vias.db` versão 2 (`data/roads.py`, `encode_points`): cada coordenada é a diferença para o ponto anterior
  * (o primeiro, para 0,0), em zigue-zague e varint (7 bits por byte, bit alto = tem mais).
  */
 fun decodePoints(blob: ByteArray): Points {

@@ -15,7 +15,7 @@ class MapStyleTest {
         JSONObject(json).getJSONArray("layers").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("id") } }
 
     @Test
-    fun umaFontePorEstadoEOsCaminhosCertos() {
+    fun oneSourcePerStateAndCorrectPaths() {
         val style = JSONObject(mapStyle(listOf(sc, pr), fonts, night = false))
         val sources = style.getJSONObject("sources")
         // um mapa por estado, mais a fonte dos radares
@@ -26,29 +26,29 @@ class MapStyleTest {
     }
 
     @Test
-    fun aAguaDeTodosOsEstadosVemAntesDasVias() {
+    fun waterOfAllStatesComesBeforeRoads() {
         val layers = ids(mapStyle(listOf(sc, pr), fonts, night = false))
         val lastWater = layers.indexOfLast { it.startsWith("water") || it.startsWith("rivers") }
         val firstRoad = layers.indexOfFirst { it.startsWith("casing") || it.startsWith("minor") }
-        assertTrue("água $lastWater, vias $firstRoad", lastWater < firstRoad)
+        assertTrue("water $lastWater, roads $firstRoad", lastWater < firstRoad)
         assertEquals("land", layers.first())
     }
 
     @Test
-    fun noEscuroNaoTemContornoDeVia() {
+    fun darkHasNoRoadCasing() {
         val layers = ids(mapStyle(listOf(sc), fonts, night = true))
         assertTrue(layers.none { it.startsWith("casing") })
         assertEquals(1, layers.count { it.startsWith("names") })
     }
 
     @Test
-    fun todosOsIdsSaoUnicos() {
+    fun allIdsAreUnique() {
         val layers = ids(mapStyle(listOf(sc, pr), fonts, night = false))
         assertEquals(layers.size, layers.toSet().size)
     }
 
     @Test
-    fun osRadaresFicamPorCimaDasRuasEDosNomes() {
+    fun radarsStayAboveStreetsAndNames() {
         val layers = ids(mapStyle(listOf(sc, pr), fonts, night = false))
         val dot = layers.indexOf("radar-dot")
         val text = layers.indexOf("radar-text")
@@ -57,7 +57,7 @@ class MapStyleTest {
     }
 
     @Test
-    fun aFonteDosRadaresExisteMesmoSemMapa() {
+    fun radarSourceExistsEvenWithoutMap() {
         val style = JSONObject(mapStyle(emptyList(), fonts, night = true))
         assertEquals("geojson", style.getJSONObject("sources").getJSONObject(RADAR_SOURCE).getString("type"))
     }

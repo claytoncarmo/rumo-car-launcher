@@ -20,7 +20,7 @@ import kotlin.concurrent.thread
 
 /**
  * Servidor local mínimo (só sockets: o `com.sun.net.httpserver` não existe no classpath dos testes do Android) que
- * entrega [data] em /arquivo (com ou sem Range), um redirecionamento em /atalho e um texto em /texto.
+ * entrega [data] em /file (com ou sem Range), um redirecionamento em /shortcut e um texto em /text.
  */
 private class Fake(val data: ByteArray, val supportsRange: Boolean = true) {
     private val server = ServerSocket(0, 50, InetAddress.getLoopbackAddress())
@@ -56,7 +56,7 @@ private class Fake(val data: ByteArray, val supportsRange: Boolean = true) {
                 out.write(text.toByteArray(Charsets.ISO_8859_1))
             }
             when (path) {
-                "/arquivo" -> {
+                "/file" -> {
                     ranges += range
                     val start = if (supportsRange && range != null) range.removePrefix("bytes=").removeSuffix("-").toInt() else 0
                     if (start > 0) {
@@ -66,8 +66,8 @@ private class Fake(val data: ByteArray, val supportsRange: Boolean = true) {
                     }
                     out.write(data, start, data.size - start)
                 }
-                "/atalho" -> head("302 Found", "Location: /arquivo", length = 0)
-                "/texto" -> {
+                "/shortcut" -> head("302 Found", "Location: /file", length = 0)
+                "/text" -> {
                     val b = "olá, manifesto".toByteArray()
                     head("200 OK", length = b.size.toLong())
                     out.write(b)
@@ -95,91 +95,91 @@ class DownloadTest {
     private lateinit var fake: Fake
 
     @Before
-    fun subir() {
+    fun setUp() {
         fake = Fake(data)
     }
 
     @After
-    fun descer() = fake.stop()
+    fun tearDown() = fake.stop()
 
-    private fun destino() = File(tmp.root, "pasta/arquivo.bin")
-    private fun part() = File(tmp.root, "pasta/arquivo.bin.part")
+    private fun dest() = File(tmp.root, "folder/file.bin")
+    private fun part() = File(tmp.root, "folder/file.bin.part")
 
     @Test
-    fun baixaEConfere() {
-        var ultimo = 0L
-        http.download("${fake.base}/arquivo", destino(), data.size.toLong(), sha, onProgress = { ultimo = it })
-        assertArrayEquals(data, destino().readBytes())
+    fun downloadsAndVerifies() {
+        var last = 0L
+        http.download("${fake.base}/file", dest(), data.size.toLong(), sha, onProgress = { last = it })
+        assertArrayEquals(data, dest().readBytes())
         assertFalse(part().exists())
-        assertEquals(data.size.toLong(), ultimo)
+        assertEquals(data.size.toLong(), last)
     }
 
     @Test
-    fun retomaDoQueJaVeio() {
+    fun resumesFromWhatAlreadyCame() {
         part().parentFile.mkdirs()
         part().writeBytes(data.copyOfRange(0, 100_000))
-        http.download("${fake.base}/arquivo", destino(), data.size.toLong(), sha)
-        assertArrayEquals(data, destino().readBytes())
+        http.download("${fake.base}/file", dest(), data.size.toLong(), sha)
+        assertArrayEquals(data, dest().readBytes())
         assertEquals("bytes=100000-", fake.ranges.last())
     }
 
     @Test
-    fun servidorSemRangeRecomecaDoZero() {
+    fun serverWithoutRangeRestartsFromScratch() {
         fake.stop()
         fake = Fake(data, supportsRange = false)
         part().parentFile.mkdirs()
         part().writeBytes(data.copyOfRange(0, 100_000))
-        http.download("${fake.base}/arquivo", destino(), data.size.toLong(), sha)
-        assertArrayEquals(data, destino().readBytes())
+        http.download("${fake.base}/file", dest(), data.size.toLong(), sha)
+        assertArrayEquals(data, dest().readBytes())
     }
 
     @Test
-    fun seguePeloRedirecionamento() {
-        http.download("${fake.base}/atalho", destino(), data.size.toLong(), sha)
-        assertArrayEquals(data, destino().readBytes())
+    fun followsRedirect() {
+        http.download("${fake.base}/shortcut", dest(), data.size.toLong(), sha)
+        assertArrayEquals(data, dest().readBytes())
     }
 
     @Test
-    fun hashErradoNaoDeixaArquivo() {
+    fun wrongHashLeavesNoFile() {
         try {
-            http.download("${fake.base}/arquivo", destino(), data.size.toLong(), "0".repeat(64))
+            http.download("${fake.base}/file", dest(), data.size.toLong(), "0".repeat(64))
             throw AssertionError("devia falhar")
         } catch (e: IOException) {
             assertTrue(e.message!!.contains("hash"))
         }
-        assertFalse(destino().exists())
+        assertFalse(dest().exists())
         assertFalse(part().exists())
     }
 
     @Test
-    fun cancelarGuardaOQueVeio() {
-        var feito = 0L
+    fun cancelKeepsWhatCame() {
+        var done = 0L
         try {
             http.download(
-                "${fake.base}/arquivo", destino(), data.size.toLong(), sha,
-                onProgress = { feito = it }, cancelled = { feito >= 50_000 },
+                "${fake.base}/file", dest(), data.size.toLong(), sha,
+                onProgress = { done = it }, cancelled = { done >= 50_000 },
             )
             throw AssertionError("devia cancelar")
         } catch (e: DownloadCancelled) {
             // esperado
         }
-        assertFalse(destino().exists())
+        assertFalse(dest().exists())
         assertTrue(part().length() in 50_000 until data.size.toLong())
     }
 
     @Test
-    fun partCompletoSoConfereSemNovaRequisicao() {
+    fun completePartOnlyVerifiesWithoutNewRequest() {
         part().parentFile.mkdirs()
         part().writeBytes(data)
-        http.download("${fake.base}/arquivo", destino(), data.size.toLong(), sha)
-        assertArrayEquals(data, destino().readBytes())
+        http.download("${fake.base}/file", dest(), data.size.toLong(), sha)
+        assertArrayEquals(data, dest().readBytes())
         assertTrue(fake.ranges.isEmpty())
     }
 
     @Test
-    fun erroHttpViraExcecao() {
+    fun httpErrorBecomesException() {
         try {
-            http.download("${fake.base}/nada", destino(), 10, sha)
+            http.download("${fake.base}/missing", dest(), 10, sha)
             throw AssertionError("devia falhar")
         } catch (e: HttpFailure) {
             assertEquals(404, e.code)
@@ -187,14 +187,14 @@ class DownloadTest {
     }
 
     @Test
-    fun leTexto() {
-        assertEquals("olá, manifesto", http.getText("${fake.base}/texto"))
+    fun readsText() {
+        assertEquals("olá, manifesto", http.getText("${fake.base}/text"))
     }
 
     @Test
-    fun semPermissaoSoAceitaHttps() {
+    fun withoutPermissionOnlyAcceptsHttps() {
         try {
-            Http().getText("${fake.base}/texto")
+            Http().getText("${fake.base}/text")
             throw AssertionError("devia recusar http")
         } catch (e: IOException) {
             assertTrue(e.message!!.contains("https"))
@@ -202,7 +202,7 @@ class DownloadTest {
     }
 
     @Test
-    fun hashDeArquivo() {
+    fun fileHash() {
         val f = tmp.newFile("x.bin")
         f.writeBytes(data)
         assertEquals(sha, sha256Of(f))

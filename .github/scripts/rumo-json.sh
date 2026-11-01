@@ -7,20 +7,20 @@
 set -euo pipefail
 
 apk="$1"
-nome="$2"
-codigo="$3"
+name="$2"
+code="$3"
 url="$4"
-saida="$5"
+output="$5"
 
 jq -n \
-  --arg versionName "$nome" \
-  --argjson versionCode "$codigo" \
+  --arg versionName "$name" \
+  --argjson versionCode "$code" \
   --arg sha256 "$(sha256sum "$apk" | cut -d' ' -f1)" \
   --argjson size "$(stat -c%s "$apk")" \
   --arg url "$url" \
   --arg builtAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --arg commit "${GITHUB_SHA:0:7}" \
   '{versionName: $versionName, versionCode: $versionCode, sha256: $sha256, size: $size, url: $url, builtAt: $builtAt, commit: $commit}' \
-  > "$saida"
+  > "$output"
 
-cat "$saida"
+cat "$output"

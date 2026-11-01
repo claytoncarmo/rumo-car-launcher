@@ -12,7 +12,7 @@ class RadioNamesTest {
     private val lon = -49.067
 
     @Test
-    fun naoExpiraPorTempo() {
+    fun doesNotExpireByTime() {
         val n = RadioNames()
         n.onPosition(lat, lon)
         assertTrue(n.put(95900, " Penha "))
@@ -21,7 +21,7 @@ class RadioNamesTest {
     }
 
     @Test
-    fun soAvisaQuandoMuda() {
+    fun onlyReportsWhenChanged() {
         val n = RadioNames()
         assertTrue(n.put(95900, "Penha"))
         assertFalse(n.put(95900, "Penha"))
@@ -30,7 +30,7 @@ class RadioNamesTest {
     }
 
     @Test
-    fun pertoDoCentroMantemELongeZera() {
+    fun nearCenterKeepsAndFarResets() {
         val n = RadioNames()
         n.onPosition(lat, lon)
         n.put(95900, "Penha")
@@ -41,7 +41,7 @@ class RadioNamesTest {
     }
 
     @Test
-    fun depoisDeZerarORecomecoUsaOLugarNovo() {
+    fun afterResetRestartUsesNewPlace() {
         val n = RadioNames()
         n.onPosition(lat, lon)
         n.put(95900, "Penha")
@@ -52,7 +52,7 @@ class RadioNamesTest {
     }
 
     @Test
-    fun nomeGuardadoSemGpsGanhaOCentroNoPrimeiroFix() {
+    fun nameStoredWithoutGpsGetsCenterOnFirstFix() {
         val n = RadioNames()
         n.put(95900, "Penha")
         assertTrue(n.onPosition(lat, lon))
@@ -62,7 +62,7 @@ class RadioNamesTest {
     }
 
     @Test
-    fun guardaERecuperaComOCentro() {
+    fun saveAndRestoreWithCenter() {
         val n = RadioNames()
         n.onPosition(lat, lon)
         n.put(95900, "Penha")
@@ -75,7 +75,7 @@ class RadioNamesTest {
     }
 
     @Test
-    fun formatoAntigoComHoraEDescartado() {
+    fun legacyFormatWithTimeIsDiscarded() {
         val back = RadioNames()
         back.load("95900\tPenha\t1793391816000")
         assertTrue(back.valid().isEmpty())
