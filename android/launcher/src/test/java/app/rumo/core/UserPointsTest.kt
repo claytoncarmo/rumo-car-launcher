@@ -115,6 +115,51 @@ class UserPointsTest {
         assertEquals("Semáforo com radar · 40 km/h", UserPoints.label(point(RadarKind.TRAFFIC_LIGHT_RADAR, 40)))
     }
 
+    @Test
+    fun replaceKeepsTheOrder() {
+        val l = listOf(point(lat = -27.1), point(lat = -27.2), point(lat = -27.3))
+        val edited = l[1].copy(limit = 80)
+        assertEquals(listOf(l[0], edited, l[2]), UserPoints.replace(l, 1, edited))
+        assertEquals(l, UserPoints.replace(l, 5, edited))
+    }
+
+    @Test
+    fun moveWalksAlongTheStreet() {
+        val start = point(lat = -27.6, lon = -48.5)
+        // Para o norte: só a latitude muda, 5 m
+        val north = UserPoints.move(start, 5, 0)
+        assertEquals(5.0, Geo.distanceM(start.lat, start.lon, north.lat, north.lon), 0.1)
+        assertTrue(north.lat > start.lat)
+        assertEquals(start.lon, north.lon, 1e-9)
+        // Para o leste: só a longitude
+        val east = UserPoints.move(start, 5, 90)
+        assertEquals(5.0, Geo.distanceM(start.lat, start.lon, east.lat, east.lon), 0.1)
+        assertTrue(east.lon > start.lon)
+        // Metros negativos andam para trás e voltam ao ponto de partida
+        val back = UserPoints.move(north, -5, 0)
+        assertEquals(start.lat, back.lat, 1e-9)
+        // Mantém o resto do ponto
+        assertEquals(start.kind, north.kind)
+        assertEquals(start.limit, north.limit)
+        assertEquals(start.bearing, north.bearing)
+    }
+
+    @Test
+    fun changingTheKindAdjustsTheLimit() {
+        val toll = UserPoints.withKind(point(RadarKind.FIXED, 80), RadarKind.TOLL)
+        assertEquals(0, toll.limit)
+        // Quem não tinha limite ganha o padrão ao virar radar; quem tinha, mantém
+        assertEquals(UserPoints.DEFAULT_LIMIT, UserPoints.withKind(toll, RadarKind.MOBILE).limit)
+        assertEquals(80, UserPoints.withKind(point(RadarKind.FIXED, 80), RadarKind.MOBILE).limit)
+    }
+
+    @Test
+    fun limitStaysInRange() {
+        assertEquals(UserPoints.MAX_LIMIT, UserPoints.withLimit(point(), 500).limit)
+        assertEquals(UserPoints.MIN_LIMIT, UserPoints.withLimit(point(), 0).limit)
+        assertEquals(70, UserPoints.withLimit(point(), 70).limit)
+    }
+
     // ---- onde se tocou no "+"
 
     @Test

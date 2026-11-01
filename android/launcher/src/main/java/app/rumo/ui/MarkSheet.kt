@@ -44,7 +44,7 @@ private val AMBER = Color(0xFFFACC15)
 private const val STEP = 10
 
 /** Mesmas cores das bolinhas do mapa (ui/DriveMap.kt). */
-private fun kindColor(kind: Int) = when (kind) {
+internal fun kindColor(kind: Int) = when (kind) {
     RadarKind.TRAFFIC_LIGHT_RADAR -> Color(0xFFF97316)
     RadarKind.MOBILE -> Color(0xFFEA580C)
     RadarKind.BUMP -> Color(0xFF9CA3AF)
@@ -54,15 +54,15 @@ private fun kindColor(kind: Int) = when (kind) {
     else -> AMBER
 }
 
-private fun kindInk(kind: Int) = when (kind) {
+internal fun kindInk(kind: Int) = when (kind) {
     RadarKind.RED_LIGHT_CAMERA, RadarKind.POLICE, RadarKind.TOLL -> Color.White
     else -> Color(0xFF1A1400)
 }
 
-private fun kindName(kind: Int) = if (kind == RadarKind.FIXED) "Radar fixo" else radarLabel(kind)
+internal fun kindName(kind: Int) = if (kind == RadarKind.FIXED) "Radar fixo" else radarLabel(kind)
 
 /** Dentro da bolinha: o limite (quem fiscaliza velocidade) ou uma letra, como no mapa. */
-private fun kindBadge(kind: Int, limit: Int) = when {
+internal fun kindBadge(kind: Int, limit: Int) = when {
     kind in RadarKind.ENFORCING -> limit.toString()
     kind == RadarKind.RED_LIGHT_CAMERA -> "S"
     kind == RadarKind.POLICE -> "P"
@@ -159,26 +159,27 @@ private fun StepButton(icon: ImageVector, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Chip(text: String, on: Boolean, enabled: Boolean, onClick: () -> Unit) {
+internal fun Chip(text: String, on: Boolean, enabled: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val p = LocalPalette.current
     Box(
-        Modifier
+        modifier
             .height(56.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(if (on) p.accent else p.surface2)
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 18.dp),
+            .padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Txt(text, 18, color = if (on) p.onAccent else if (enabled) p.text else p.text3, weight = FontWeight.SemiBold)
+        Txt(text, 18, color = if (on) p.onAccent else if (enabled) p.text else p.text3, weight = FontWeight.SemiBold, align = TextAlign.Center)
     }
 }
 
 @Composable
-private fun KindButton(kind: Int, limit: Int, modifier: Modifier, onClick: () -> Unit) {
+internal fun KindButton(kind: Int, limit: Int, modifier: Modifier, selected: Boolean = false, onClick: () -> Unit) {
     val p = LocalPalette.current
     Column(
-        modifier.height(116.dp).clip(RoundedCornerShape(20.dp)).background(p.surface2).clickable(onClick = onClick).padding(8.dp),
+        modifier.height(116.dp).clip(RoundedCornerShape(20.dp)).background(if (selected) p.accentSoft else p.surface2)
+            .clickable(onClick = onClick).padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
     ) {
@@ -188,7 +189,7 @@ private fun KindButton(kind: Int, limit: Int, modifier: Modifier, onClick: () ->
 }
 
 @Composable
-private fun Badge(kind: Int, limit: Int, size: Dp) {
+internal fun Badge(kind: Int, limit: Int, size: Dp) {
     Box(
         Modifier.size(size).clip(CircleShape).background(kindColor(kind)),
         contentAlignment = Alignment.Center,

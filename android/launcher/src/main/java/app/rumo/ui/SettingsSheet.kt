@@ -76,13 +76,14 @@ data class Transfer(val key: String, val label: String, val done: Long, val tota
 /** As abas das configurações da home. */
 private enum class SettingsTab(val label: String) {
     SETTINGS("Configurações"),
+    POINTS("Pontos"),
     UPDATES("Atualizações"),
     DEBUG("Debug"),
 }
 
 /**
- * Configurações da home (engrenagem › "Configurações da home", com o carro parado), em três abas: Configurações (avisos
- * de radar e reinício do Android), Atualizações (app por canal e dados do mapa) e Debug (diagnósticos e versão).
+ * Configurações da home (engrenagem › "Configurações da home", com o carro parado), em quatro abas: Configurações (avisos
+ * de radar e reinício do Android), Pontos (ver, editar e apagar os pontos marcados no mapa), Atualizações (app por canal e dados do mapa) e Debug (diagnósticos e versão).
  */
 @Composable
 fun SettingsSheet(s: HomeState, a: HomeActions) {
@@ -109,6 +110,10 @@ fun SettingsSheet(s: HomeState, a: HomeActions) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             SettingsTab.entries.forEach { TabPill(it.label, tab == it) { tab = it } }
+        }
+        if (tab == SettingsTab.POINTS) {
+            Box(Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, bottom = 22.dp)) { PointsTab(s, a) }
+            return@Column
         }
         Row(
             Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, bottom = 22.dp),
@@ -146,7 +151,7 @@ private fun TabPill(text: String, on: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun SectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+internal fun SectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
     val p = LocalPalette.current
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(p.surface2).padding(20.dp),
@@ -345,7 +350,7 @@ private fun RadarSection(s: HomeState, a: HomeActions) {
 }
 
 @Composable
-private fun StepperRow(
+internal fun StepperRow(
     title: String,
     detail: String,
     value: String,
@@ -443,7 +448,7 @@ private fun TransferBar(t: Transfer, a: HomeActions) {
 }
 
 @Composable
-private fun PillButton(text: String, enabled: Boolean, primary: Boolean, onClick: () -> Unit) {
+internal fun PillButton(text: String, enabled: Boolean, primary: Boolean, onClick: () -> Unit) {
     val p = LocalPalette.current
     Box(
         Modifier

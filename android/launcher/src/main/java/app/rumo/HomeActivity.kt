@@ -54,6 +54,8 @@ import app.rumo.core.RadarAlert
 import app.rumo.core.RadarKind
 import app.rumo.core.RadarSettings
 import app.rumo.core.RadarWatch
+import app.rumo.core.directionOf
+import app.rumo.core.nearestWayHint
 import app.rumo.core.radioPlayStarts
 import app.rumo.core.shouldResumeRadio
 import app.rumo.core.UserPoint
@@ -107,6 +109,8 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.time.LocalDate
 import java.util.concurrent.Executors
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /** Tela inicial do Rumo. GPS (e, depois, os alertas) só funcionam com ela na tela. */
 class HomeActivity : ComponentActivity(), HomeActions {
@@ -901,6 +905,41 @@ class HomeActivity : ComponentActivity(), HomeActions {
         savePoints(UserPoints.remove(state.myPoints, index))
     }
 
+    override fun updatePoint(index: Int, point: UserPoint) {
+        if (minePoints == null) return
+        savePoints(UserPoints.replace(state.myPoints, index, point))
+    }
+
+    /**
+     * Move o ponto ao longo da rua: no sentido do próprio ponto ou, nos dois sentidos, no do trecho da rua mais perto
+     * (do mapa). Sem rua por perto, não move.
+     */
+    override fun movePoint(index: Int, meters: Int) {
+        if (minePoints == null) return
+        val point = state.myPoints.getOrNull(index) ?: return
+        lifecycleScope.launch {
+            val axis = if (point.bearing >= 0) {
+                point.bearing
+            } else {
+                withContext(drive) {
+                    data?.let { d ->
+                        nearestWayHint(d.runsNear(point.lat, point.lon, MOVE_WAY_SEARCH_M), point.lat, point.lon)
+                            ?.bearing?.roundToInt()?.mod(360)
+                    }
+                }
+            }
+            if (axis == null) {
+                state.toast = "Sem rua do mapa perto deste ponto para mover"
+                return@launch
+            }
+            // A lista pode ter mudado enquanto a rua era procurada
+            if (state.myPoints.getOrNull(index) != point) return@launch
+            savePoints(UserPoints.replace(state.myPoints, index, UserPoints.move(point, meters, axis)))
+            val heading = if (meters >= 0) axis else (axis + 180) % 360
+            state.toast = "Ponto movido ${abs(meters)} m para o ${directionOf(heading.toFloat())}"
+        }
+    }
+
     /** Põe a lista nova no mapa e nos avisos e a grava (em ordem: tudo na thread drive). */
     private fun savePoints(list: List<UserPoint>) {
         state.myPoints = list
@@ -1243,6 +1282,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     private companion object {
         /** Distância do aviso de radar (padrão do protótipo). */
+        /** Raio em que se procura a rua do ponto a mover. */
+        const val MOVE_WAY_SEARCH_M = 45.0
         const val PREF_RADAR_ZONE = "radar_zone_m"
         const val PREF_RADAR_MARGIN = "radar_margin_kmh"
         const val PREF_THEME = "theme"

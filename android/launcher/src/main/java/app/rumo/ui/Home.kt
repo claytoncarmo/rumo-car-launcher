@@ -219,6 +219,10 @@ interface HomeActions {
     fun addPoint(spot: MarkSpot, kind: Int, limit: Int, bothWays: Boolean)
     /** Apaga o ponto [index] da lista dos pontos do usuário. */
     fun removePoint(index: Int)
+    /** Troca o ponto [index] (tipo, limite ou sentido editados), no mesmo lugar da lista. */
+    fun updatePoint(index: Int, point: UserPoint)
+    /** Move o ponto [index] [meters] ao longo da rua (negativo anda para trás). */
+    fun movePoint(index: Int, meters: Int)
 }
 
 private val TIME = DateTimeFormatter.ofPattern("HH:mm")

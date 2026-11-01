@@ -5,6 +5,7 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.hypot
+import kotlin.math.sin
 
 /** Contas de distância e rumo em metros, numa projeção plana local (boa para algumas centenas de metros). */
 object Geo {
@@ -42,6 +43,14 @@ object Geo {
         val k = cos(Math.toRadians((lat1 + lat2) / 2)) * M_PER_DEG_LON
         val deg = Math.toDegrees(atan2((lon2 - lon1) * k, (lat2 - lat1) * M_PER_DEG_LAT))
         return (deg + 360) % 360
+    }
+
+    /** Ponto a [meters] de ([lat], [lon]) no rumo [bearing] (graus; metros negativos andam para trás). */
+    fun offset(lat: Double, lon: Double, bearing: Double, meters: Double): Pair<Double, Double> {
+        val rad = Math.toRadians(bearing)
+        val north = cos(rad) * meters
+        val east = sin(rad) * meters
+        return (lat + north / M_PER_DEG_LAT) to (lon + east / (M_PER_DEG_LON * cos(Math.toRadians(lat))))
     }
 
     /** Diferença entre dois rumos, de 0 a 180. */

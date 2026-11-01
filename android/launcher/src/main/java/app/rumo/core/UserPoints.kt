@@ -92,6 +92,23 @@ object UserPoints {
     fun add(points: List<UserPoint>, point: UserPoint): List<UserPoint> =
         points.filterNot { it.kind == point.kind && Geo.distanceM(it.lat, it.lon, point.lat, point.lon) < SAME_M } + point
 
+    /** Troca o ponto [index] por [point], no mesmo lugar da lista (a ordem de inclusão não muda). */
+    fun replace(points: List<UserPoint>, index: Int, point: UserPoint): List<UserPoint> =
+        if (index in points.indices) points.mapIndexed { i, p -> if (i == index) point else p } else points
+
+    /** O ponto movido [meters] ao longo da rua, no rumo [axisBearing] (negativo anda para trás). */
+    fun move(point: UserPoint, meters: Int, axisBearing: Int): UserPoint {
+        val (lat, lon) = Geo.offset(point.lat, point.lon, axisBearing.toDouble(), meters.toDouble())
+        return point.copy(lat = lat, lon = lon)
+    }
+
+    /** O ponto como outro tipo: quem fiscaliza velocidade ganha um limite (o padrão, se não tinha), os demais ficam sem. */
+    fun withKind(point: UserPoint, kind: Int): UserPoint =
+        point.copy(kind = kind, limit = if (kind in RadarKind.ENFORCING) point.limit.takeIf { it > 0 } ?: DEFAULT_LIMIT else 0)
+
+    /** O ponto com outro limite, dentro da faixa. */
+    fun withLimit(point: UserPoint, limit: Int): UserPoint = point.copy(limit = limit.coerceIn(MIN_LIMIT, MAX_LIMIT))
+
     fun remove(points: List<UserPoint>, index: Int): List<UserPoint> =
         if (index in points.indices) points.filterIndexed { i, _ -> i != index } else points
 
