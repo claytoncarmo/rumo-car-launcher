@@ -19,18 +19,25 @@ import kotlin.coroutines.resume
  * Nunca grava nas memórias do aparelho: a procura de estações usa a busca (seek), não o "AS" (auto store), que
  * sobrescreve as 6 memórias.
  */
-class RadioControl(context: Context) {
+class RadioControl(context: Context, savedUnit: Int? = null, private val onUnit: (Int) -> Unit = {}) {
     private val ctx = context.applicationContext
     @Volatile private var api: IBinder? = null
     private var connection: ServiceConnection? = null
     private var fm: IBinder? = null
 
-    /** Divisor da frequência que o gotoFreq entende (1 = kHz, 10, 100), descoberto na primeira sintonia. */
-    var unit: Int? = null
+    /**
+     * Divisor da frequência que o gotoFreq entende (1 = kHz, 10, 100), descoberto na primeira sintonia e guardado
+     * ([onUnit]) para não mandar a unidade errada de novo a cada vez que o app abre.
+     */
+    @Volatile var unit: Int? = savedUnit
+        private set
 
     val connected: Boolean get() = api?.isBinderAlive == true
 
-    /** Liga no serviço do app de rádio (cria se preciso: a tela de rádio foi aberta de propósito). Thread principal. */
+    /**
+     * Liga no serviço do app de rádio (cria se preciso: a tela de rádio foi aberta de propósito). Thread principal.
+     * Uma ligação por vez: duas ao mesmo tempo soltavam uma a outra e o rádio calava (quem chama usa um Mutex).
+     */
     suspend fun connect(): String {
         if (connected) return "já ligado"
         // Ligação velha com o serviço morto: solta antes de ligar de novo
@@ -122,7 +129,10 @@ class RadioControl(context: Context) {
         for (d in unit?.let { listOf(it) } ?: listOf(1, 10, 100)) {
             log(gotoFreq(khz / d))
             if (waitFreq(khz)) {
-                if (unit == null) log("gotoFreq usa ${UNIT_NAMES[d] ?: "÷$d"}")
+                if (unit == null) {
+                    log("gotoFreq usa ${UNIT_NAMES[d] ?: "÷$d"}")
+                    onUnit(d)
+                }
                 unit = d
                 return true
             }
@@ -144,9 +154,10 @@ class RadioControl(context: Context) {
     /**
      * Procura as estações da faixa: vai para a ponta de baixo e repete a busca para cima até ela dar a volta (voltar
      * para uma frequência menor ou já vista); no fim volta à estação de antes. [onFound] recebe cada uma, em ordem.
-     * Para se [cancelled] ficar verdadeiro.
+     * Para se [cancelled] ficar verdadeiro; com [stay] verdadeiro (outro comando pediu o rádio), não volta à estação de
+     * antes, para não desfazer o que o motorista escolheu.
      */
-    suspend fun scan(onFound: (Int) -> Unit, cancelled: () -> Boolean, log: (String) -> Unit): List<Int> {
+    suspend fun scan(onFound: (Int) -> Unit, cancelled: () -> Boolean, stay: () -> Boolean, log: (String) -> Unit): List<Int> {
         val start = freq()
         val found = mutableListOf<Int>()
         tune(FM_BOTTOM_KHZ, log)
@@ -158,7 +169,7 @@ class RadioControl(context: Context) {
             found += f
             onFound(f)
         }
-        start?.let { tune(it, log) }
+        if (!stay()) start?.let { tune(it, log) }
         return found
     }
 

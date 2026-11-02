@@ -239,7 +239,7 @@ class AidlTap(
  * Auto, ".RadioMain" no rádio). Não informa a estação nem a música.
  */
 class SourceInfo(private val onOwner: (String) -> Unit) {
-    private var binder: IBinder? = null
+    @Volatile private var binder: IBinder? = null
     private val tap = AidlTap(CALLBACK) { method, args ->
         when (method) {
             "onSourceChanged" -> (args.firstOrNull() as? String)?.let(onOwner)
@@ -248,7 +248,7 @@ class SourceInfo(private val onOwner: (String) -> Unit) {
         }
     }
 
-    /** Registra o aviso e devolve quem toca agora; null sem o serviço. Chamada ao sistema: fora da thread principal. */
+    /** Registra o aviso e devolve quem toca agora; null sem o serviço. Chamada ao sistema: na thread de chamadas ao rádio. */
     fun start(): String? {
         val b = Aidl.service(SERVICE) ?: return null
         binder = b

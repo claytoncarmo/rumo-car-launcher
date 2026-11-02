@@ -114,6 +114,8 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.time.LocalDate
 import java.util.concurrent.Executors
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -126,6 +128,12 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     // Vias e radares: uma thread só, que lê o roads.db e guarda o estado do casamento com a via
     private val drive = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+    // Ouvintes e leituras do sourceinfo e do fmradio: uma thread só, para ligar e desligar sempre na ordem pedida
+    // (sair e voltar rápido ao Rumo não deixa um ouvinte ligado com o ZLINK na tela)
+    private val radioIpc = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+    // Uma ligação com o serviço do rádio por vez, e um comando de sintonia por vez (busca, passo, estação, play)
+    private val radioConnect = Mutex()
+    private val radioCommands = Mutex()
     private var data: MapData? = null
 
     // Pontos marcados pelo usuário: lidos uma vez (na thread drive) e guardados a cada mudança
@@ -158,8 +166,14 @@ class HomeActivity : ComponentActivity(), HomeActions {
     // Último pacote que o sourceinfo informou, inclusive vazio (rádio parado)
     private var lastRawOwner: String? = null
     private var sourceInfoMissing = false
-    private val radioControl by lazy { RadioControl(this) }
+    private val radioControl by lazy {
+        RadioControl(this, prefs.getInt(PREF_RADIO_UNIT, 0).takeIf { it > 0 }) { unit ->
+            prefs.edit().putInt(PREF_RADIO_UNIT, unit).apply()
+        }
+    }
     @Volatile private var scanCancelled = false
+    /** Outro comando pediu o rádio durante a procura: ela para sem voltar à estação de antes. */
+    @Volatile private var scanInterrupted = false
     @Volatile private var transferCancelled = false
     private val updater by lazy { Updater(prefs) }
     private var savedOwner: String? = null
@@ -227,12 +241,13 @@ class HomeActivity : ComponentActivity(), HomeActions {
         ContextCompat.registerReceiver(this, packagesChanged, filter, ContextCompat.RECEIVER_EXPORTED)
         loadApps()
 
-        // Estação do rádio (fmradio), perguntada a cada segundo com o Rumo na tela
+        // Estação do rádio (fmradio), perguntada com o Rumo na tela: a cada segundo com o rádio como fonte ou a tela de
+        // rádio aberta; senão, de vez em quando, só para notar a troca de estação feita no app do rádio
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 while (true) {
                     refreshRadio()
-                    delay(RADIO_EVERY_MS)
+                    delay(if (state.source == Source.RADIO || state.sheet == Sheet.RADIO) RADIO_EVERY_MS else RADIO_IDLE_EVERY_MS)
                 }
             }
         }
@@ -259,11 +274,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
         // A pasta Rumo pode ter sido copiada com o Rumo fora da tela
         if (state.mapStatus != MapStatus.READY) loadMapData()
         // Ouvinte do fmradio, só para o texto RDS (sem ele o rádio não decodifica o texto)
-        lifecycleScope.launch(Dispatchers.IO) { radioStation.start() }
+        radioIpc.executor.execute { radioStation.start() }
         // Fonte de áudio pelo serviço sourceinfo: quem toca agora e, com o Rumo na tela, cada troca.
         // Resposta vazia (acontece com o rádio tocando): vale a última fonte que ele informou.
         lifecycleScope.launch {
-            val now = withContext(Dispatchers.IO) { sourceInfo.start() }
+            val now = withContext(radioIpc) { sourceInfo.start() }
             if (now == null) {
                 // Aparelho sem o serviço: estima pelo último app de áudio aberto
                 sourceInfoMissing = true
@@ -292,8 +307,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
     override fun onStop() {
         scanCancelled = true
         // A ligação com o serviço do rádio fica aberta: se o rádio foi ligado pela tela do Rumo, o serviço só
-        // existe por causa dela, e desligar ao sair (ao abrir o ZLINK) parava o rádio
-        lifecycleScope.launch(Dispatchers.IO) {
+        // existe por causa dela, e desligar ao sair (ao abrir o ZLINK) parava o rádio. Os ouvintes saem na mesma
+        // thread em que entraram, depois deles (e mesmo que a tela seja destruída logo em seguida).
+        radioIpc.executor.execute {
             sourceInfo.stop()
             radioStation.stop()
         }
@@ -343,6 +359,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
         unregisterReceiver(packagesChanged)
         alerts.stop()
         radioControl.disconnect()
+        radioIpc.executor.execute {
+            sourceInfo.stop()
+            radioStation.stop()
+        }
+        radioIpc.close()
         val d = data
         drive.executor.execute { d?.close() }
         drive.close()
@@ -724,25 +745,23 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }
         when (cmd) {
             RadioCmd.OpenApp -> openRadio()
-            RadioCmd.Play -> lifecycleScope.launch {
-                ensureRadio()
+            RadioCmd.Play -> tunerCommand {
                 radioLog(withContext(Dispatchers.IO) { radioControl.playAudio() })
             }
-            is RadioCmd.Seek -> lifecycleScope.launch {
-                ensureRadio()
+            is RadioCmd.Seek -> tunerCommand {
                 val f = withContext(Dispatchers.IO) { radioControl.seekAndWait(cmd.up, ::radioLog) }
                 radioLog("busca parou em ${f?.let(::formatRadioFreq) ?: "?"}")
                 refreshRadio()
             }
             // Ajuste fino: de 0,2 em 0,2 pelas frequências de final ímpar (as das estações no Brasil)
-            is RadioCmd.Step -> lifecycleScope.launch {
-                val from = state.radio?.khz ?: return@launch
-                ensureRadio()
+            is RadioCmd.Step -> tunerCommand {
+                // Lida já na vez deste comando: dois toques seguidos andam 0,4
+                refreshRadio()
+                val from = state.radio?.khz ?: return@tunerCommand
                 withContext(Dispatchers.IO) { radioControl.tune(fineStep(from, cmd.up), ::radioLog) }
                 refreshRadio()
             }
-            is RadioCmd.Tune -> lifecycleScope.launch {
-                ensureRadio()
+            is RadioCmd.Tune -> tunerCommand {
                 // Escolher uma estação com outra fonte tocando: pede o rádio como fonte (teste do requestPlayAudio)
                 if (state.source != Source.RADIO) radioLog(withContext(Dispatchers.IO) { radioControl.playAudio() })
                 val ok = withContext(Dispatchers.IO) { radioControl.tune(cmd.khz, ::radioLog) }
@@ -763,13 +782,14 @@ class HomeActivity : ComponentActivity(), HomeActions {
             RadioCmd.Scan -> {
                 if (state.radioScan?.running == true) return
                 scanCancelled = false
+                scanInterrupted = false
                 state.radioScan = RadioScan(true, emptyList())
-                lifecycleScope.launch {
-                    ensureRadio()
+                tunerCommand(interruptsScan = false) {
                     val found = withContext(Dispatchers.IO) {
                         radioControl.scan(
                             onFound = { f -> runOnUiThread { state.radioScan = state.radioScan?.let { it.copy(found = it.found + f) } } },
                             cancelled = { scanCancelled },
+                            stay = { scanInterrupted },
                             log = ::radioLog,
                         )
                     }
@@ -786,10 +806,28 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }
     }
 
-    private suspend fun ensureRadio() {
-        if (radioControl.connected) return
+    private suspend fun ensureRadio() = radioConnect.withLock {
+        if (radioControl.connected) return@withLock
         // Sem registerRadioClientBinder: os comandos funcionam sem ele, e o "cliente saiu" pode parar o rádio
         radioLog(radioControl.connect())
+    }
+
+    /**
+     * Um comando de sintonia por vez: dois juntos (uma busca e um toque numa favorita) brigavam pelo sintonizador.
+     * Um comando durante a procura de estações a interrompe, sem voltar à estação de antes: vale o que o motorista
+     * pediu por último.
+     */
+    private fun tunerCommand(interruptsScan: Boolean = true, block: suspend () -> Unit) {
+        if (interruptsScan && state.radioScan?.running == true) {
+            scanInterrupted = true
+            scanCancelled = true
+        }
+        lifecycleScope.launch {
+            radioCommands.withLock {
+                ensureRadio()
+                block()
+            }
+        }
     }
 
     private fun saveFavorites(list: List<Favorite>) {
@@ -858,6 +896,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
      * novo, sintonizar, abrir o app do rádio ou passar para outra fonte), mesmo depois de reiniciar.
      */
     private fun setRadioMuted(on: Boolean) {
+        // Calar o rádio para a procura de estações (sem voltar à estação de antes)
+        if (on && state.radioScan?.running == true) {
+            scanInterrupted = true
+            scanCancelled = true
+        }
         state.radioMuted = on
         prefs.edit().putBoolean(PREF_RADIO_MUTED, on).apply()
         lifecycleScope.launch {
@@ -880,7 +923,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     }
 
     private suspend fun refreshRadio() {
-        val now = withContext(Dispatchers.IO) { radioStation.read() } ?: return
+        val now = withContext(radioIpc) { radioStation.read() } ?: return
         onRadio(now)
         if (radioStation.namesChanged) {
             radioStation.namesChanged = false
@@ -1386,6 +1429,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_SOURCE = "last_source"
         const val RADIO_PKG = "com.hcn.autoradio"
         const val RADIO_EVERY_MS = 1_000L
+        const val RADIO_IDLE_EVERY_MS = 5_000L
+        const val PREF_RADIO_UNIT = "radio_goto_unit"
         const val PREF_FAVORITES = "favorites"
         const val PREF_RADIO_NAMES = "radio_names"
         const val PREF_SCAN = "radio_found"

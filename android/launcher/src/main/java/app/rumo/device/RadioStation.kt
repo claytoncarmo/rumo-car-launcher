@@ -18,10 +18,17 @@ data class RadioNow(val khz: Int, val preset: Int?, val text: String?)
  * troca. Os textos vão para [names], que guarda por frequência (todas as estações) enquanto o carro não sair do raio de 50 km.
  */
 class RadioStation(private val names: RadioNames) {
-    private var binder: IBinder? = null
+    // Estado da estação: mexido pela leitura e pelo ouvinte (thread do binder), sempre com o lock
+    private val lock = Any()
     private var lastKhz: Int? = null
     private var staleText: String? = null
     private var text: String? = null
+
+    // Ligação com o fmradio: só a thread de chamadas ao rádio mexe (start, stop e read rodam nela, em ordem)
+    @Volatile private var binder: IBinder? = null
+    @Volatile private var listening = false
+    /** O Rumo está na tela e quer o ouvinte: se o fmradio reiniciar, a próxima leitura liga de novo. */
+    @Volatile private var wanted = false
 
     /** Algum nome novo chegou desde a última vez que alguém guardou (o HomeActivity grava nas preferências). */
     @Volatile var namesChanged = false
@@ -36,54 +43,65 @@ class RadioStation(private val names: RadioNames) {
             else -> {}
         }
     }
-    private var listening = false
-
-    /** Liga o ouvinte (só leitura). Chamada ao sistema: fora da thread principal. */
+    /** Liga o ouvinte (só leitura). Chamada ao sistema: na thread de chamadas ao rádio. */
     fun start() {
-        val b = service() ?: return
-        if (!listening) listening = Aidl.callWithBinder(b, IFACE, "setcallback", tap).endsWith("ok")
+        wanted = true
+        listen()
     }
 
     fun stop() {
+        wanted = false
         val b = binder ?: return
         if (listening) Aidl.callWithBinder(b, IFACE, "removecallback", tap)
         listening = false
     }
 
-    /** Estação atual; null sem o serviço. Chamada ao sistema: fora da thread principal. */
-    @Synchronized
+    private fun listen() {
+        val b = service() ?: return
+        if (wanted && !listening) listening = Aidl.callWithBinder(b, IFACE, "setcallback", tap).endsWith("ok")
+    }
+
+    /**
+     * Estação atual; null sem o serviço. Chamada ao sistema: na thread de chamadas ao rádio. A chamada fica fora do
+     * lock: o fmradio pode estar avisando o ouvinte (que precisa do lock) enquanto responde.
+     */
     fun read(): RadioNow? {
         val b = service() ?: return null
+        if (wanted && !listening) listen()
         val info = Aidl.call(b, IFACE, "getRadioInfo") ?: return null
         val khz = (field(info, "mFreq") as? Int)?.takeIf { it > 0 } ?: return null
         val preset = (field(info, "mIndexof") as? Int)?.takeIf { it in 0..5 }
         val rt = (field(info, "mRTtype") as? String)?.trim().orEmpty()
-        if (khz != lastKhz) {
-            onFreq(khz, rt)
-        } else if (rt.isNotEmpty() && rt != staleText) {
-            onText(rt)
-            staleText = null
+        synchronized(lock) {
+            if (khz != lastKhz) {
+                onFreq(khz, rt)
+            } else if (rt.isNotEmpty() && rt != staleText) {
+                onText(rt)
+                staleText = null
+            }
+            return RadioNow(khz, preset, text)
         }
-        return RadioNow(khz, preset, text)
     }
 
     /** Estação nova; [staleRt] é o texto que ainda está lá, da estação anterior. */
-    @Synchronized
     private fun onFreq(khz: Int, staleRt: String) {
-        if (khz == lastKhz) return
-        lastKhz = khz
-        staleText = staleRt
-        text = names.get(khz)
+        synchronized(lock) {
+            if (khz == lastKhz) return
+            lastKhz = khz
+            staleText = staleRt
+            text = names.get(khz)
+        }
     }
 
-    @Synchronized
     private fun onText(raw: String) {
-        val t = raw.trim()
-        val khz = lastKhz ?: return
-        // Vazio só quer dizer "sem texto agora": fica o último
-        if (t.isEmpty()) return
-        text = t
-        if (names.put(khz, t)) namesChanged = true
+        synchronized(lock) {
+            val t = raw.trim()
+            val khz = lastKhz ?: return
+            // Vazio só quer dizer "sem texto agora": fica o último
+            if (t.isEmpty()) return
+            text = t
+            if (names.put(khz, t)) namesChanged = true
+        }
     }
 
     private fun service(): IBinder? =
@@ -95,8 +113,14 @@ class RadioStation(private val names: RadioNames) {
         const val CALLBACK = "android.radio.IRadioCallback"
         const val RDS_TEXT = 38
 
+        /** Campos do RadioInfo, achados uma vez (a leitura é a cada segundo). */
+        private val fields = java.util.concurrent.ConcurrentHashMap<String, java.lang.reflect.Field>()
+
         fun field(obj: Any, name: String): Any? = try {
-            obj.javaClass.getDeclaredField(name).let { it.isAccessible = true; it.get(obj) }
+            val f = fields.getOrPut("${obj.javaClass.name}#$name") {
+                obj.javaClass.getDeclaredField(name).also { it.isAccessible = true }
+            }
+            f.get(obj)
         } catch (e: Throwable) {
             null
         }
