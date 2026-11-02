@@ -2,6 +2,8 @@ package app.rumo.device
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -39,35 +41,58 @@ class PowerService : AccessibilityService() {
             armed = false
             return
         }
+        // Só janelas de apps do sistema (o menu de energia é do Android ou da SystemUI): um "Reiniciar" num app comum
+        // aberto na hora não é clicado
         val roots = buildList {
             rootInActiveWindow?.let(::add)
             windows.forEach { w -> w.root?.let(::add) }
         }
-        for (root in roots) {
-            val node = findRestart(root, 0) ?: continue
-            if (click(node)) {
-                // O Android pode pedir uma confirmação: o segundo "Reiniciar" também é clicado
-                if (++clicks >= MAX_CLICKS) armed = false
-                return
+        try {
+            for (root in roots) {
+                if (!isSystemApp(root.packageName)) continue
+                val node = findRestart(root, 0) ?: continue
+                val clicked = click(node)
+                if (node !== root) node.recycle()
+                if (clicked) {
+                    // O Android pode pedir uma confirmação: o segundo "Reiniciar" também é clicado
+                    if (++clicks >= MAX_CLICKS) armed = false
+                    return
+                }
             }
+        } finally {
+            roots.forEach { it.recycle() }
         }
     }
 
+    private fun isSystemApp(pkg: CharSequence?): Boolean = try {
+        pkg != null && packageManager.getApplicationInfo(pkg.toString(), 0).flags and ApplicationInfo.FLAG_SYSTEM != 0
+    } catch (e: PackageManager.NameNotFoundException) {
+        false
+    }
+
+    /** O nó com "Reiniciar" (o chamador o devolve ao Android); os outros visitados são devolvidos aqui (Android 9). */
     private fun findRestart(n: AccessibilityNodeInfo, depth: Int): AccessibilityNodeInfo? {
         if (depth > MAX_DEPTH) return null
         if (isRestartLabel(n.text) || isRestartLabel(n.contentDescription)) return n
         for (i in 0 until n.childCount) {
             val child = n.getChild(i) ?: continue
-            findRestart(child, depth + 1)?.let { return it }
+            val found = findRestart(child, depth + 1)
+            if (found !== child) child.recycle()
+            if (found != null) return found
         }
         return null
     }
 
     private fun click(n: AccessibilityNodeInfo): Boolean {
-        var node: AccessibilityNodeInfo? = n
+        if (n.isClickable && n.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+        // Sobe até o primeiro clicável (o texto costuma estar dentro do botão)
+        var node = n.parent
         while (node != null) {
-            if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
-            node = node.parent
+            val done = node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            val up = if (done) null else node.parent
+            node.recycle()
+            if (done) return true
+            node = up
         }
         return false
     }

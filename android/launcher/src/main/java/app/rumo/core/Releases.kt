@@ -126,6 +126,24 @@ fun parseMapaRadarManifest(text: String): RemoteFile? = try {
 /** O que há no aparelho sobre um arquivo dos dados: existe, tamanho e o SHA-256 gravado quando o app o baixou. */
 data class LocalFile(val exists: Boolean, val size: Long, val recordedSha: String?)
 
+/**
+ * Registro de um arquivo de dados conferido: o SHA-256 e a data de modificação do arquivo naquela hora. A pasta Rumo
+ * fica na memória compartilhada: se outro app (ou uma cópia à mão) trocar o arquivo, a data muda e o registro deixa
+ * de valer, então o hash é conferido de novo.
+ */
+fun dataRecord(sha256: String, modifiedMs: Long): String = "$sha256@$modifiedMs"
+
+/**
+ * O SHA-256 que o [record] garante para um arquivo modificado em [modifiedMs]; null sem registro ou com o arquivo
+ * mexido depois dele. Registros antigos (só o hash, sem a data) valem: o chamador regrava com a data.
+ */
+fun recordedSha(record: String?, modifiedMs: Long): String? {
+    if (record == null) return null
+    val at = record.indexOf('@')
+    if (at < 0) return record
+    return record.substring(0, at).takeIf { record.substring(at + 1).toLongOrNull() == modifiedMs }
+}
+
 enum class DataStatus { NOT_INSTALLED, UPDATE, UP_TO_DATE }
 
 /**

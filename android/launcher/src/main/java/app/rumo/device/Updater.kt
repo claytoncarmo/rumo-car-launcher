@@ -16,7 +16,9 @@ import app.rumo.core.RemoteFile
 import app.rumo.core.parseAppRelease
 import app.rumo.core.parseDataManifest
 import app.rumo.core.parseMapaRadarManifest
+import app.rumo.core.dataRecord
 import app.rumo.core.planData
+import app.rumo.core.recordedSha
 import app.rumo.core.sha256Of
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -159,10 +161,16 @@ class Updater(private val prefs: SharedPreferences, private val http: Http = Htt
 
     private fun localFile(f: RemoteFile): LocalFile {
         val file = fileOf(f)
-        return LocalFile(file.isFile, if (file.isFile) file.length() else 0L, prefs.getString(KEY + f.dest, null))
+        if (!file.isFile) return LocalFile(false, 0L, null)
+        val record = prefs.getString(KEY + f.dest, null)
+        val sha = recordedSha(record, file.lastModified())
+        // Registro antigo (sem a data): passa a valer só para este arquivo
+        if (sha != null && sha == record) record(f, sha)
+        return LocalFile(true, file.length(), sha)
     }
 
-    private fun record(f: RemoteFile) = prefs.edit().putString(KEY + f.dest, f.sha256).apply()
+    private fun record(f: RemoteFile, sha256: String = f.sha256) =
+        prefs.edit().putString(KEY + f.dest, dataRecord(sha256, fileOf(f).lastModified())).apply()
 
     private companion object {
         const val KEY = "data_"

@@ -1,11 +1,15 @@
 package app.rumo.device
 
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.os.Binder
 import android.os.IBinder
 import android.os.Parcel
 import android.os.Parcelable
+import android.os.Process
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Conversa com os serviços do fabricante (sourceinfo, carstatus, mcu_service) em binder puro, decodificando
@@ -13,6 +17,25 @@ import java.lang.reflect.Modifier
  * cada chamada vem das constantes TRANSACTION_* do Stub e os tipos vêm da assinatura do método.
  */
 object Aidl {
+
+    /** Para saber se um app é do sistema (os ouvintes só aceitam avisos do sistema). Posto pela tela ao abrir. */
+    @Volatile var packages: PackageManager? = null
+    private val systemUids = ConcurrentHashMap<Int, Boolean>()
+
+    /** O uid é do sistema: abaixo dos apps ou de um app instalado no sistema. Sem [packages], só o primeiro caso. */
+    fun isSystemCaller(uid: Int): Boolean {
+        if (uid < Process.FIRST_APPLICATION_UID) return true
+        val pm = packages ?: return false
+        return systemUids.getOrPut(uid) {
+            pm.getPackagesForUid(uid).orEmpty().any { pkg ->
+                try {
+                    pm.getApplicationInfo(pkg, 0).flags and ApplicationInfo.FLAG_SYSTEM != 0
+                } catch (e: PackageManager.NameNotFoundException) {
+                    false
+                }
+            }
+        }
+    }
 
     fun service(name: String): IBinder? = try {
         Class.forName("android.os.ServiceManager").getMethod("getService", String::class.java)
@@ -40,17 +63,35 @@ object Aidl {
         null
     }
 
-    fun code(iface: String, method: String, loader: ClassLoader? = null): Int? = try {
-        cls("$iface\$Stub", loader).getDeclaredField("TRANSACTION_$method").let { it.isAccessible = true; it.getInt(null) }
-    } catch (e: Throwable) {
-        null
+    /**
+     * Número da transação e tipo da resposta de cada método das interfaces do sistema, guardados: o rádio é lido a cada
+     * segundo e a busca por reflexão (Class.forName, a lista inteira de métodos) não precisa se repetir. As interfaces
+     * de outro APK ([loader], só nos testes de diagnóstico) não entram.
+     */
+    private val codes = ConcurrentHashMap<String, Int>()
+    private val returns = ConcurrentHashMap<String, Class<*>>()
+
+    fun code(iface: String, method: String, loader: ClassLoader? = null): Int? {
+        if (loader == null) codes["$iface#$method"]?.let { return it }
+        return try {
+            cls("$iface\$Stub", loader).getDeclaredField("TRANSACTION_$method").let { it.isAccessible = true; it.getInt(null) }
+                .also { if (loader == null) codes["$iface#$method"] = it }
+        } catch (e: Throwable) {
+            null
+        }
+    }
+
+    private fun returnType(iface: String, method: String, loader: ClassLoader?): Class<*> {
+        if (loader == null) returns["$iface#$method"]?.let { return it }
+        return cls(iface, loader).methods.first { it.name == method }.returnType
+            .also { if (loader == null) returns["$iface#$method"] = it }
     }
 
     /** Chama um método sem argumentos e devolve a resposta decodificada (ou o erro, como texto). */
     fun call(binder: IBinder, iface: String, method: String, loader: ClassLoader? = null): Any? {
         val code = code(iface, method, loader) ?: return "sem TRANSACTION_$method"
         val returnType = try {
-            cls(iface, loader).methods.first { it.name == method }.returnType
+            returnType(iface, method, loader)
         } catch (e: Throwable) {
             return "sem o método $method"
         }
@@ -153,18 +194,26 @@ object Aidl {
  * Ouvinte genérico para um serviço que avisa por callback (ex.: ISourceCallback do sourceinfo): recebe as
  * transações, acha o método pelo número e decodifica os argumentos pela assinatura. [onEvent] recebe o nome do
  * método e os argumentos (numa thread do binder).
+ *
+ * Só aceita avisos do sistema: uid de sistema (abaixo dos apps) ou um app instalado no sistema (o fabricante pode
+ * rodar o serviço num app de plataforma). Um app comum que conseguisse a referência não manda dados falsos nem objetos
+ * para decodificar. [fromApps] libera todos, para o teste de diagnóstico do app de rádio.
  */
 class AidlTap(
     private val iface: String,
     private val loader: ClassLoader? = null,
+    private val fromApps: Boolean = false,
     private val onEvent: (String, List<Any?>) -> Unit,
 ) : Binder() {
+    private val methods = ConcurrentHashMap<Int, Method>()
+
     override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
         if (code == INTERFACE_TRANSACTION) {
             reply?.writeString(iface)
             return true
         }
-        val method = Aidl.methodFor(iface, code, loader)
+        if (!fromApps && !Aidl.isSystemCaller(Binder.getCallingUid())) return false
+        val method = methods[code] ?: Aidl.methodFor(iface, code, loader)?.also { methods[code] = it }
         try {
             data.enforceInterface(iface)
             if (method == null) {

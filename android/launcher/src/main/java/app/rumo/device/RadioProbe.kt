@@ -143,7 +143,7 @@ class RadioProbe(private val ctx: Context) {
         unregister = methods.firstOrNull { m ->
             m.parameterTypes.size == 1 && m.parameterTypes[0] == cbClass && m !== reg
         }?.name
-        val t = AidlTap(CALLBACK, loader) { method, args -> onEvent(AidlTap.describe(method, args)) }
+        val t = AidlTap(CALLBACK, loader, fromApps = true) { method, args -> onEvent(AidlTap.describe(method, args)) }
         tap = t
         return Aidl.callWithBinder(b, name, reg.name, t, loader)
     }

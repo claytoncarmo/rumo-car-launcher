@@ -36,6 +36,7 @@ import app.rumo.core.Channel
 import app.rumo.core.DataPlan
 import app.rumo.core.DownloadCancelled
 import app.rumo.core.planChange
+import app.rumo.core.redact
 import app.rumo.core.HttpFailure
 import app.rumo.core.Favorite
 import app.rumo.core.Favorites
@@ -64,6 +65,7 @@ import app.rumo.core.UserPoint
 import app.rumo.core.UserPoints
 import app.rumo.core.RoadMatch
 import app.rumo.core.RoadMatcher
+import app.rumo.device.Aidl
 import app.rumo.device.Alerts
 import app.rumo.device.BroadcastHunt
 import app.rumo.device.CarStatus
@@ -184,6 +186,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             } catch (e: Throwable) {
             }
         }, "rumo-mapa").start()
+        Aidl.packages = applicationContext.packageManager
         gps = Gps(this) { onGps(it) }
         alerts = Alerts(this)
         state.favorites = Favorites.decode(prefs.getString(PREF_FAVORITES, null))
@@ -515,10 +518,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
     }
 
     private suspend fun showReport(title: String, file: String, summary: List<String>, full: List<String>) {
-        val saved = withContext(Dispatchers.IO) { saveReport(title, file, full) }
+        val saved = withContext(Dispatchers.IO) { saveReport(title, file, full.map(::redact)) }
         // Na tela, só o que interessa; o resto vai para o arquivo
         state.probeTitle = title
-        state.probe = summary + listOf(
+        state.probe = summary.map(::redact) + listOf(
             if (saved.isEmpty()) "Não consegui salvar o relatório completo." else "Relatório completo salvo em:",
         ) + saved
     }
@@ -541,10 +544,15 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }
     }
 
+    /** Extras de um aviso, como texto. Qualquer app pode mandar o aviso: um extra que não abre vira só um marcador. */
     private fun describe(intent: Intent): String {
-        val extras = intent.extras ?: return ""
-        @Suppress("DEPRECATION")
-        return extras.keySet().joinToString(prefix = " {", postfix = "}") { "$it=${extras.get(it)}" }
+        return try {
+            val extras = intent.extras ?: return ""
+            @Suppress("DEPRECATION")
+            extras.keySet().joinToString(prefix = " {", postfix = "}") { "$it=${extras.get(it)}" }
+        } catch (e: RuntimeException) {
+            " {extras ilegíveis: ${e.javaClass.simpleName}}"
+        }
     }
 
     private fun Configuration.isNightBitSet() =
@@ -594,11 +602,15 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     private var keyTestStart = 0L
     private var keyTestReceiver: BroadcastReceiver? = null
+    /** Processo do getevent e o número do teste que o abriu (fechar e abrir rápido não deixa um processo esquecido). */
+    private val geteventLock = Any()
     private var getevent: java.lang.Process? = null
+    private var keyTestRun = 0
 
     override fun keyTest(on: Boolean) {
         stopKeyTest()
         if (!on) return
+        val run = synchronized(geteventLock) { ++keyTestRun }
         keyTestStart = SystemClock.elapsedRealtime()
         state.keyLog = emptyList()
         val receiver = object : BroadcastReceiver() {
@@ -616,31 +628,35 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }
         ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
         keyTestReceiver = receiver
-        lifecycleScope.launch(Dispatchers.IO) { readGetevent() }
+        lifecycleScope.launch(Dispatchers.IO) { readGetevent(run) }
     }
 
     private fun stopKeyTest() {
         keyTestReceiver?.let { try { unregisterReceiver(it) } catch (e: IllegalArgumentException) {} }
         keyTestReceiver = null
-        val process = getevent
-        getevent = null
+        val process = synchronized(geteventLock) {
+            keyTestRun++
+            getevent.also { getevent = null }
+        }
         process?.destroy()
     }
 
     /** Segunda fonte: as teclas direto do driver de entrada (`getevent`). Sem permissão, o próprio erro vai para a lista. */
-    private fun readGetevent() {
+    private fun readGetevent(run: Int) {
         val process = try {
             ProcessBuilder("getevent", "-l").redirectErrorStream(true).start()
         } catch (e: IOException) {
             keyLog("getevent: indisponível neste aparelho")
             return
         }
-        if (keyTestReceiver == null) {
-            // O teste foi fechado enquanto o processo abria
+        val current = synchronized(geteventLock) {
+            (run == keyTestRun).also { if (it) getevent = process }
+        }
+        if (!current) {
+            // O teste foi fechado (ou reaberto) enquanto o processo abria
             process.destroy()
             return
         }
-        getevent = process
         var other = 0
         try {
             process.inputStream.bufferedReader().useLines { lines ->
@@ -652,7 +668,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         } catch (e: IOException) {
             // O teste terminou: o processo foi encerrado
         }
-        if (getevent === process) keyLog("getevent: terminou (sem acesso aos dispositivos de entrada?)")
+        if (synchronized(geteventLock) { getevent === process }) keyLog("getevent: terminou (sem acesso aos dispositivos de entrada?)")
     }
 
     private fun keyLog(line: String) {

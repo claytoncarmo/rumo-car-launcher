@@ -172,4 +172,19 @@ class ReleasesTest {
         assertNull(parseMapaRadarManifest(radarJson(dest = "outro.csv")))
         assertNull(parseMapaRadarManifest(radarJson(url = "http://example.org/maparadar.csv")))
     }
+
+    @Test
+    fun recordOnlyHoldsForTheSameModificationTime() {
+        val record = dataRecord(sha, 1_700_000_000_000)
+        assertEquals(sha, recordedSha(record, 1_700_000_000_000))
+        // Arquivo trocado depois de conferido: o hash precisa ser calculado de novo
+        assertNull(recordedSha(record, 1_700_000_000_001))
+        assertNull(recordedSha(null, 1))
+        assertNull(recordedSha("$sha@lixo", 1))
+    }
+
+    @Test
+    fun legacyRecordWithoutDateStillHolds() {
+        assertEquals(sha, recordedSha(sha, 123))
+    }
 }
