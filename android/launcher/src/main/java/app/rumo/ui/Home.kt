@@ -661,24 +661,28 @@ private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, mapAllowed: Bo
             Ico(Icons.cast, 24.dp, p.text)
             Txt("Android Auto", 18, weight = FontWeight.SemiBold)
         }
-        // Marcar um radar que falta: discreto, abaixo do atalho do Android Auto; guarda o lugar onde se tocou
+        // Marcar um radar que falta: abaixo do atalho do Android Auto; guarda o lugar onde se tocou. A área de toque
+        // (88 dp) é bem maior que o círculo (64 dp): dirigindo, quem erra o "+" não deve cair em outro lugar
         val lat = g.lat
         val lon = g.lon
         if (g.status == GpsStatus.OK && lat != null && lon != null) {
             Box(
                 Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 14.dp + 56.dp + 10.dp, end = 14.dp)
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(p.surface2.copy(alpha = 0.8f))
-                    .clickable {
+                    .padding(top = 14.dp + 56.dp, end = 2.dp)
+                    .size(88.dp)
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                         s.markSpot = MarkSpot.of(lat, lon, g.bearing, g.speedKmh, road?.limit)
                         s.sheet = Sheet.MARK
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Ico(Icons.plus, 26.dp, p.text2)
+                Box(
+                    Modifier.size(64.dp).clip(CircleShape).background(p.surface2.copy(alpha = 0.8f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Ico(Icons.plus, 32.dp, p.text2)
+                }
             }
         }
         // A placa de limite fica na direita (a mão do motorista tampava a da esquerda); o radar, na esquerda
