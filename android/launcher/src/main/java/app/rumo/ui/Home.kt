@@ -229,6 +229,8 @@ interface HomeActions {
     fun keyTest(on: Boolean)
     /** Diagnóstico: procura ganchos de reinício do fabricante (reboot-test.txt). */
     fun probeReboot()
+    /** Toca o aviso de radar e os bipes (do longe ao perto) por uns segundos; se o som falhar, mostra o erro. */
+    fun testSound()
     /** Distância (m) em que o aviso de radar começa; guardada nas preferências. */
     fun setRadarZone(meters: Int)
     /** Margem (km/h) acima do limite do radar antes do alerta sonoro; guardada nas preferências. */

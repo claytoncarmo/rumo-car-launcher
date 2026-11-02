@@ -1012,6 +1012,32 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.sheet = Sheet.SETTINGS
     }
 
+    @Volatile private var soundTesting = false
+
+    /** Aviso de entrada e bipes do longe ao perto (a cada 0,5 s, 7 s no total), só para ouvir se o som sai. */
+    override fun testSound() {
+        if (soundTesting) return
+        soundTesting = true
+        lifecycleScope.launch {
+            try {
+                state.toast = "Teste do som: o aviso e os bipes, do longe ao perto"
+                alerts.lastError = null
+                alerts.chime()
+                delay(1500)
+                for (i in 0..SOUND_TEST_STEPS) {
+                    alerts.alarm(i.toFloat() / SOUND_TEST_STEPS)
+                    delay(SOUND_TEST_STEP_MS)
+                }
+            } finally {
+                alerts.stop()
+                soundTesting = false
+            }
+            delay(400)
+            val error = alerts.lastError
+            state.toast = if (error == null) "O som saiu? Se não, o aparelho não tocou: veja o volume" else "O som falhou: $error"
+        }
+    }
+
     override fun setRadarZone(meters: Int) {
         val zone = RadarSettings.zone(meters)
         state.radarZoneM = zone
@@ -1420,8 +1446,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
             state.road = road
             state.radar = radar
             state.over = overSpeed.update(info.speedKmh, road?.limit)
-            if (entered && radar?.radar?.chimes == true) alerts.chime()
-            alerts.alarm(radar?.takeIf { it.sound }?.closeness(radars.zoneM))
+            // Durante o teste do som, a posição do GPS não pode calar os bipes de mentira
+            if (!soundTesting) {
+                if (entered && radar?.radar?.chimes == true) alerts.chime()
+                alerts.alarm(radar?.takeIf { it.sound }?.closeness(radars.zoneM))
+            }
             // Chegou uma posição enquanto esta era calculada: calcula a mais recente (se o GPS ainda estiver bom)
             val next = pendingFix
             pendingFix = null
@@ -1544,6 +1573,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
         /** As configurações da home só abrem abaixo desta velocidade. */
         const val PARKED_BELOW_KMH = 5
         const val PROGRESS_EVERY_MS = 250L
+        const val SOUND_TEST_STEPS = 10
+        const val SOUND_TEST_STEP_MS = 500L
         /** Hora (ms) da última consulta de versão nova que deu certo, e a versão achada (formato do rumo.json). */
         const val PREF_UPDATE_CHECKED = "update_checked_at"
         const val PREF_UPDATE_FOUND = "update_found"

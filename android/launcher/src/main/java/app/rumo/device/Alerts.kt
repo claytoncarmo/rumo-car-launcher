@@ -41,6 +41,9 @@ class Alerts(context: Context) {
 
     private fun gapOf(k: Double) = (950 - 820 * k) / 1000.0
 
+    /** O último erro ao tocar (o som não é essencial e a falha não derruba nada); o teste do som o mostra. */
+    @Volatile var lastError: String? = null
+
     /** Proximidade do radar (0 na borda da zona, 1 em cima dele) enquanto acima do limite; null = sem bipes. */
     @Volatile private var closeness: Float? = null
     private var alarmThread: Thread? = null
@@ -79,6 +82,7 @@ class Alerts(context: Context) {
             }
         } catch (e: Exception) {
             // som não é essencial: sem bipe, o aviso visual continua
+            lastError = "bipes: $e"
         } finally {
             try {
                 track.stop()
@@ -98,6 +102,7 @@ class Alerts(context: Context) {
             Thread.sleep(pcm.size * 1000L / RATE + 100)
             track.stop()
         } catch (e: Exception) {
+            lastError = "aviso: $e"
         } finally {
             track.release()
             if (closeness == null) am.abandonAudioFocusRequest(focus)

@@ -357,7 +357,7 @@ private fun RadarSection(s: HomeState, a: HomeActions) {
             onDecrease = { a.setRadarMargin(s.radarMarginKmh - 1) },
             onIncrease = { a.setRadarMargin(s.radarMarginKmh + 1) },
         )
-        Row {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PillButton(
                 "Restaurar o padrão",
                 enabled = s.radarZoneM != RadarSettings.ZONE_DEFAULT || s.radarMarginKmh != RadarSettings.MARGIN_DEFAULT,
@@ -366,6 +366,7 @@ private fun RadarSection(s: HomeState, a: HomeActions) {
                 a.setRadarZone(RadarSettings.ZONE_DEFAULT)
                 a.setRadarMargin(RadarSettings.MARGIN_DEFAULT)
             }
+            PillButton("Testar o som (7 s)", enabled = true, primary = false) { a.testSound() }
         }
         Txt("Padrão: ${RadarSettings.ZONE_DEFAULT} m e ${RadarSettings.MARGIN_DEFAULT} km/h de margem.", 14, color = p.text3)
     }
