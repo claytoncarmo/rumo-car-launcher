@@ -4,13 +4,41 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rumo · tela inicial para multimídia Android</title>
-<meta name="description" content="Rumo é um launcher livre para centrais multimídia Android: rua e limite da via, radares, rádio, música e viagem na tela inicial, sem abrir nenhum app. A navegação fica no Android Auto.">
-<meta property="og:title" content="Rumo · tela inicial para multimídia Android">
-<meta property="og:description" content="Rua, limite, radares, rádio e música na tela inicial da central multimídia do seu carro. Livre, offline e em português.">
+<meta name="description" id="m-desc" content="Rumo é um launcher livre para centrais multimídia Android: rua e limite da via, radares, rádio, música e viagem na tela inicial, sem abrir nenhum app. A navegação fica no Android Auto.">
+<meta property="og:title" id="m-ogt" content="Rumo · tela inicial para multimídia Android">
+<meta property="og:description" id="m-ogd" content="Rua, limite, radares, rádio e música na tela inicial da central multimídia do seu carro. Livre, offline e em português.">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<script>
+/* Idioma: ?lang=xx, depois a escolha guardada, depois o idioma do navegador (pt, en ou es); outros idiomas ficam em inglês.
+   O texto-base da página é o português; quem usa outro idioma vê a página escondida por um instante até a troca. */
+(function () {
+  var SUP = ['pt', 'en', 'es'];
+  function pick() {
+    try {
+      var q = new URLSearchParams(location.search).get('lang');
+      if (q && SUP.indexOf(q.slice(0, 2).toLowerCase()) >= 0) return q.slice(0, 2).toLowerCase();
+    } catch (e) { /* sem URLSearchParams */ }
+    try {
+      var s = localStorage.getItem('rumo.lang');
+      if (SUP.indexOf(s) >= 0) return s;
+    } catch (e) { /* armazenamento indisponível */ }
+    var l = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'pt'];
+    for (var i = 0; i < l.length; i++) {
+      var c = String(l[i]).slice(0, 2).toLowerCase();
+      if (SUP.indexOf(c) >= 0) return c;
+    }
+    return 'en';
+  }
+  window.__lang = pick();
+  if (window.__lang !== 'pt') {
+    document.documentElement.classList.add('i18n-wait');
+    setTimeout(function () { document.documentElement.classList.remove('i18n-wait'); }, 1500);
+  }
+})();
+</script>
 <style>
 :root{
   --bg:#f4f5f7; --surface:#ffffff; --surface-2:#eaedf1; --line:rgba(10,20,30,.12);
@@ -28,6 +56,7 @@
 }
 *,*::before,*::after{box-sizing:border-box}
 html{scroll-behavior:smooth}
+html.i18n-wait body{visibility:hidden}
 body{margin:0;background:var(--bg);color:var(--text);font:400 18px/1.55 var(--font-ui);-webkit-font-smoothing:antialiased}
 a{color:inherit}
 img,svg{max-width:100%}
@@ -41,12 +70,19 @@ p{margin:0}
 .eyebrow{font:600 14px var(--font-ui);letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);margin-bottom:14px}
 
 /* Topo */
-.top{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-block:20px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px 20px;padding-block:20px;flex-wrap:wrap}
 .brand{font:700 26px/1 var(--font-num);letter-spacing:.1em;text-transform:uppercase;text-decoration:none}
 .brand i{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--accent);margin-right:10px;vertical-align:2px}
+.top-r{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;justify-content:flex-end}
 .nav{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .nav a{padding:8px 14px;border-radius:999px;text-decoration:none;color:var(--text-2);font-weight:500;font-size:16px}
 .nav a:hover{background:var(--surface-2);color:var(--text)}
+.lang{display:inline-flex;background:var(--surface-2);border-radius:999px;padding:3px;gap:2px}
+.lang button{appearance:none;border:0;background:none;color:var(--text-2);font:600 14px/1 var(--font-ui);letter-spacing:.06em;
+  padding:9px 13px;border-radius:999px;cursor:pointer}
+.lang button:hover{color:var(--text)}
+.lang button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.lang button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 /* Herói */
 .hero{padding-block:40px 56px}
@@ -86,6 +122,7 @@ p{margin:0}
 .steps li::before{content:counter(s);flex:none;width:36px;height:36px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font:700 18px var(--font-num)}
 .steps b{color:var(--text);font-weight:600}
 .note{margin-top:24px;padding:18px 20px;border-radius:20px;background:var(--accent-soft);color:var(--text);font-size:16px}
+html[lang="pt-BR"] .not-pt{display:none}
 code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em;background:var(--surface-2);padding:2px 6px;border-radius:6px}
 
 footer{border-top:1px solid var(--line);padding-block:40px;color:var(--text-2);font-size:15px}
@@ -106,37 +143,44 @@ footer a{color:var(--text)}
 <div class="wrap">
   <header class="top">
     <a class="brand" href="#"><i></i>Rumo</a>
-    <nav class="nav" aria-label="Seções">
-      <a href="#funcoes">Funções</a>
-      <a href="#prototipo">Protótipo</a>
-      <a href="#instalar">Instalar</a>
-      <a class="keep" href="https://github.com/claytoncarmo/rumo-car-launcher">GitHub</a>
-    </nav>
+    <div class="top-r">
+      <nav class="nav" aria-label="Seções" data-i18n-attr="aria-label:nav.label">
+        <a href="#funcoes" data-i18n="nav.features">Funções</a>
+        <a href="#prototipo" data-i18n="nav.proto">Protótipo</a>
+        <a href="#instalar" data-i18n="nav.install">Instalar</a>
+        <a class="keep" href="https://github.com/claytoncarmo/rumo-car-launcher">GitHub</a>
+      </nav>
+      <div class="lang" id="lang" role="group" aria-label="Idioma" data-i18n-attr="aria-label:lang.label">
+        <button type="button" data-lang="pt" lang="pt" title="Português" aria-pressed="true">PT</button>
+        <button type="button" data-lang="en" lang="en" title="English" aria-pressed="false">EN</button>
+        <button type="button" data-lang="es" lang="es" title="Español" aria-pressed="false">ES</button>
+      </div>
+    </div>
   </header>
 </div>
 
 <main>
   <section class="hero">
     <div class="wrap">
-      <p class="eyebrow">Launcher para multimídia Android</p>
-      <h1>A tela inicial que o seu carro <em>merecia</em>.</h1>
-      <p class="lead">Rua atual, limite da via, radares, rádio e música numa tela só, sem abrir nenhum app. A navegação continua no Android Auto; o Rumo cuida do resto enquanto está na tela. Livre, offline e em português.</p>
+      <p class="eyebrow" data-i18n="hero.eyebrow">Launcher para multimídia Android</p>
+      <h1 data-i18n="hero.title">A tela inicial que o seu carro <em>merecia</em>.</h1>
+      <p class="lead" data-i18n="hero.lead">Rua atual, limite da via, radares, rádio e música numa tela só, sem abrir nenhum app. A navegação continua no Android Auto; o Rumo cuida do resto enquanto está na tela. Livre, offline e em português.</p>
       <div class="cta">
-        <a class="btn primary" href="https://github.com/claytoncarmo/rumo-car-launcher/releases/latest/download/rumo.apk">Baixar o APK</a>
-        <a class="btn" href="#prototipo">Testar o protótipo</a>
-        <a class="btn" href="https://github.com/claytoncarmo/rumo-car-launcher">Código no GitHub</a>
+        <a class="btn primary" href="https://github.com/claytoncarmo/rumo-car-launcher/releases/latest/download/rumo.apk" data-i18n="cta.apk">Baixar o APK</a>
+        <a class="btn" href="#prototipo" data-i18n="cta.proto">Testar o protótipo</a>
+        <a class="btn" href="https://github.com/claytoncarmo/rumo-car-launcher" data-i18n="cta.code">Código no GitHub</a>
       </div>
-      <small>Feito e testado num multimídia HCN com Android 9. Veja <a href="#compat">a compatibilidade</a> antes de instalar em outro aparelho.</small>
+      <small data-i18n="hero.small">Feito e testado num multimídia HCN com Android 9. Veja <a href="#compat">a compatibilidade</a> antes de instalar em outro aparelho.</small>
     </div>
   </section>
 
   <section class="proto" id="prototipo">
     <div class="wrap">
       <div class="proto-frame">
-        <iframe src="prototipo/#embed" title="Protótipo interativo do Rumo" loading="lazy" allow="fullscreen"></iframe>
+        <iframe src="prototipo/#embed" title="Protótipo interativo do Rumo" data-i18n-attr="title:proto.frame" loading="lazy" allow="fullscreen"></iframe>
         <div class="proto-bar">
-          <span>Protótipo com dados de exemplo: toque em <b>Dirigir</b> para andar pelo mapa, ligue o <b>farol</b>, abra o <b>rádio</b> e marque pontos com o <b>+</b>.</span>
-          <a href="prototipo/">Abrir em tela cheia ›</a>
+          <span data-i18n="proto.bar">Protótipo com dados de exemplo: toque em <b>Dirigir</b> para andar pelo mapa, ligue o <b>farol</b>, abra o <b>rádio</b> e marque pontos com o <b>+</b>.</span>
+          <a href="prototipo/" data-i18n="proto.full">Abrir em tela cheia ›</a>
         </div>
       </div>
     </div>
@@ -144,37 +188,37 @@ footer a{color:var(--text)}
 
   <section id="funcoes">
     <div class="wrap">
-      <p class="eyebrow">O que faz</p>
-      <h2>O essencial já na tela inicial</h2>
-      <p class="lead" style="margin-top:16px">A ideia central é a <b>camada zero</b>: o que importa para dirigir fica à vista, sem abrir nada.</p>
+      <p class="eyebrow" data-i18n="f.eyebrow">O que faz</p>
+      <h2 data-i18n="f.title">O essencial já na tela inicial</h2>
+      <p class="lead" style="margin-top:16px" data-i18n="f.lead">A ideia central é a <b>camada zero</b>: o que importa para dirigir fica à vista, sem abrir nada.</p>
       <div class="grid">
         <article class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg></span>
-          <h3>Mapa offline, rua e limite</h3>
-          <p>Mapa do OpenStreetMap guardado no aparelho, com a rua atual e a placa de limite da via. Quando o OSM não tem o limite, usa o padrão do CTB e marca como estimado.</p></article>
+          <h3 data-i18n="f1.t">Mapa offline, rua e limite</h3>
+          <p data-i18n="f1.p">Mapa do OpenStreetMap guardado no aparelho, com a rua atual e a placa de limite da via. Quando o OSM não tem o limite, usa o padrão do CTB e marca como estimado.</p></article>
         <article class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h11a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H3Z"/><path d="M11 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0Z"/><path d="m16 11 5-2v6l-5-2"/><path d="M8 16v5M5 21h6"/></svg></span>
-          <h3>Radares com aviso e bipes</h3>
-          <p>Aviso curto ao entrar na zona do radar. Acima do limite dele, bipes que aceleram e sobem de tom conforme você se aproxima, e param ao reduzir. Distância e margem ajustáveis.</p></article>
+          <h3 data-i18n="f2.t">Radares com aviso e bipes</h3>
+          <p data-i18n="f2.p">Aviso curto ao entrar na zona do radar. Acima do limite dele, bipes que aceleram e sobem de tom conforme você se aproxima, e param ao reduzir. Distância e margem ajustáveis.</p></article>
         <article class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
-          <h3>Marque o que falta</h3>
-          <p>Um toque no + e outro no tipo: radar, lombada, semáforo com câmera, polícia ou pedágio. O ponto vale na hora e fica só no seu aparelho, mesmo ao atualizar o Rumo.</p></article>
+          <h3 data-i18n="f3.t">Marque o que falta</h3>
+          <p data-i18n="f3.p">Um toque no + e outro no tipo: radar, lombada, semáforo com câmera, polícia ou pedágio. O ponto vale na hora e fica só no seu aparelho, mesmo ao atualizar o Rumo.</p></article>
         <article class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.1 19.1 19"/><circle cx="12" cy="12" r="2"/></svg></span>
-          <h3>Rádio com favoritas e nomes</h3>
-          <p>Tela de rádio própria: frequência em letras grandes, busca e ajuste fino de 0,2 MHz, favoritas sem limite com o nome que você der e procura de estações.</p></article>
+          <h3 data-i18n="f4.t">Rádio com favoritas e nomes</h3>
+          <p data-i18n="f4.p">Tela de rádio própria: frequência em letras grandes, busca e ajuste fino de 0,2 MHz, favoritas sem limite com o nome que você der e procura de estações.</p></article>
         <article class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
-          <h3>Mídia que sabe a fonte</h3>
-          <p>O card mostra se o som é do Android Auto ou do rádio, mesmo trocado fora do Rumo, e controla pelos botões anterior, play e próxima.</p></article>
+          <h3 data-i18n="f5.t">Mídia que sabe a fonte</h3>
+          <p data-i18n="f5.p">O card mostra se o som é do Android Auto ou do rádio, mesmo trocado fora do Rumo, e controla pelos botões anterior, play e próxima.</p></article>
         <article class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg></span>
-          <h3>Viagem</h3>
-          <p>Velocidade (em vermelho acima do limite), rumo, distância, tempo em movimento e média, tudo pelo GPS do aparelho.</p></article>
+          <h3 data-i18n="f6.t">Viagem</h3>
+          <p data-i18n="f6.p">Velocidade (em vermelho acima do limite), rumo, distância, tempo em movimento e média, tudo pelo GPS do aparelho.</p></article>
         <article class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
-          <h3>Dia e noite sozinho</h3>
-          <p>O tema escuro acende com o farol do carro, quando o multimídia informa. Se não, segue o horário. Dá para fixar escuro ou claro.</p></article>
+          <h3 data-i18n="f7.t">Dia e noite sozinho</h3>
+          <p data-i18n="f7.p">O tema escuro acende com o farol do carro, quando o multimídia informa. Se não, segue o horário. Dá para fixar escuro ou claro.</p></article>
         <article class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span>
-          <h3>Volume que se acerta dirigindo</h3>
-          <p>Arraste o dedo no menu da esquerda para a direita e abre um controle de volume grande, com repetição ao segurar. Recolhe sozinho.</p></article>
+          <h3 data-i18n="f8.t">Volume que se acerta dirigindo</h3>
+          <p data-i18n="f8.p">Arraste o dedo no menu da esquerda para a direita e abre um controle de volume grande, com repetição ao segurar. Recolhe sozinho.</p></article>
         <article class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></span>
-          <h3>Atualiza por dentro</h3>
-          <p>As configurações baixam o APK novo (conferindo o hash) e os mapas por estado, com canal estável e nightly. Só com o carro parado.</p></article>
+          <h3 data-i18n="f9.t">Atualiza por dentro</h3>
+          <p data-i18n="f9.p">As configurações baixam o APK novo (conferindo o hash) e os mapas por estado, com canal estável e nightly. Só com o carro parado.</p></article>
       </div>
     </div>
   </section>
@@ -182,15 +226,15 @@ footer a{color:var(--text)}
   <section style="background:var(--surface);border-block:1px solid var(--line)">
     <div class="wrap two">
       <div>
-        <p class="eyebrow">Como pensa</p>
-        <h2>Cada coisa no seu lugar</h2>
-        <p class="lead" style="margin-top:16px">O Rumo não tenta ser um navegador nem um player. Ele é a tela inicial: junta o que o carro já tem e põe à vista.</p>
+        <p class="eyebrow" data-i18n="t.eyebrow">Como pensa</p>
+        <h2 data-i18n="t.title">Cada coisa no seu lugar</h2>
+        <p class="lead" style="margin-top:16px" data-i18n="t.lead">O Rumo não tenta ser um navegador nem um player. Ele é a tela inicial: junta o que o carro já tem e põe à vista.</p>
       </div>
       <ul class="facts">
-        <li><b>Navegação fica no Android Auto.</b> O mapa do Rumo é passivo: mostra rua e limite. Tocar nele abre o Android Auto.</li>
-        <li><b>Alertas só com o Rumo na tela.</b> Nada por cima do Android Auto: sem balão, sem overlay, sem serviço em segundo plano.</li>
-        <li><b>Offline e livre.</b> Limites e mapa do OpenStreetMap guardados no aparelho; radares de fontes de uso permitido. Código sob GPL 3.0.</li>
-        <li><b>Em português do Brasil</b>, com limites padrão do CTB e radares brasileiros.</li>
+        <li data-i18n="t1"><b>Navegação fica no Android Auto.</b> O mapa do Rumo é passivo: mostra rua e limite. Tocar nele abre o Android Auto.</li>
+        <li data-i18n="t2"><b>Alertas só com o Rumo na tela.</b> Nada por cima do Android Auto: sem balão, sem overlay, sem serviço em segundo plano.</li>
+        <li data-i18n="t3"><b>Offline e livre.</b> Limites e mapa do OpenStreetMap guardados no aparelho; radares de fontes de uso permitido. Código sob GPL 3.0.</li>
+        <li data-i18n="t4"><b>Em português do Brasil</b>, com limites padrão do CTB e radares brasileiros.</li>
       </ul>
     </div>
   </section>
@@ -198,22 +242,23 @@ footer a{color:var(--text)}
   <section id="instalar">
     <div class="wrap two">
       <div>
-        <p class="eyebrow">Instalar</p>
-        <h2>Em poucos minutos</h2>
+        <p class="eyebrow" data-i18n="i.eyebrow">Instalar</p>
+        <h2 data-i18n="i.title">Em poucos minutos</h2>
         <ol class="steps">
-          <li><span>Em <a href="https://github.com/claytoncarmo/rumo-car-launcher/releases"><b>Releases</b></a>, baixe o <code>rumo.apk</code> da última versão estável (ou do <b>nightly</b>, compilado a cada mudança e possivelmente instável).</span></li>
-          <li><span>Copie para o aparelho (por exemplo num pendrive), abra e instale; permita “instalar apps desconhecidos” se pedir.</span></li>
-          <li><span>Aperte <b>Início</b> e escolha o Rumo como tela inicial (“Sempre”).</span></li>
-          <li><span>Para mapa, limites e radares: engrenagem › <b>Configurações da home</b> (com o carro parado) e baixe os dados do seu estado pelo Wi-Fi.</span></li>
+          <li><span data-i18n="i1">Em <a href="https://github.com/claytoncarmo/rumo-car-launcher/releases"><b>Releases</b></a>, baixe o <code>rumo.apk</code> da última versão estável (ou do <b>nightly</b>, compilado a cada mudança e possivelmente instável).</span></li>
+          <li><span data-i18n="i2">Copie para o aparelho (por exemplo num pendrive), abra e instale; permita “instalar apps desconhecidos” se pedir.</span></li>
+          <li><span data-i18n="i3">Aperte <b>Início</b> e escolha o Rumo como tela inicial (“Sempre”).</span></li>
+          <li><span data-i18n="i4">Para mapa, limites e radares: engrenagem › <b>Configurações da home</b> (com o carro parado) e baixe os dados do seu estado pelo Wi-Fi.</span></li>
         </ol>
-        <div class="cta"><a class="btn primary" href="https://github.com/claytoncarmo/rumo-car-launcher/releases/latest/download/rumo.apk">Baixar o APK</a></div>
+        <div class="cta"><a class="btn primary" href="https://github.com/claytoncarmo/rumo-car-launcher/releases/latest/download/rumo.apk" data-i18n="cta.apk">Baixar o APK</a></div>
       </div>
       <div id="compat">
-        <p class="eyebrow">Compatibilidade</p>
-        <h2>Testado em um aparelho só</h2>
-        <p class="lead" style="margin-top:16px">O Rumo nasceu num multimídia HCN (Android 9, 32 bits, tela de 1280×720). O que usa só Android comum deve funcionar em qualquer Android 8 ou superior: tela inicial, apps, mapa offline, rua e limite, radares, Viagem e atualização.</p>
-        <div class="note">Dependem do fabricante da unidade e podem não aparecer em outro aparelho: <b>farol</b> (tema automático), <b>fonte do áudio</b> e <b>rádio</b> (estação, nomes, busca). Os diagnósticos das configurações gravam um relatório que ajuda a dar suporte a mais aparelhos.</div>
-        <div class="note" style="background:var(--surface-2)">Os avisos de radar são um auxílio. A responsabilidade por respeitar a sinalização e dirigir com atenção é de quem dirige.</div>
+        <p class="eyebrow" data-i18n="c.eyebrow">Compatibilidade</p>
+        <h2 data-i18n="c.title">Testado em um aparelho só</h2>
+        <p class="lead" style="margin-top:16px" data-i18n="c.lead">O Rumo nasceu num multimídia HCN (Android 9, 32 bits, tela de 1280×720). O que usa só Android comum deve funcionar em qualquer Android 8 ou superior: tela inicial, apps, mapa offline, rua e limite, radares, Viagem e atualização.</p>
+        <div class="note" data-i18n="c.n1">Dependem do fabricante da unidade e podem não aparecer em outro aparelho: <b>farol</b> (tema automático), <b>fonte do áudio</b> e <b>rádio</b> (estação, nomes, busca). Os diagnósticos das configurações gravam um relatório que ajuda a dar suporte a mais aparelhos.</div>
+        <div class="note" style="background:var(--surface-2)" data-i18n="c.n2">Os avisos de radar são um auxílio. A responsabilidade por respeitar a sinalização e dirigir com atenção é de quem dirige.</div>
+        <div class="note not-pt" style="background:var(--surface-2)" data-i18n="c.n3">O app e o protótipo estão em português do Brasil, e os dados do mapa são do Brasil.</div>
       </div>
     </div>
   </section>
@@ -221,10 +266,11 @@ footer a{color:var(--text)}
 
 <footer>
   <div class="wrap">
-    <p><b>Rumo</b> · © 2026 Clayton Carmo. Código sob <a href="https://github.com/claytoncarmo/rumo-car-launcher/blob/main/LICENSE">GNU GPL 3.0</a>. Mapa e vias © <a href="https://www.openstreetmap.org/copyright">colaboradores do OpenStreetMap</a> (ODbL). Rumo não é afiliado a nenhum fabricante de multimídia nem ao Android Auto; os nomes citados pertencem aos respectivos donos.</p>
-    <p><a href="https://github.com/claytoncarmo/rumo-car-launcher">Código</a> · <a href="https://github.com/claytoncarmo/rumo-car-launcher/releases">Versões</a> · <a href="https://github.com/claytoncarmo/rumo-car-launcher/issues">Dúvidas e ideias</a> · <a href="https://github.com/claytoncarmo/rumo-car-launcher/blob/main/TODO.md">O que vem aí</a></p>
+    <p data-i18n="foot.p1"><b>Rumo</b> · © 2026 Clayton Carmo. Código sob <a href="https://github.com/claytoncarmo/rumo-car-launcher/blob/main/LICENSE">GNU GPL 3.0</a>. Mapa e vias © <a href="https://www.openstreetmap.org/copyright">colaboradores do OpenStreetMap</a> (ODbL). Rumo não é afiliado a nenhum fabricante de multimídia nem ao Android Auto; os nomes citados pertencem aos respectivos donos.</p>
+    <p data-i18n="foot.p2"><a href="https://github.com/claytoncarmo/rumo-car-launcher">Código</a> · <a href="https://github.com/claytoncarmo/rumo-car-launcher/releases">Versões</a> · <a href="https://github.com/claytoncarmo/rumo-car-launcher/issues">Dúvidas e ideias</a> · <a href="https://github.com/claytoncarmo/rumo-car-launcher/blob/main/TODO.md">O que vem aí</a></p>
   </div>
 </footer>
 
+<script src="i18n.js"></script>
 </body>
 </html>
