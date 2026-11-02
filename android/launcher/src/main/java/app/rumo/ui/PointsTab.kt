@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -41,6 +42,7 @@ import app.rumo.core.formatDistance
 import app.rumo.device.GpsInfo
 import app.rumo.device.GpsStatus
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 
 /** Metros que cada toque move o ponto ao longo da rua. */
 private const val MOVE_M = 5
@@ -66,8 +68,19 @@ private fun PointsList(s: HomeState, a: HomeActions, onEdit: (Int) -> Unit) {
     var confirm by remember { mutableIntStateOf(-1) }
     // A lista guarda os pontos na ordem em que foram marcados: invertida, os últimos vêm primeiro
     val rows = s.myPoints.withIndex().toList().asReversed()
-    val lat = s.gps.lat.takeIf { s.gps.status == GpsStatus.OK }
-    val lon = s.gps.lon.takeIf { s.gps.status == GpsStatus.OK }
+    // Posição para as distâncias, arredondada (~10 m): a lista não é refeita a cada oscilação do GPS
+    val here by remember {
+        derivedStateOf {
+            val g = s.gps
+            if (g.status == GpsStatus.OK && g.lat != null && g.lon != null) {
+                Math.round(g.lat * 10_000) / 10_000.0 to Math.round(g.lon * 10_000) / 10_000.0
+            } else {
+                null
+            }
+        }
+    }
+    val lat = here?.first
+    val lon = here?.second
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Txt(
             if (rows.isEmpty()) "Nenhum ponto marcado ainda. Toque no + do card do mapa para marcar um radar, lombada, polícia ou pedágio que falta."
@@ -213,6 +226,13 @@ private fun PointPreview(s: HomeState, a: HomeActions, index: Int, pt: UserPoint
     val p = LocalPalette.current
     val fonts = s.fontsDir
     var zoom by remember { mutableDoubleStateOf(PREVIEW_ZOOM) }
+    // Só os radares em volta do ponto (~2 km): a lista inteira são dezenas de milhares, para um mapa que mostra poucas
+    // quadras. Refeita só quando o ponto sai da região (os ±5 m não refazem).
+    val cellLat = Math.round(pt.lat * 100)
+    val cellLon = Math.round(pt.lon * 100)
+    val nearby = remember(s.radars, cellLat, cellLon) {
+        s.radars.filter { abs(it.lat - cellLat / 100.0) < NEARBY_DEG && abs(it.lon - cellLon / 100.0) < NEARBY_DEG }
+    }
     Box(modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(p.mapBlock)) {
         if (s.mapFiles.isNotEmpty() && fonts != null) {
             val position = GpsInfo(
@@ -221,7 +241,7 @@ private fun PointPreview(s: HomeState, a: HomeActions, index: Int, pt: UserPoint
                 lon = pt.lon,
                 bearing = pt.bearing.takeIf { it >= 0 }?.toFloat(),
             )
-            DriveMap(s.mapFiles, fonts, s.radars, position, null, p === Night, preview = true, previewZoom = zoom)
+            DriveMap(s.mapFiles, fonts, nearby, s.mineRadars, position, null, p === Night, preview = true, previewZoom = zoom)
             Txt(
                 if (pt.bearing >= 0) "Sentido do ponto (${directionOf(pt.bearing.toFloat())}) para cima" else "Norte para cima",
                 14, color = p.text2,
@@ -255,6 +275,9 @@ private fun MoveButton(text: String, modifier: Modifier, enabled: Boolean = true
 }
 
 private const val LIMIT_STEP = 10
+
+/** Meia largura da região de radares da pré-visualização, em graus (0,02° ≈ 2 km). */
+private const val NEARBY_DEG = 0.02
 
 /** Os oito pontos cardeais, em graus, na ordem da linha de sentidos. */
 private val COMPASS_DEGREES = listOf(0, 45, 90, 135, 180, 225, 270, 315)

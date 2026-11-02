@@ -18,8 +18,8 @@ class MapStyleTest {
     fun oneSourcePerStateAndCorrectPaths() {
         val style = JSONObject(mapStyle(listOf(sc, pr), fonts, night = false))
         val sources = style.getJSONObject("sources")
-        // um mapa por estado, mais a fonte dos radares
-        assertEquals(3, sources.length())
+        // um mapa por estado, mais a fonte dos radares e a dos pontos do usuário
+        assertEquals(4, sources.length())
         assertEquals("pmtiles://file://" + sc.absolutePath, sources.getJSONObject("osm0").getString("url"))
         assertEquals("pmtiles://file://" + pr.absolutePath, sources.getJSONObject("osm1").getString("url"))
         assertTrue(style.getString("glyphs").startsWith("file://" + fonts.absolutePath))
@@ -35,10 +35,19 @@ class MapStyleTest {
     }
 
     @Test
-    fun darkHasNoRoadCasing() {
-        val layers = ids(mapStyle(listOf(sc), fonts, night = true))
-        assertTrue(layers.none { it.startsWith("casing") })
-        assertEquals(1, layers.count { it.startsWith("names") })
+    fun darkHidesRoadCasing() {
+        val style = JSONObject(mapStyle(listOf(sc), fonts, night = true))
+        val layers = style.getJSONArray("layers").let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        val casing = layers.filter { it.getString("id").startsWith("casing") }
+        // As camadas existem nos dois temas (trocar o tema só muda cores e visibilidade), escondidas no escuro
+        assertEquals(2, casing.size)
+        assertTrue(casing.all { it.getJSONObject("layout").getString("visibility") == "none" })
+        assertEquals(1, layers.count { it.getString("id").startsWith("names") })
+    }
+
+    @Test
+    fun dayAndNightHaveTheSameLayers() {
+        assertEquals(ids(mapStyle(listOf(sc, pr), fonts, night = false)), ids(mapStyle(listOf(sc, pr), fonts, night = true)))
     }
 
     @Test
@@ -54,11 +63,14 @@ class MapStyleTest {
         val text = layers.indexOf("radar-text")
         assertTrue(dot > layers.indexOfLast { it.startsWith("names") })
         assertTrue(text > dot)
+        // Os pontos do usuário por cima dos radares da base
+        assertTrue(layers.indexOf("mine-dot") > text)
     }
 
     @Test
     fun radarSourceExistsEvenWithoutMap() {
         val style = JSONObject(mapStyle(emptyList(), fonts, night = true))
         assertEquals("geojson", style.getJSONObject("sources").getJSONObject(RADAR_SOURCE).getString("type"))
+        assertEquals("geojson", style.getJSONObject("sources").getJSONObject(MINE_SOURCE).getString("type"))
     }
 }

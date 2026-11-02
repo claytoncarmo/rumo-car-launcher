@@ -31,6 +31,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,8 +85,8 @@ fun RadioSheet(s: HomeState, a: HomeActions) {
     val p = LocalPalette.current
     var tab by remember { mutableStateOf(if (s.favorites.isEmpty()) 1 else 0) }
     var renaming by remember { mutableStateOf<Favorite?>(null) }
-    // Teclado só com o carro parado
-    val parked = (s.gps.speedKmh ?: 0) < 5
+    // Teclado só com o carro parado (derivado: a folha não é refeita a cada posição do GPS, só quando isso muda)
+    val parked by remember { derivedStateOf { (s.gps.speedKmh ?: 0) < 5 } }
 
     Box(Modifier.fillMaxSize().card(p).swallowTouches()) {
         Row(Modifier.fillMaxSize().padding(start = 28.dp, end = 14.dp, top = 14.dp, bottom = 18.dp)) {

@@ -24,19 +24,29 @@ data class GpsInfo(
     val speedKmh: Int? = null,
     val bearing: Float? = null,
     val accuracyM: Int? = null,
-    val satellitesUsed: Int = 0,
-    val satellitesSeen: Int = 0,
     val tripMeters: Double = 0.0,
     val tripMovingMs: Long = 0,
     val tripAverageKmh: Int? = null,
 )
 
-/** GPS do aparelho, ligado só enquanto o Rumo está na tela (start/stop no onStart/onStop da tela inicial). */
-class Gps(context: Context, private val onChange: (GpsInfo) -> Unit) {
+/** Satélites usados na posição e vistos: à parte da posição, porque mudam várias vezes por segundo. */
+data class Satellites(val used: Int = 0, val seen: Int = 0)
+
+/**
+ * GPS do aparelho, ligado só enquanto o Rumo está na tela (start/stop no onStart/onStop da tela inicial).
+ * [onChange] recebe o estado e se é uma posição nova (fix) ou só uma mudança de estado; [onSatellites], a contagem
+ * de satélites, quando muda.
+ */
+class Gps(
+    context: Context,
+    private val onChange: (GpsInfo, Boolean) -> Unit,
+    private val onSatellites: (Satellites) -> Unit = {},
+) {
     private val ctx = context.applicationContext
     private val lm = ctx.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     private val trip = TripMeter()
     private var info = GpsInfo()
+    private var satellites = Satellites()
     private var lastFixAt = 0L
     private var running = false
 
@@ -53,15 +63,21 @@ class Gps(context: Context, private val onChange: (GpsInfo) -> Unit) {
         override fun onSatelliteStatusChanged(status: GnssStatus) {
             var used = 0
             for (i in 0 until status.satelliteCount) if (status.usedInFix(i)) used++
+            val now = Satellites(used, status.satelliteCount)
+            if (now != satellites) {
+                satellites = now
+                onSatellites(now)
+            }
+            // Sem posição há um tempo: volta a "procurando" (não é uma posição nova)
             val stale = SystemClock.elapsedRealtime() - lastFixAt > STALE_MS
-            publish(
-                info.copy(
-                    satellitesSeen = status.satelliteCount,
-                    satellitesUsed = used,
-                    status = if (stale && info.status == GpsStatus.OK) GpsStatus.SEARCHING else info.status,
-                    speedKmh = if (stale) null else info.speedKmh,
+            if (stale && (info.status == GpsStatus.OK || info.speedKmh != null)) {
+                publish(
+                    info.copy(
+                        status = if (info.status == GpsStatus.OK) GpsStatus.SEARCHING else info.status,
+                        speedKmh = null,
+                    )
                 )
-            )
+            }
         }
     }
 
@@ -93,6 +109,7 @@ class Gps(context: Context, private val onChange: (GpsInfo) -> Unit) {
 
     private fun onFix(l: Location) {
         lastFixAt = SystemClock.elapsedRealtime()
+        fix = true
         trip.add(l.latitude, l.longitude, l.time, l.speed, if (l.hasAccuracy()) l.accuracy else Float.MAX_VALUE)
         publish(
             info.copy(
@@ -110,9 +127,13 @@ class Gps(context: Context, private val onChange: (GpsInfo) -> Unit) {
         )
     }
 
+    private var fix = false
+
     private fun publish(i: GpsInfo) {
         info = i
-        onChange(i)
+        val newFix = fix
+        fix = false
+        onChange(i, newFix)
     }
 
     private companion object {

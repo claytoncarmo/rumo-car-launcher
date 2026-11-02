@@ -151,6 +151,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private val radars = RadarWatch()
     private val overSpeed = OverSpeed()
     private var driveJob: Job? = null
+    private var pendingFix: GpsInfo? = null
     private var systemNight = false
     private var probeJob: Job? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
@@ -201,7 +202,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             }
         }, "rumo-mapa").start()
         Aidl.packages = applicationContext.packageManager
-        gps = Gps(this) { onGps(it) }
+        gps = Gps(this, ::onGps) { state.satellites = it }
         alerts = Alerts(this)
         state.favorites = Favorites.decode(prefs.getString(PREF_FAVORITES, null))
         lifecycleScope.launch { state.myPoints = withContext(drive) { minePointsLoaded() } }
@@ -1066,7 +1067,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 radars.reset()
                 pointsStore.save(list)
             }
-            data?.let { state.radars = it.radars }
+            data?.let { state.mineRadars = it.mine }
             if (saved == 0) state.toast = "Não foi possível guardar os pontos"
         }
     }
@@ -1261,7 +1262,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             // Os dados podem ter sido recarregados enquanto isso
             if (data !== found) return@launch
             found.setMapaRadar(merged)
-            state.radars = found.radars
+            state.radars = found.base
         }
     }
 
@@ -1279,7 +1280,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
             }
             state.mapFiles = found?.mapFiles.orEmpty()
             state.fontsDir = found?.fontsDir
-            state.radars = found?.radars.orEmpty()
+            state.radars = found?.base.orEmpty()
+            state.mineRadars = found?.mine.orEmpty()
             if (found != null) joinMapaRadar(found)
             state.mapStatus = if (found == null) MapStatus.MISSING else MapStatus.READY
             state.road = null
@@ -1289,9 +1291,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     /**
      * A cada posição do GPS (1 por segundo): via atual e limite, velocidade acima dele, radar à frente e os sons.
-     * Se a conta anterior ainda não acabou, pula esta posição.
+     * Mudanças só de estado ([fix] falso) não refazem a conta. Se a conta anterior ainda não acabou, a posição fica
+     * guardada e é a próxima a ser calculada (as do meio são puladas, nunca a última).
      */
-    private fun onGps(info: GpsInfo) {
+    private fun onGps(info: GpsInfo, fix: Boolean) {
         state.gps = info
         val lat = info.lat
         val lon = info.lon
@@ -1302,11 +1305,19 @@ class HomeActivity : ComponentActivity(), HomeActions {
             alerts.stop()
             return
         }
+        if (!fix) return
         // Nomes das rádios valem até 50 km do lugar onde foram vistos: longe disso a lista zera
         if (radioNames.onPosition(lat, lon)) saveRadioNames()
         // O carro desliga sem aviso: guarda a posição de tempos em tempos, não só ao sair da tela
         if (SystemClock.elapsedRealtime() - savedAt > SAVE_EVERY_MS) savePosition(info)
-        if (driveJob?.isActive == true) return
+        if (driveJob?.isActive == true) {
+            pendingFix = info
+            return
+        }
+        drive(info, lat, lon)
+    }
+
+    private fun drive(info: GpsInfo, lat: Double, lon: Double) {
         val speed = info.speedKmh ?: 0
         driveJob = lifecycleScope.launch {
             val (road, radar, entered) = withContext(drive) {
@@ -1325,6 +1336,12 @@ class HomeActivity : ComponentActivity(), HomeActions {
             state.over = overSpeed.update(info.speedKmh, road?.limit)
             if (entered && radar?.radar?.chimes == true) alerts.chime()
             alerts.alarm(radar?.takeIf { it.sound }?.closeness(radars.zoneM))
+            // Chegou uma posição enquanto esta era calculada: calcula a mais recente (se o GPS ainda estiver bom)
+            val next = pendingFix
+            pendingFix = null
+            val nextLat = next?.lat
+            val nextLon = next?.lon
+            if (next != null && nextLat != null && nextLon != null && state.gps.status == GpsStatus.OK) drive(next, nextLat, nextLon)
         }
     }
 

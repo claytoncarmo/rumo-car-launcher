@@ -88,6 +88,7 @@ import app.rumo.device.AppEntry
 import app.rumo.device.Apps
 import app.rumo.device.GpsInfo
 import app.rumo.device.GpsStatus
+import app.rumo.device.Satellites
 import app.rumo.device.RadioNow
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -123,6 +124,8 @@ class HomeState {
     var fontsDir by mutableStateOf<File?>(null)
     /** Radares e outros pontos de atenção dos estados instalados, desenhados no mapa. */
     var radars by mutableStateOf<List<Radar>>(emptyList())
+    /** Pontos marcados pelo usuário, como radares (no mapa, numa fonte à parte). */
+    var mineRadars by mutableStateOf<List<Radar>>(emptyList())
     /** Pontos marcados pelo usuário (só neste aparelho) e o lugar do "+" que abriu a folha de marcar. */
     var myPoints by mutableStateOf<List<UserPoint>>(emptyList())
     var markSpot by mutableStateOf<MarkSpot?>(null)
@@ -167,6 +170,8 @@ class HomeState {
     var appCode = 0L
     /** Configurações da home: o que a consulta às releases achou e o download em andamento (app ou dados). */
     var settings by mutableStateOf(SettingsState())
+    /** Satélites do GPS (só o aviso "procurando satélites" mostra): à parte, para não redesenhar o mapa a cada mudança. */
+    var satellites by mutableStateOf(Satellites())
     /** O aparelho tem rede (Wi-Fi ou dados): quando volta, a aba Atualizações consulta de novo se estava sem conexão. */
     var online by mutableStateOf(true)
     /** Avisos de radar: distância (m) em que começam e margem (km/h) acima do limite do radar antes de alertar. */
@@ -556,7 +561,7 @@ private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, mapAllowed: Bo
     val hasMap = mapFiles.isNotEmpty()
     val road = s.road
     Box(modifier.card(p, p.mapBlock)) {
-        s.fontsDir?.let { fonts -> if (hasMap && mapAllowed) DriveMap(mapFiles, fonts, s.radars, g, s.mapStart, night, active = s.sheet == Sheet.NONE) }
+        s.fontsDir?.let { fonts -> if (hasMap && mapAllowed) DriveMap(mapFiles, fonts, s.radars, s.mineRadars, g, s.mapStart, night, active = s.sheet == Sheet.NONE) }
         val fade = p.surface.copy(alpha = 0.92f)
         Box(
             Modifier
@@ -654,7 +659,7 @@ private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, mapAllowed: Bo
         // A placa de limite fica na direita (a mão do motorista tampava a da esquerda); o radar, na esquerda
         Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(14.dp)) {
             if (g.status != GpsStatus.OK) {
-                GpsChip(g, a, Modifier.align(Alignment.CenterStart))
+                GpsChip(g, s.satellites, a, Modifier.align(Alignment.CenterStart))
             } else {
                 s.radar?.let { RadarPill(it, Modifier.align(Alignment.CenterStart).padding(end = SIGN_SIZE + 12.dp)) }
                 road?.let { LimitSign(it.limit, it.estimated, Modifier.align(Alignment.CenterEnd)) }
@@ -720,13 +725,13 @@ private fun RadarPill(r: RadarAlert, modifier: Modifier) {
 }
 
 @Composable
-private fun GpsChip(g: GpsInfo, a: HomeActions, modifier: Modifier) {
+private fun GpsChip(g: GpsInfo, sats: Satellites, a: HomeActions, modifier: Modifier) {
     val p = LocalPalette.current
     val text = when (g.status) {
         GpsStatus.NO_PERMISSION -> "Toque para liberar a localização"
         GpsStatus.OFF -> "GPS desligado"
-        GpsStatus.SEARCHING -> "Procurando satélites · ${g.satellitesUsed}/${g.satellitesSeen}"
-        GpsStatus.OK -> "GPS ±${g.accuracyM ?: "?"} m · ${g.satellitesUsed} satélites"
+        GpsStatus.SEARCHING -> "Procurando satélites · ${sats.used}/${sats.seen}"
+        GpsStatus.OK -> "GPS ±${g.accuracyM ?: "?"} m · ${sats.used} satélites"
     }
     Row(
         modifier

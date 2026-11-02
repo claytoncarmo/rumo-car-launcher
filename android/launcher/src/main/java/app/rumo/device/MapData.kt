@@ -33,8 +33,8 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
 
     // Na divisa, os dois estados têm o mesmo radar (a folga de ~8 km se sobrepõe)
     private val osmRadars: List<Radar> = regions.flatMap { it.radars }.distinctBy { it.id }
-    private var baseRadars: List<Radar> = osmRadars
-    private var mineRadars: List<Radar> = emptyList()
+    @Volatile private var baseRadars: List<Radar> = osmRadars
+    @Volatile private var mineRadars: List<Radar> = emptyList()
 
     /**
      * Radares do OSM e, depois de [setMapaRadar], também os do MapaRadar, mais os pontos do usuário ([setMine]).
@@ -42,6 +42,10 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
      */
     @Volatile var radars: List<Radar> = osmRadars
         private set
+
+    /** Só os de base (OSM e MapaRadar) e só os do usuário: o mapa os desenha em fontes separadas. */
+    val base: List<Radar> get() = baseRadars
+    val mine: List<Radar> get() = mineRadars
 
     /** Troca os radares de base (OSM junto com o MapaRadar); os pontos do usuário continuam. */
     @Synchronized

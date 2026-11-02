@@ -7,6 +7,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -17,6 +18,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import app.rumo.core.Geo
 import app.rumo.core.Radar
 import app.rumo.core.radarsGeoJson
 import app.rumo.device.GpsInfo
@@ -31,6 +33,8 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapLibreMapOptions
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.layers.Property
+import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.sources.GeoJsonSource
 import java.io.File
 
@@ -52,12 +56,16 @@ class MapStart(val lat: Double, val lon: Double, val bearing: Double)
  *
  * [active] falso (uma folha cobre o mapa): desenha 1 quadro por segundo em vez do normal, para não gastar o aparelho
  * com um mapa que ninguém vê.
+ *
+ * [radars] (dezenas de milhares: OSM e MapaRadar) e [mine] (os pontos marcados pelo usuário, poucos) ficam em fontes
+ * separadas: editar um ponto reenvia só a lista pequena.
  */
 @Composable
 fun DriveMap(
     mapFiles: List<File>,
     fontsDir: File,
     radars: List<Radar>,
+    mine: List<Radar>,
     gps: GpsInfo,
     start: MapStart?,
     night: Boolean,
@@ -115,23 +123,33 @@ fun DriveMap(
         view.setMaximumFps(if (!active) IDLE_FPS else if (preview) PREVIEW_FPS else FPS)
     }
 
-    // Os radares mais recentes, para o estilo novo já nascer com eles
-    val latestRadars = rememberUpdatedState(radars)
-    LaunchedEffect(map, night, mapFiles) {
+    // Estilo carregado (null enquanto carrega). Só é refeito quando os mapas mudam: o tema troca as cores das camadas
+    // e os radares trocam os dados da fonte, sem recarregar nada.
+    var style by remember { mutableStateOf<Style?>(null) }
+    val currentNight = rememberUpdatedState(night)
+    LaunchedEffect(map, mapFiles, fontsDir) {
         val m = map ?: return@LaunchedEffect
-        // Dezenas de milhares de pontos: o texto é montado fora da thread principal
-        val points = withContext(Dispatchers.Default) { radarsGeoJson(latestRadars.value) }
-        m.setStyle(Style.Builder().fromJson(mapStyle(mapFiles, fontsDir, night))) { style ->
-            style.getSourceAs<GeoJsonSource>(RADAR_SOURCE)?.setGeoJson(points)
-        }
+        style = null
+        m.setStyle(Style.Builder().fromJson(mapStyle(mapFiles, fontsDir, currentNight.value))) { style = it }
     }
-    // Radares novos (a junção com o MapaRadar termina depois do mapa) trocam só os dados, sem recarregar o estilo
-    LaunchedEffect(map, radars) {
-        val m = map ?: return@LaunchedEffect
-        val points = withContext(Dispatchers.Default) { radarsGeoJson(radars) }
-        m.getStyle { style -> style.getSourceAs<GeoJsonSource>(RADAR_SOURCE)?.setGeoJson(points) }
+    LaunchedEffect(style, night) {
+        style?.let { applyColors(it, mapFiles.size, night) }
+    }
+    // Dezenas de milhares de pontos: o texto é montado uma vez por lista, fora da thread principal, e enviado uma vez
+    // por estilo (antes ia duas vezes ao abrir o mapa e de novo a cada troca de tema)
+    val radarsJson by produceState<String?>(null, radars) {
+        value = withContext(Dispatchers.Default) { radarsGeoJson(radars) }
+    }
+    LaunchedEffect(style, radarsJson) {
+        val json = radarsJson ?: return@LaunchedEffect
+        style?.getSourceAs<GeoJsonSource>(RADAR_SOURCE)?.setGeoJson(json)
+    }
+    LaunchedEffect(style, mine) {
+        style?.getSourceAs<GeoJsonSource>(MINE_SOURCE)?.setGeoJson(radarsGeoJson(mine))
     }
 
+    // Última câmera pedida: lat, lon, rumo, zoom e recuo
+    val lastCamera = remember { DoubleArray(5) { Double.NaN } }
     LaunchedEffect(map, gps.lat, gps.lon, gps.bearing, height, start, previewZoom) {
         val m = map ?: return@LaunchedEffect
         // Sem GPS ainda: a última posição guardada
@@ -139,12 +157,19 @@ fun DriveMap(
         val lon = gps.lon ?: start?.lon ?: return@LaunchedEffect
         // Centro da área abaixo do recuo = altura do carro no card (na pré-visualização, o meio)
         val top = if (preview) 0.0 else (height * (2 * CAR_Y - 1)).toDouble()
+        val zoom = if (preview) previewZoom else zoomFor(gps.speedKmh ?: 0)
+        val bearing = if (preview) gps.bearing?.toDouble() ?: 0.0 else gps.bearing?.toDouble() ?: start?.bearing ?: m.cameraPosition.bearing
+        // Parado (semáforo, estacionado), o GPS oscila uns metros a cada segundo: mover a câmera por isso redesenhava o
+        // mapa a 30 quadros por segundo sem parar. Abaixo de alguns metros e graus, fica onde está.
+        val c = lastCamera
+        val still = !preview && placed[0] && c[3] == zoom && c[4] == top &&
+            Geo.distanceM(c[0], c[1], lat, lon) < STILL_M && Geo.angleDiff(c[2], bearing) < STILL_DEG
+        if (still) return@LaunchedEffect
+        c[0] = lat; c[1] = lon; c[2] = bearing; c[3] = zoom; c[4] = top
         val position = CameraPosition.Builder()
             .target(LatLng(lat, lon))
-            .zoom(if (preview) previewZoom else zoomFor(gps.speedKmh ?: 0))
-            .bearing(
-                if (preview) gps.bearing?.toDouble() ?: 0.0 else gps.bearing?.toDouble() ?: start?.bearing ?: m.cameraPosition.bearing,
-            )
+            .zoom(zoom)
+            .bearing(bearing)
             .tilt(0.0)
             .padding(0.0, top, 0.0, 0.0)
             .build()
@@ -162,6 +187,10 @@ fun DriveMap(
 }
 
 private const val FPS = 30
+
+/** Movimento da câmera que vale a pena: abaixo disso é a oscilação do GPS com o carro parado. */
+private const val STILL_M = 3.0
+private const val STILL_DEG = 2.0
 private const val PREVIEW_FPS = 15
 private const val IDLE_FPS = 1
 
@@ -210,6 +239,10 @@ internal fun mapStyle(mapFiles: List<File>, fontsDir: File, night: Boolean): Str
     val sources = mapFiles.indices.joinToString(",") { i ->
         "\"osm$i\": {\"type\": \"vector\", \"url\": ${JSONObject.quote("pmtiles://file://" + mapFiles[i].absolutePath)}}"
     }
+    val empty = """{"type": "geojson", "data": {"type": "FeatureCollection", "features": []}}"""
+    // O contorno das vias só existe no tema claro: no escuro a camada fica escondida (trocar o tema não recarrega o estilo)
+    val casingColor = c.casing ?: c.land
+    val casingVisibility = if (c.casing == null) "none" else "visible"
     // Cada tipo de camada, uma vez por fonte
     fun perSource(layer: (src: String, id: String) -> String) =
         mapFiles.indices.map { layer("osm$it", "$it") }
@@ -224,20 +257,16 @@ internal fun mapStyle(mapFiles: List<File>, fontsDir: File, night: Boolean): Str
          "layout":{"line-cap":"round","line-join":"round"},
          "paint":{"line-color":"${c.water}","line-width":{"base":1.4,"stops":[[10,1],[15,3],[18,8]]}}}"""
     }
-    val casingMinor = c.casing?.let { col ->
-        perSource { src, i ->
-            """{"id":"casing-minor$i","type":"line","source":"$src","source-layer":"roads","filter":["==","kind","minor_road"],
-         "minzoom":13,"layout":{"line-cap":"round","line-join":"round"},
-         "paint":{"line-color":"$col","line-width":{"base":1.5,"stops":[[12,1.6],[15,5],[18,19]]}}}"""
-        }
-    }.orEmpty()
-    val casingMajor = c.casing?.let { col ->
-        perSource { src, i ->
-            """{"id":"casing-major$i","type":"line","source":"$src","source-layer":"roads","filter":["in","kind","major_road","highway"],
-         "layout":{"line-cap":"round","line-join":"round"},
-         "paint":{"line-color":"$col","line-width":{"base":1.5,"stops":[[9,1.8],[15,8.5],[18,30]]}}}"""
-        }
-    }.orEmpty()
+    val casingMinor = perSource { src, i ->
+        """{"id":"casing-minor$i","type":"line","source":"$src","source-layer":"roads","filter":["==","kind","minor_road"],
+         "minzoom":13,"layout":{"line-cap":"round","line-join":"round","visibility":"$casingVisibility"},
+         "paint":{"line-color":"$casingColor","line-width":{"base":1.5,"stops":[[12,1.6],[15,5],[18,19]]}}}"""
+    }
+    val casingMajor = perSource { src, i ->
+        """{"id":"casing-major$i","type":"line","source":"$src","source-layer":"roads","filter":["in","kind","major_road","highway"],
+         "layout":{"line-cap":"round","line-join":"round","visibility":"$casingVisibility"},
+         "paint":{"line-color":"$casingColor","line-width":{"base":1.5,"stops":[[9,1.8],[15,8.5],[18,30]]}}}"""
+    }
     val minor = perSource { src, i ->
         """{"id":"minor$i","type":"line","source":"$src","source-layer":"roads","filter":["==","kind","minor_road"],"minzoom":12,
          "layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":"${c.minor}","line-width":$minorW}}"""
@@ -258,13 +287,15 @@ internal fun mapStyle(mapFiles: List<File>, fontsDir: File, night: Boolean): Str
          "paint":{"text-color":"${c.label}","text-halo-color":"${c.halo}","text-halo-width":1.6}}"""
     }
     val land = """{"id":"land","type":"background","paint":{"background-color":"${c.land}"}}"""
-    val layers = (listOf(land) + water + rivers + casingMinor + casingMajor + minor + major + highway + names + radarLayers())
-        .joinToString(",\n")
+    val layers = (
+        listOf(land) + water + rivers + casingMinor + casingMajor + minor + major + highway + names +
+            radarLayers(RADAR_SOURCE, "radar") + radarLayers(MINE_SOURCE, "mine")
+        ).joinToString(",\n")
     return """
     {
       "version": 8,
       "glyphs": $glyphs,
-      "sources": {$sources${if (sources.isEmpty()) "" else ","}"$RADAR_SOURCE": {"type": "geojson", "data": {"type": "FeatureCollection", "features": []}}},
+      "sources": {$sources${if (sources.isEmpty()) "" else ","}"$RADAR_SOURCE": $empty, "$MINE_SOURCE": $empty},
       "layers": [
         $layers
       ]
@@ -275,11 +306,34 @@ internal fun mapStyle(mapFiles: List<File>, fontsDir: File, night: Boolean): Str
 /** Fonte GeoJSON dos radares: começa vazia e recebe os pontos depois que o estilo carrega. */
 internal const val RADAR_SOURCE = "radars"
 
+/** Fonte GeoJSON dos pontos marcados pelo usuário, desenhados por cima dos radares. */
+internal const val MINE_SOURCE = "mine"
+
+/** Cores do tema nas camadas do estilo já carregado: trocar entre claro e escuro sem recarregar mapa e radares. */
+private fun applyColors(style: Style, count: Int, night: Boolean) {
+    val c = if (night) NIGHT_MAP else DAY_MAP
+    style.getLayer("land")?.setProperties(PropertyFactory.backgroundColor(c.land))
+    for (i in 0 until count) {
+        style.getLayer("water$i")?.setProperties(PropertyFactory.fillColor(c.water))
+        style.getLayer("rivers$i")?.setProperties(PropertyFactory.lineColor(c.water))
+        for (id in listOf("casing-minor$i", "casing-major$i")) {
+            style.getLayer(id)?.setProperties(
+                PropertyFactory.lineColor(c.casing ?: c.land),
+                PropertyFactory.visibility(if (c.casing == null) Property.NONE else Property.VISIBLE),
+            )
+        }
+        style.getLayer("minor$i")?.setProperties(PropertyFactory.lineColor(c.minor))
+        style.getLayer("major$i")?.setProperties(PropertyFactory.lineColor(c.major))
+        style.getLayer("highway$i")?.setProperties(PropertyFactory.lineColor(c.highway))
+        style.getLayer("names$i")?.setProperties(PropertyFactory.textColor(c.label), PropertyFactory.textHaloColor(c.halo))
+    }
+}
+
 /**
  * Radares e demais pontos de atenção (pedágio, polícia, lombada…) por cima das ruas e dos nomes: um círculo por tipo e,
  * dentro dele, o limite (radares) ou uma letra (L lombada, S câmera de semáforo, P polícia, $ pedágio).
  */
-private fun radarLayers(): List<String> {
+private fun radarLayers(source: String, prefix: String): List<String> {
     val kind = """["get","kind"]"""
     // amarelo: radar fixo e lombada eletrônica; laranja: semáforo com radar e radar móvel; cinza: lombada; vermelho:
     // câmera de semáforo; azul: polícia; verde: pedágio
@@ -289,10 +343,10 @@ private fun radarLayers(): List<String> {
     val radius = """["interpolate",["linear"],["zoom"],12,["match",$kind,4,2.5,5],15,["match",$kind,4,5,10],17,["match",$kind,4,8,15]]"""
     val label = """["case",[">",["get","lim"],0],["to-string",["get","lim"]],["match",$kind,6,"S",7,"P",8,"${'$'}",""]]"""
     return listOf(
-        """{"id":"radar-dot","type":"circle","source":"$RADAR_SOURCE","minzoom":12,
+        """{"id":"$prefix-dot","type":"circle","source":"$source","minzoom":12,
          "paint":{"circle-color":$color,"circle-radius":$radius,"circle-stroke-color":"#FFFFFF","circle-stroke-width":2,
                   "circle-pitch-alignment":"map"}}""",
-        """{"id":"radar-text","type":"symbol","source":"$RADAR_SOURCE","minzoom":14,
+        """{"id":"$prefix-text","type":"symbol","source":"$source","minzoom":14,
          "layout":{"text-field":$label,"text-font":["NotoSansMedium"],"text-size":["interpolate",["linear"],["zoom"],14,9,17,15],
                    "text-allow-overlap":true,"text-ignore-placement":true},
          "paint":{"text-color":$ink}}""",
