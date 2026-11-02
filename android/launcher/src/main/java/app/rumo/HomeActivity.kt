@@ -31,8 +31,14 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import app.rumo.core.AppRelease
 import app.rumo.core.AudioOwner
 import app.rumo.core.Channel
+import app.rumo.core.msUntilUpdateCheck
+import app.rumo.core.newerThanInstalled
+import app.rumo.core.noticeChannel
+import app.rumo.core.parseAppRelease
+import app.rumo.core.toJson
 import app.rumo.core.DataPlan
 import app.rumo.core.DownloadCancelled
 import app.rumo.core.planChange
@@ -236,6 +242,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
             state.appVersion = it.versionName.orEmpty()
             state.appCode = PackageInfoCompat.getLongVersionCode(it)
         }
+        // A versão nova achada na última consulta continua avisando depois de reiniciar, até ser instalada
+        state.update = newerThanInstalled(state.appCode, prefs.getString(PREF_UPDATE_FOUND, null)?.let(::parseAppRelease))
         hideSystemBars()
         setContent { HomeScreen(state, this) }
 
@@ -266,6 +274,19 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 while (true) {
                     state.headlight = withContext(Dispatchers.IO) { CarStatus.headlight() }
                     delay(HEADLIGHT_EVERY_MS)
+                }
+            }
+        }
+
+        // Versão nova no canal da instalada, de 6 em 6 horas. Só com o Rumo na tela (nada roda em segundo plano): ao
+        // voltar, confere pela hora da última consulta o que falta. Falhou (sem rede): tenta de novo em meia hora.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                if (noticeChannel(state.appVersion) == null) return@repeatOnLifecycle // build local
+                while (true) {
+                    val wait = msUntilUpdateCheck(prefs.getLong(PREF_UPDATE_CHECKED, 0L), System.currentTimeMillis())
+                    delay(maxOf(wait, UPDATE_FIRST_DELAY_MS))
+                    if (!checkUpdateNotice()) delay(UPDATE_RETRY_MS)
                 }
             }
         }
@@ -1155,13 +1176,58 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 nightly = nightly.keepingLast(last.nightly),
                 data = data.keepingLast(last.data),
             )
+            // A consulta manual também vale para o aviso do topo, no canal da versão instalada
+            val mine = when (noticeChannel(state.appVersion)) {
+                Channel.STABLE -> stable
+                Channel.NIGHTLY -> nightly
+                null -> null
+            }
+            mine?.release?.let(::noteRelease)
         }
     }
 
+    /**
+     * Consulta o canal da versão instalada para o aviso do topo; true se deu certo (com ou sem versão nova). A consulta
+     * só mexe no aviso: baixar e instalar continuam pedindo o toque do usuário.
+     */
+    private suspend fun checkUpdateNotice(): Boolean {
+        val channel = noticeChannel(state.appVersion) ?: return true
+        val release = updater.fetchChannel(channel).release ?: return false
+        noteRelease(release)
+        return true
+    }
+
+    /** Guarda a hora da consulta e a versão nova (se for), para o aviso sobreviver a reiniciar o Rumo. */
+    private fun noteRelease(release: AppRelease) {
+        val found = newerThanInstalled(state.appCode, release)
+        state.update = found
+        if (found == null) state.updateOpen = false
+        val editor = prefs.edit().putLong(PREF_UPDATE_CHECKED, System.currentTimeMillis())
+        if (found != null) editor.putString(PREF_UPDATE_FOUND, found.toJson()) else editor.remove(PREF_UPDATE_FOUND)
+        editor.apply()
+    }
+
+    override fun openUpdate() {
+        if ((state.gps.speedKmh ?: 0) >= PARKED_BELOW_KMH) {
+            state.toast = "Pare o carro para ver a atualização"
+            return
+        }
+        state.updateOpen = true
+    }
+
+    override fun installUpdate() {
+        val release = state.update ?: return
+        val channel = noticeChannel(state.appVersion) ?: return
+        startInstall(channel, release)
+    }
+
     override fun installApp(channel: Channel) {
-        if (state.transfer != null) return
         val info = if (channel == Channel.STABLE) state.settings.stable else state.settings.nightly
-        val release = info?.release ?: return
+        startInstall(channel, info?.release ?: return)
+    }
+
+    private fun startInstall(channel: Channel, release: AppRelease) {
+        if (state.transfer != null) return
         transferCancelled = false
         val key = channel.name
         val label = "${channel.label} ${release.versionName}"
@@ -1477,6 +1543,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
         /** As configurações da home só abrem abaixo desta velocidade. */
         const val PARKED_BELOW_KMH = 5
         const val PROGRESS_EVERY_MS = 250L
+        /** Hora (ms) da última consulta de versão nova que deu certo, e a versão achada (formato do rumo.json). */
+        const val PREF_UPDATE_CHECKED = "update_checked_at"
+        const val PREF_UPDATE_FOUND = "update_found"
+        /** Ao abrir o Rumo, espera um pouco antes da consulta de versão nova, para não competir com a abertura. */
+        const val UPDATE_FIRST_DELAY_MS = 15_000L
     }
 
     private fun hideSystemBars() {

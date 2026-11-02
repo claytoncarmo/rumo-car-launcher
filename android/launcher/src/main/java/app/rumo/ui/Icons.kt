@@ -51,6 +51,7 @@ object Icons {
     )
     val x = icon("x", s("M18 6 6 18M6 6l12 12"))
     val check = icon("check", s("M5 12l5 5L20 7", 3f))
+    val download = icon("download", s("M12 3v12", 2.6f), s("M7 10l5 5 5-5", 2.6f), s("M5 20h14", 2.6f))
     val plus = icon("plus", s("M12 5v14M5 12h14", 2.8f))
     val minus = icon("minus", s("M5 12h14", 2.8f))
     private const val STAR = "M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5-4.8-4.6 6.6-.9Z"

@@ -3,7 +3,7 @@ name: Stable release
 # Ao criar uma tag vX.Y.Z (ou vX.Y.Z-rc1): compila com essa versão, testa e publica a release com
 # rumo-X.Y.Z.apk (nome com a versão) e rumo.apk (nome fixo, para releases/latest/download/rumo.apk).
 # Tags com sufixo (-rc1, -beta…) saem como pré-release. Pelo botão "Run workflow" compila uma versão de teste
-# sem publicar nada.
+# sem publicar nada. Exige release-notes/X.Y.Z.md (as novidades que o app mostra; regras em release-notes/README.md).
 on:
   push:
     tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
@@ -18,6 +18,18 @@ permissions:
   contents: read
 
 jobs:
+  # Falha logo (antes de esperar o build) se faltar release-notes/X.Y.Z.md ou se ele fugir das regras
+  notes:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Check the release notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: bash .github/scripts/release-notes.sh "release-notes/${TAG#v}.md" required
+
   build:
     uses: ./.github/workflows/build.yml
     with:
@@ -25,7 +37,7 @@ jobs:
     secrets: inherit
 
   publish:
-    needs: build
+    needs: [notes, build]
     permissions:
       contents: write
     if: github.event_name == 'push'
@@ -45,8 +57,11 @@ jobs:
           CODE: ${{ needs.build.outputs.version_code }}
         run: |
           cp dist/rumo.apk "dist/rumo-${VERSION}.apk"
+          NOTES="release-notes/${VERSION}.md"
           bash .github/scripts/rumo-json.sh dist/rumo.apk "$VERSION" "$CODE" \
-            "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/rumo.apk" dist/rumo.json
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/rumo.apk" dist/rumo.json "$NOTES"
+          # O texto da release no GitHub são as mesmas notas, em lista
+          bash .github/scripts/release-notes.sh "$NOTES" required | sed 's/^/- /' > dist/notes.md
           case "$VERSION" in
             *-*) FLAG="--prerelease" ;;
             *)   FLAG="--latest" ;;
@@ -54,5 +69,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" dist/rumo.apk dist/rumo.json "dist/rumo-${VERSION}.apk" \
             --repo "$GITHUB_REPOSITORY" \
             --title "Rumo $VERSION" \
-            --generate-notes \
+            --notes-file dist/notes.md \
             $FLAG

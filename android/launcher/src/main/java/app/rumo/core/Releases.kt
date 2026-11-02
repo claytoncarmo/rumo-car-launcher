@@ -33,7 +33,13 @@ data class AppRelease(
     val url: String,
     val builtAt: String,
     val commit: String,
+    /** Novidades da versão, em frases curtas (release-notes/ do repositório); vazio nas versões antigas. */
+    val notes: List<String> = emptyList(),
 )
+
+/** As notas vêm da rede e são lidas no carro: poucas e curtas. */
+const val MAX_NOTES = 8
+const val MAX_NOTE_CHARS = 120
 
 fun parseAppRelease(text: String): AppRelease? = try {
     val j = JSONObject(text)
@@ -45,11 +51,29 @@ fun parseAppRelease(text: String): AppRelease? = try {
         url = j.getString("url"),
         builtAt = j.optString("builtAt"),
         commit = j.optString("commit"),
+        notes = j.optJSONArray("notes")?.let { arr ->
+            (0 until arr.length()).map { arr.optString(it).trim() }
+                .filter { it.isNotEmpty() }
+                .take(MAX_NOTES)
+                .map { it.take(MAX_NOTE_CHARS) }
+        }.orEmpty(),
     )
     release.takeIf { it.versionName.isNotBlank() && it.size > 0 && it.sha256.length == 64 && it.url.startsWith("https://") }
 } catch (e: Exception) {
     null
 }
+
+/** O mesmo formato do `rumo.json`, para guardar a versão achada e ler de novo com [parseAppRelease]. */
+fun AppRelease.toJson(): String = JSONObject()
+    .put("versionName", versionName)
+    .put("versionCode", versionCode)
+    .put("sha256", sha256)
+    .put("size", size)
+    .put("url", url)
+    .put("builtAt", builtAt)
+    .put("commit", commit)
+    .put("notes", org.json.JSONArray(notes))
+    .toString()
 
 /** A versão publicada em relação à instalada. O Android não deixa instalar uma versão de `versionCode` menor. */
 enum class UpdateKind { NEWER, SAME, OLDER }

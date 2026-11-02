@@ -25,6 +25,8 @@ Foi desenvolvido e testado num aparelho HCN com Android 9 ([detalhes](docs/home-
 
 ## Atualizar
 
+Com o Rumo na tela, ele consulta a cada 6 horas se há versão nova **no canal da versão instalada** (quem usa a estável só é avisado de estável nova; quem usa a nightly, de nightly nova). Quando há, aparece um ícone de download ao lado do botão de tema; tocar nele (com o carro parado) mostra as novidades em poucas linhas e o botão **Baixar e instalar**. As novidades de cada versão ficam em [`release-notes/`](release-notes/README.md).
+
 As **configurações da home** (engrenagem › Configurações da home, só abaixo de 5 km/h) mostram a versão instalada e as últimas publicadas nos canais **estável** e **nightly**. **Instalar** baixa o APK (com retomada se a conexão cair), confere o hash e abre o instalador do Android. A mesma tela baixa e atualiza os dados do mapa. O Android não deixa instalar uma versão mais antiga que a instalada: de nightly só se volta para a estável quando ela for mais nova.
 
 ## Outros aparelhos
@@ -52,6 +54,7 @@ Precisa de JDK 17 e do Android SDK (ou Android Studio): `cd android && ./gradlew
 | [`data/`](data/README.md) | Gerador dos dados offline (OpenStreetMap) |
 | [`docs/home-screen-study.md`](docs/home-screen-study.md) | Estudo das telas iniciais das marcas, segurança, princípios, interface e viabilidade |
 | [`docs/device-integration.md`](docs/device-integration.md) | Serviços do multimídia (farol, fonte, rádio) e como investigá-los |
+| [`release-notes/`](release-notes/README.md) | Novidades de cada versão (curtas, para ler no carro) e as regras para escrevê-las |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Como contribuir: código em inglês, textos e documentação em português, nomes que não mudam |
 | [`prototype/index.html`](prototype/index.html) | Protótipo interativo em HTML, em dia com o app (abra no navegador; os dados são de exemplo) |
 | [`site/`](site/index.html) | Página inicial do GitHub Pages; o workflow `pages.yml` publica junto com o protótipo |

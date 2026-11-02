@@ -1,6 +1,7 @@
 name: Nightly
 
 # A cada push na main que mexe no app: compila, testa e substitui a pré-release "nightly" (canal instável).
+# As novidades mostradas no app vêm de release-notes/next.md (regras em release-notes/README.md).
 on:
   push:
     branches: [main]
@@ -44,7 +45,7 @@ jobs:
           CODE: ${{ needs.build.outputs.version_code }}
         run: |
           bash .github/scripts/rumo-json.sh dist/rumo.apk "$VERSION" "$CODE" \
-            "https://github.com/$GITHUB_REPOSITORY/releases/download/nightly/rumo.apk" dist/rumo.json
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/nightly/rumo.apk" dist/rumo.json release-notes/next.md
           gh release delete nightly --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" || true
           gh release create nightly dist/rumo.apk dist/rumo.json \
             --repo "$GITHUB_REPOSITORY" \

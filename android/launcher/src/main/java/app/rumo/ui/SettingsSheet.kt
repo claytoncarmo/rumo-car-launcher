@@ -452,7 +452,7 @@ private fun SystemSection(a: HomeActions) {
 }
 
 @Composable
-private fun TransferBar(t: Transfer, a: HomeActions) {
+internal fun TransferBar(t: Transfer, a: HomeActions) {
     val p = LocalPalette.current
     val fraction = if (t.total > 0) (t.done.toFloat() / t.total).coerceIn(0f, 1f) else 0f
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

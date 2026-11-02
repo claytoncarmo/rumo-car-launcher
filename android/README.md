@@ -41,7 +41,9 @@ Três workflows em `.github/workflows/`:
 | `release.yml` | Ao criar uma tag `vX.Y.Z` | Release **estável** com `rumo-X.Y.Z.apk` e `rumo.apk` (nome fixo, para `releases/latest/download/rumo.apk`). Tag com sufixo (`v1.0.0-rc1`) sai como pré-release |
 | `map-data.yml` | Mudança em `data/`, todo dia 1 e sob demanda | Pré-release **rumo-data** com `rumo-data-sc.zip` |
 
-Cada publicação do app leva um `rumo.json` (versão, `versionCode`, tamanho, SHA-256, endereço do APK, data e commit; gerado por `.github/scripts/rumo-json.sh`). As configurações da home do app leem os manifestos em endereços fixos: `releases/latest/download/rumo.json` (estável; o GitHub ignora pré-releases no `latest`, então só existe depois da primeira tag `vX.Y.Z`), `releases/download/nightly/rumo.json` e `releases/download/rumo-data/data.json` (dados offline, ver `data/README.md`).
+Cada publicação do app leva um `rumo.json` (versão, `versionCode`, tamanho, SHA-256, endereço do APK, data, commit e `notes`, a lista curta de novidades; gerado por `.github/scripts/rumo-json.sh`). As `notes` vêm de `release-notes/next.md` (nightly) ou `release-notes/X.Y.Z.md` (estável), validadas por `.github/scripts/release-notes.sh`; as regras de escrita estão em `release-notes/README.md`.
+
+**Aviso de versão nova:** `HomeActivity` consulta o `rumo.json` do canal da versão instalada (`noticeChannel` em `core/UpdateNotice.kt`) a cada 6 horas com o Rumo na tela (15 s depois de abrir, se já passou o prazo; falhou, repete em 30 min; a hora da última consulta boa fica em `update_checked_at` e a versão achada em `update_found`, então o aviso sobrevive a reiniciar). Achou uma `versionCode` maior: acende o ícone de download na barra de cima e `ui/UpdatePopup.kt` mostra as `notes` e o botão de baixar e instalar (só com o carro parado). A consulta manual da aba Atualizações também atualiza o aviso. Build local (`0.0.0-dev`) não consulta. As configurações da home do app leem os manifestos em endereços fixos: `releases/latest/download/rumo.json` (estável; o GitHub ignora pré-releases no `latest`, então só existe depois da primeira tag `vX.Y.Z`), `releases/download/nightly/rumo.json` e `releases/download/rumo-data/data.json` (dados offline, ver `data/README.md`).
 
 A seção **Sistema** das configurações da home tem o botão **Reiniciar o Android** (dois toques, só parado; `device/Reboot.kt`). Um app comum não pode reiniciar o Android: o botão tenta `PowerManager.reboot` (permissão `REBOOT`, só de apps do sistema) e `su`; no aparelho do Clayton nenhum dos dois vale. Então usa o serviço de acessibilidade "Rumo" (`device/PowerService.kt`, ligado em Configurações › Acessibilidade), que abre o menu de energia e toca em "Reiniciar" por até 10 s depois do pedido, sem ler nem guardar nada. O diagnóstico **Teste do reinício** grava `reboot-test.txt` com os ganchos de reinício que achar (componentes, textos nos apps do fabricante, métodos da MCU, serviços).
 
@@ -55,12 +57,15 @@ A seção **Sistema** das configurações da home tem o botão **Reiniciar o And
 
 **Lançar uma versão estável:**
 
+1. Revise o `release-notes/next.md` (no máximo 6 itens curtos, sem jargão; ver `release-notes/README.md`), renomeie para `release-notes/X.Y.Z.md` e crie um `next.md` novo só com `# Próxima versão`. Commit e push.
+2. Crie a tag:
+
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-O número vem da tag; não há versão para editar no código. Pelo botão **Run workflow** do `release.yml` dá para compilar uma versão de teste sem publicar nada.
+O número vem da tag; não há versão para editar no código. O `release.yml` falha logo, antes do build, se faltar o `release-notes/X.Y.Z.md` da tag ou se ele fugir das regras; o texto da release no GitHub é essa mesma lista. Pelo botão **Run workflow** do `release.yml` dá para compilar uma versão de teste sem publicar nada.
 
 ## Assinatura
 

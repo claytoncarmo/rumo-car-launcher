@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import app.rumo.core.AppRelease
 import app.rumo.core.Channel
 import app.rumo.core.Favorite
 import app.rumo.core.MarkSpot
@@ -179,6 +180,12 @@ class HomeState {
     var radarMarginKmh by mutableIntStateOf(RadarSettings.MARGIN_DEFAULT)
     /** Menu da engrenagem aberto (configurações da home ou do Android). */
     var settingsMenu by mutableStateOf(false)
+    /**
+     * Versão mais nova que a instalada, no canal da instalada (estável só avisa estável; nightly, nightly): acende o
+     * ícone ao lado do tema. [updateOpen]: o popup com as novidades está aberto.
+     */
+    var update by mutableStateOf<AppRelease?>(null)
+    var updateOpen by mutableStateOf(false)
     var transfer by mutableStateOf<Transfer?>(null)
 }
 
@@ -204,6 +211,10 @@ interface HomeActions {
     fun openSettings()
     fun checkUpdates()
     fun installApp(channel: Channel)
+    /** Abre o popup das novidades da versão nova (só com o carro parado). */
+    fun openUpdate()
+    /** Baixa a versão nova do aviso e abre o instalador do Android. */
+    fun installUpdate()
     /** Marca ou desmarca um estado na lista de dados do mapa (só muda a escolha; [applyData] baixa e remove). */
     fun toggleRegion(id: String)
     /** Baixa os estados marcados que faltam ou estão desatualizados e remove os desmarcados. */
@@ -281,6 +292,7 @@ fun HomeScreen(s: HomeState, a: HomeActions) {
         s.sheet = Sheet.NONE
         s.volumeOpen = false
         s.settingsMenu = false
+        s.updateOpen = false
     }
 
     val night = s.theme.night(s.now.hour, isSystemInDarkTheme(), s.headlight)
@@ -307,6 +319,7 @@ fun HomeScreen(s: HomeState, a: HomeActions) {
             }
             if (s.volumeOpen) VolumeControl(s, a, Modifier.align(Alignment.CenterStart).padding(start = DOCK_WIDTH + 12.dp))
             if (s.settingsMenu) SettingsMenu(s, a)
+            if (s.updateOpen) UpdatePopup(s, a)
             s.toast?.let { Toast(it, Modifier.align(Alignment.BottomCenter)) }
         }
     }
@@ -500,6 +513,16 @@ private fun StatusBar(s: HomeState, a: HomeActions) {
         Spacer(Modifier.width(12.dp))
         Txt(s.now.format(DATE), 18, color = p.text2)
         Spacer(Modifier.weight(1f))
+        // Versão nova publicada: toque abre as novidades
+        if (s.update != null) {
+            Box(
+                Modifier.size(56.dp).clip(RoundedCornerShape(18.dp)).background(p.accent).clickable { a.openUpdate() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Ico(Icons.download, 28.dp, p.onAccent)
+            }
+            Spacer(Modifier.width(8.dp))
+        }
         // Tema: automático → escuro → claro. Toque longo: teste do farol
         Box(
             Modifier

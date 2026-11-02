@@ -21,6 +21,7 @@ Hoje só o HCN de referência foi testado (ver "Outros aparelhos" no [`README.md
 
 - [ ] Estados: atualizar o app, abrir as configurações da home, marcar dois estados vizinhos, baixar, ver o mapa nos dois e atravessar a divisa (rua e limite continuam; sem sumir vias na faixa de folga). Conferir o tamanho de MG e SP e se o mapa continua fluido com mais de um estado.
 
+- [ ] Aviso de versão nova: com uma versão mais nova publicada no canal da instalada (para testar: instalar uma nightly antiga), esperar ~15 s com o Rumo na tela e ver o ícone de download ao lado do tema; parado, tocar abre o popup com as novidades (`notes` do `rumo.json`) e "Baixar e instalar" baixa e abre o instalador; andando, o toque só avisa para parar. Reabrir o Rumo mantém o ícone; depois de instalar, ele some. Quem usa a estável não deve ver aviso de nightly.
 - [ ] Revisão de segurança e desempenho (nov/2026), conferir no carro:
   - O texto RDS e a fonte do card continuam chegando (os ouvintes agora só aceitam avisos do sistema).
   - Tela de rádio: tocar numa favorita ou buscar durante a procura de estações a interrompe e fica na estação escolhida; dois toques seguidos no passo andam 0,4.
