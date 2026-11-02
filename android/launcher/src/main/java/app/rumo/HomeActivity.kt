@@ -34,6 +34,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import app.rumo.core.AppRelease
 import app.rumo.core.AudioOwner
 import app.rumo.core.Channel
+import app.rumo.core.UPDATE_RETRY_MS
 import app.rumo.core.msUntilUpdateCheck
 import app.rumo.core.newerThanInstalled
 import app.rumo.core.noticeChannel
