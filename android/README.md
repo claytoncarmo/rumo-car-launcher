@@ -13,7 +13,9 @@ Kotlin + Jetpack Compose (só `foundation`, sem Material), `minSdk 26`, `targetS
 | `ui/` | Telas em Compose: `Home` (cards, dock, folhas), `RadioSheet`, `DriveMap` (MapLibre), `Theme`, `Icons` |
 | `HomeActivity.kt` | Liga tudo: ciclo de vida, GPS, serviços, preferências |
 
-O que o app pede ao usuário e ao sistema: localização (GPS), leitura e escrita de arquivos (pasta `Rumo` e relatórios), as permissões do rádio `hcn.permission.FM_*`, e `REQUEST_DELETE_PACKAGES` (desinstalar pela gaveta). Preferências ficam em `SharedPreferences` (`rumo`): tema, última posição, favoritas, nomes do rádio, lista da procura.
+O que o app pede ao usuário e ao sistema: localização (GPS), leitura e escrita de arquivos (pasta `Rumo` e relatórios), as permissões do rádio `hcn.permission.FM_*`, e `REQUEST_DELETE_PACKAGES` (desinstalar pela gaveta). Preferências ficam em `SharedPreferences` (`rumo`): tema, favoritas, nomes do rádio (gravados no máximo a cada minuto e ao sair da tela), lista da procura, unidade do `gotoFreq` (`radio_goto_unit`) e o registro dos dados baixados (`data_<arquivo>` = SHA-256 e data de modificação: arquivo trocado depois é conferido de novo). A última posição, gravada a cada 15 s, fica num arquivo à parte (`rumo_position`).
+
+Threads: a conta da via e do radar roda numa thread só (`drive`), só a cada posição nova do GPS (a contagem de satélites é um estado à parte); as chamadas ao `sourceinfo` e ao `fmradio` rodam em outra (`radioIpc`), para os ouvintes entrarem e saírem na ordem; os comandos de sintonia passam por um `Mutex` (um por vez) e a ligação com o serviço do rádio, por outro. Os ouvintes de binder (`AidlTap`) só aceitam avisos de uid ou app do sistema. No mapa, os radares (dezenas de milhares) vão para a fonte uma vez por estilo, os pontos do usuário ficam numa fonte à parte e o tema troca só as cores das camadas.
 
 A integração com os serviços do multimídia está em [`../docs/device-integration.md`](../docs/device-integration.md); os dados offline, em [`../data/README.md`](../data/README.md).
 

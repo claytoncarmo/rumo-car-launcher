@@ -21,6 +21,13 @@ Hoje só o HCN de referência foi testado (ver "Outros aparelhos" no [`README.md
 
 - [ ] Estados: atualizar o app, abrir as configurações da home, marcar dois estados vizinhos, baixar, ver o mapa nos dois e atravessar a divisa (rua e limite continuam; sem sumir vias na faixa de folga). Conferir o tamanho de MG e SP e se o mapa continua fluido com mais de um estado.
 
+- [ ] Revisão de segurança e desempenho (nov/2026), conferir no carro:
+  - O texto RDS e a fonte do card continuam chegando (os ouvintes agora só aceitam avisos do sistema).
+  - Tela de rádio: tocar numa favorita ou buscar durante a procura de estações a interrompe e fica na estação escolhida; dois toques seguidos no passo andam 0,4.
+  - Trocar o tema (farol) só muda as cores do mapa, sem piscar nem sumir os radares; o contorno das vias some no escuro.
+  - Parado no semáforo, o mapa não fica se mexendo; andando, segue normal.
+  - Reiniciar pelo menu de energia ainda clica no "Reiniciar" (agora só em apps do sistema).
+  - Primeira consulta da aba Atualizações depois de instalar: confere o hash dos dados uma vez (pode demorar alguns segundos).
 - [ ] Aba Atualizações: conferir que consulta sozinha ao entrar, que sem internet (desligar o Wi-Fi/dados) a lista da última consulta continua na tela com o aviso, e que consulta de novo sozinha quando a internet volta.
 - [ ] Configurações da home em três abas (Configurações, Atualizações, Debug): conferir o layout no 1280×720; testar a distância do aviso (100 a 1000 m) e a margem de velocidade num radar de verdade.
 - [ ] Aba Pontos das configurações: editar tipo, limite e sentido de um ponto marcado; os botões −5 m / +5 m movem o ponto ao longo da rua (ver o resultado no mapa da tela inicial); apagar. A edição tem um mapa pequeno com o ponto: conferir que aparece, que acompanha as mudanças e que o aparelho aguenta dois mapas (o da tela inicial fica por baixo).

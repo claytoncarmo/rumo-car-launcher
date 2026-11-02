@@ -9,6 +9,7 @@ import android.media.AudioTrack
 import kotlin.math.PI
 import kotlin.math.exp
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
@@ -27,6 +28,18 @@ class Alerts(context: Context) {
         .setOnAudioFocusChangeListener { }
         .build()
     private val chimePcm by lazy { render(listOf(Seg(0.0, 988.0, 0.32, false, 0.5), Seg(0.2, 1319.0, 0.5, false, 0.5))) }
+
+    // Bipes prontos, um por degrau de proximidade (21 degraus: a diferença de tom e ritmo entre eles não se ouve), e
+    // um silêncio só, do tamanho do maior intervalo: até 7 bipes por segundo sem montar e jogar fora buffers a cada um
+    private val beeps = arrayOfNulls<ShortArray>(STEPS + 1)
+    private val silence by lazy { ShortArray((0.95 * RATE).toInt()) }
+
+    private fun beep(step: Int): ShortArray = beeps[step] ?: run {
+        val k = step.toDouble() / STEPS
+        render(listOf(Seg(0.0, 1300.0 + 700 * k, min(0.08, gapOf(k) * 0.45), true, 0.28)), tail = 0.0)
+    }.also { beeps[step] = it }
+
+    private fun gapOf(k: Double) = (950 - 820 * k) / 1000.0
 
     /** Proximidade do radar (0 na borda da zona, 1 em cima dele) enquanto acima do limite; null = sem bipes. */
     @Volatile private var closeness: Float? = null
@@ -58,11 +71,11 @@ class Alerts(context: Context) {
             while (System.currentTimeMillis() < chimeUntil && closeness != null) Thread.sleep(50)
             while (true) {
                 val k = closeness ?: break
-                val gap = (950 - 820 * k) / 1000.0
-                val beep = render(listOf(Seg(0.0, 1300.0 + 700 * k, min(0.08, gap * 0.45), true, 0.28)), tail = 0.0)
-                val silence = ShortArray(((gap * RATE).toInt() - beep.size).coerceAtLeast(0))
+                val step = (k.coerceIn(0f, 1f) * STEPS).roundToInt()
+                val beep = beep(step)
+                val rest = ((gapOf(step.toDouble() / STEPS) * RATE).toInt() - beep.size).coerceIn(0, silence.size)
                 track.write(beep, 0, beep.size)
-                track.write(silence, 0, silence.size)
+                track.write(silence, 0, rest)
             }
         } catch (e: Exception) {
             // som não é essencial: sem bipe, o aviso visual continua
@@ -130,5 +143,6 @@ class Alerts(context: Context) {
 
     private companion object {
         const val RATE = 44_100
+        const val STEPS = 20
     }
 }

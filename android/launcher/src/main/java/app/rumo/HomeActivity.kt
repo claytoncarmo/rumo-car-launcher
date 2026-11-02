@@ -179,6 +179,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private val updater by lazy { Updater(prefs) }
     private var savedOwner: String? = null
     private val prefs by lazy { getSharedPreferences("rumo", MODE_PRIVATE) }
+    // A posição é gravada a cada 15 s: num arquivo pequeno à parte, para não regravar todas as preferências
+    private val positionPrefs by lazy { getSharedPreferences("rumo_position", MODE_PRIVATE) }
+    // Nomes das rádios: o texto RDS muda a cada ~2 s; grava no máximo a cada minuto (e ao sair da tela)
+    private var radioNamesDirty = false
+    private var radioNamesSavedAt = 0L
 
     private val permissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         if (result[Manifest.permission.ACCESS_FINE_LOCATION] == true && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
@@ -218,11 +223,13 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.theme = prefs.getString(PREF_THEME, null)
             ?.let { saved -> ThemeMode.entries.find { it.name == saved } } ?: ThemeMode.AUTO
         systemNight = resources.configuration.isNightBitSet()
-        if (prefs.contains(PREF_LAT)) {
+        // Até a versão 0.1.1 a posição ficava nas preferências gerais
+        val position = if (positionPrefs.contains(PREF_LAT)) positionPrefs else prefs
+        if (position.contains(PREF_LAT)) {
             state.mapStart = MapStart(
-                prefs.getFloat(PREF_LAT, 0f).toDouble(),
-                prefs.getFloat(PREF_LON, 0f).toDouble(),
-                prefs.getFloat(PREF_BEARING, 0f).toDouble(),
+                position.getFloat(PREF_LAT, 0f).toDouble(),
+                position.getFloat(PREF_LON, 0f).toDouble(),
+                position.getFloat(PREF_BEARING, 0f).toDouble(),
             )
         }
         packageManager.getPackageInfo(packageName, 0).let {
@@ -315,6 +322,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             radioStation.stop()
         }
         savePosition(state.gps)
+        flushRadioNames(now = true)
         gps.stop()
         unwatchNetwork()
         alerts.stop()
@@ -398,7 +406,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         val lat = g.lat ?: return
         val lon = g.lon ?: return
         savedAt = SystemClock.elapsedRealtime()
-        val e = prefs.edit().putFloat(PREF_LAT, lat.toFloat()).putFloat(PREF_LON, lon.toFloat())
+        val e = positionPrefs.edit().putFloat(PREF_LAT, lat.toFloat()).putFloat(PREF_LON, lon.toFloat())
         g.bearing?.let { e.putFloat(PREF_BEARING, it) }
         e.apply()
     }
@@ -932,8 +940,19 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }
     }
 
+    /** Nomes das rádios: na tela na hora; nas preferências no máximo a cada minuto (e ao sair da tela, no onStop). */
     private fun saveRadioNames() {
         state.radioNames = radioNames.valid()
+        radioNamesDirty = true
+        flushRadioNames(now = false)
+    }
+
+    private fun flushRadioNames(now: Boolean) {
+        if (!radioNamesDirty) return
+        val t = SystemClock.elapsedRealtime()
+        if (!now && t - radioNamesSavedAt < RADIO_NAMES_EVERY_MS) return
+        radioNamesDirty = false
+        radioNamesSavedAt = t
         prefs.edit().putString(PREF_RADIO_NAMES, radioNames.encode()).apply()
     }
 
@@ -1447,6 +1466,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val RADIO_PKG = "com.hcn.autoradio"
         const val RADIO_EVERY_MS = 1_000L
         const val RADIO_IDLE_EVERY_MS = 5_000L
+        const val RADIO_NAMES_EVERY_MS = 60_000L
         const val PREF_RADIO_UNIT = "radio_goto_unit"
         const val PREF_FAVORITES = "favorites"
         const val PREF_RADIO_NAMES = "radio_names"

@@ -136,42 +136,47 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
 
         // roads.db versão 1 guardava os pontos em pares int32; a 2 (data/roads.py) em diferenças com varint
         private val legacyPoints = (info["version"] ?: "1") == "1"
-        private val ways = HashMap<Long, Way>()
+
+        // Vias já lidas, para os trechos de células vizinhas dividirem o mesmo objeto. Com limite: a junção com o
+        // MapaRadar passa pelo estado inteiro e deixava todas na memória.
+        private val ways = object : LinkedHashMap<Long, Way>(512, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Way>) = size > MAX_WAYS
+        }
 
         fun close() = db?.close()
 
+        /** Trechos de uma célula com as vias, numa consulta só (antes, uma consulta a mais por via nova). */
         @Synchronized
         fun loadCell(cell: Long): List<Run> {
             val db = db ?: return emptyList()
             val out = ArrayList<Run>()
-            db.rawQuery("SELECT way, pts FROM segs WHERE cell = ?", arrayOf(cell.toString())).use { c ->
+            db.rawQuery(
+                "SELECT s.way, s.pts, w.name, w.ref, w.kind, w.oneway, w.fwd, w.bwd, w.est " +
+                    "FROM segs s JOIN ways w ON w.id = s.way WHERE s.cell = ?",
+                arrayOf(cell.toString()),
+            ).use { c ->
                 while (c.moveToNext()) {
-                    val way = wayOf(db, c.getLong(0)) ?: continue
+                    val id = c.getLong(0)
+                    val way = ways.getOrPut(id) {
+                        val est = c.getInt(8)
+                        Way(
+                            id = id,
+                            name = c.getString(2),
+                            ref = c.getString(3),
+                            kind = c.getInt(4),
+                            oneway = c.getInt(5) != 0,
+                            fwd = c.getInt(6),
+                            bwd = c.getInt(7),
+                            fwdEstimated = est and 1 != 0,
+                            bwdEstimated = est and 2 != 0,
+                        )
+                    }
                     val blob = c.getBlob(1)
                     val p = if (legacyPoints) decodePointsV1(blob) else decodePoints(blob)
                     out += Run(way, p.lat, p.lon)
                 }
             }
             return out
-        }
-
-        private fun wayOf(db: SQLiteDatabase, id: Long): Way? {
-            ways[id]?.let { return it }
-            db.rawQuery("SELECT name, ref, kind, oneway, fwd, bwd, est FROM ways WHERE id = ?", arrayOf(id.toString())).use { c ->
-                if (!c.moveToFirst()) return null
-                val est = c.getInt(6)
-                return Way(
-                    id = id,
-                    name = c.getString(0),
-                    ref = c.getString(1),
-                    kind = c.getInt(2),
-                    oneway = c.getInt(3) != 0,
-                    fwd = c.getInt(4),
-                    bwd = c.getInt(5),
-                    fwdEstimated = est and 1 != 0,
-                    bwdEstimated = est and 2 != 0,
-                ).also { ways[id] = it }
-            }
         }
     }
 
@@ -183,6 +188,7 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
         const val CONTOUR = "contour.geojson"
         const val MAPARADAR = "maparadar.csv"
         private const val WAY_SEARCH_M = 45.0
+        private const val MAX_WAYS = 8_000
 
         /** Abre a primeira pasta Rumo encontrada, ou null. Lê o disco: chamar fora da thread principal. */
         fun open(ctx: Context): MapData? {
