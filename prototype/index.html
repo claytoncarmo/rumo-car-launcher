@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Rumo Launcher</title>
+<title>Rumo · protótipo interativo</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -519,23 +519,177 @@ body.kiosk .frame{border-radius:0;box-shadow:none}
 @media (prefers-reduced-motion: reduce){
   .stage *, .stage *::before, .stage *::after{animation-duration:.001s !important;animation-iteration-count:1 !important;transition-duration:.001s !important}
 }
+
+/* ---------- Versão atual do app: o que a tela inicial faz hoje ---------- */
+body.embed .page-head, body.embed .hint, body.embed .rotate-hint{display:none}
+body.embed .app{padding-block:8px;gap:8px}
+.dock{touch-action:pan-y}
+.mc{grid-template-rows:132px minmax(0,1fr);grid-template-areas:"art meta" "ctrl ctrl";padding:20px 20px 16px}
+.mc-art{background:var(--accent-soft);box-shadow:none;display:grid;place-items:center;color:var(--accent-ink)}
+.mc-art .ic{width:56px;height:56px}
+.mc-ctrl{gap:0}
+.cb{flex:1;height:96px;border-radius:24px;display:grid;place-items:center;color:var(--text)}
+.cb.pl{flex:1.1}
+.cb .ic{width:38px;height:38px}
+.cb.pl i{width:108px;height:76px;border-radius:38px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center}
+.cb:active{background:var(--surface-2)}
+.trip-cmp span, .cmp i{display:none}
+.stack-card .stk-label{cursor:default}
+.map-plus{position:absolute;right:14px;top:80px;width:52px;height:52px;border-radius:50%;background:var(--surface-2);opacity:.85;
+  display:grid;place-items:center;color:var(--text-2)}
+.map-plus .ic{width:26px;height:26px}
+.mapfoot{position:absolute;right:18px;bottom:4px;font-size:11px;color:var(--text-3);pointer-events:none}
+
+/* Menu da engrenagem */
+.gmenu{position:absolute;inset:0;z-index:40}
+.gmenu-box{position:absolute;right:20px;top:68px;width:440px;background:var(--surface);border:1px solid var(--line);border-radius:28px;
+  padding:10px;display:flex;flex-direction:column;gap:6px;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+.gm-item{display:flex;align-items:center;gap:16px;padding:12px;border-radius:20px;text-align:left;width:100%}
+.gm-item:active{background:var(--surface-2)}
+.gm-ic{width:56px;height:56px;border-radius:16px;background:var(--surface-2);display:grid;place-items:center;flex:none}
+.gm-ic .ic{width:30px;height:30px}
+.gm-item b{display:block;font-size:22px;font-weight:600}
+.gm-item small{display:block;font-size:15px;color:var(--text-2)}
+
+/* Volume flutuante */
+.vol{position:absolute;left:calc(var(--dock-w) + 12px);top:50%;transform:translateY(-50%);width:132px;z-index:45;background:var(--surface);
+  border:1px solid var(--line);border-radius:28px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+.vol-b{width:108px;height:104px;border-radius:26px;background:var(--surface-2);display:grid;place-items:center;touch-action:none}
+.vol-b .ic{width:44px;height:44px}
+.vol-n{font:700 44px/1 var(--font-num);font-variant-numeric:tabular-nums}
+.vol-bar{width:14px;height:110px;border-radius:7px;background:var(--surface-3);overflow:hidden;display:flex;align-items:flex-end}
+.vol-bar i{display:block;width:100%;background:var(--accent)}
+.vol small{font-size:14px;color:var(--text-3)}
+
+/* Cabeçalho das folhas com abas */
+.sh-title{flex:1;min-width:0}
+.sh-title h2{margin:0;font:600 30px/1.05 var(--font-ui)}
+.sh-title small{display:block;font-size:16px;color:var(--text-2);margin-top:3px}
+.pills{display:flex;gap:12px;padding:0 28px 14px;flex:none}
+.pill{height:56px;padding:0 22px;border-radius:28px;background:var(--surface-2);font-size:17px;font-weight:600;white-space:nowrap}
+.pill.on{background:var(--text);color:var(--surface)}
+.pill[disabled]{opacity:.4}
+
+/* Tela de rádio */
+.rd-wrap{flex:1;min-height:0;display:flex;gap:24px;padding:14px 14px 18px 28px}
+.rd-left{flex:1;min-width:0;display:flex;flex-direction:column}
+.rd-right{flex:1.15;min-width:0;display:flex;flex-direction:column}
+.rd-title{height:64px;display:flex;align-items:center;font:600 30px/1 var(--font-ui)}
+.rd-freq{display:flex;align-items:flex-end;gap:10px;margin-top:10px}
+.rd-freq b{font:600 96px/1 var(--font-num);font-variant-numeric:tabular-nums}
+.rd-freq span{font-size:26px;color:var(--text-2);padding-bottom:14px}
+.rd-star{margin-left:auto;width:72px;height:72px;border-radius:50%;display:grid;place-items:center;color:var(--text-2)}
+.rd-star.on{color:var(--accent)}
+.rd-star .ic{width:40px;height:40px}
+.rd-sub{font-size:20px;color:var(--text-2);min-height:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-ctl{margin-top:auto;display:flex;justify-content:space-between}
+.rd-b{width:104px;height:96px;border-radius:24px;background:var(--surface-2);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.rd-b .ic{width:34px;height:34px}
+.rd-b.fine .ic{width:40px;height:40px}
+.rd-b small{font-size:14px;color:var(--text-2)}
+.rd-b:active{background:var(--surface-3)}
+.rd-link{align-self:flex-end;margin-top:10px;height:40px;padding:0 8px;border-radius:12px;font-size:15px;font-weight:600;color:var(--accent-ink)}
+.rd-tabs{display:flex;align-items:center;gap:10px;padding-right:0}
+.rd-tabs .x{margin-left:auto}
+.rd-pane{flex:1;min-height:0;margin-top:14px;overflow:auto;scrollbar-width:none;position:relative}
+.rd-pane::-webkit-scrollbar{display:none}
+.fav-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding-bottom:12px}
+.fav-w{position:relative}
+.fav{width:100%;height:96px;border-radius:20px;background:var(--surface-2);padding:0 14px;display:flex;flex-direction:column;justify-content:center;text-align:left}
+.fav.on{background:var(--accent-soft);box-shadow:inset 0 0 0 2px var(--accent)}
+.fav b{font:600 30px/1 var(--font-num);font-variant-numeric:tabular-nums}
+.fav small{font-size:15px;color:var(--text-2);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fav-menu{position:absolute;left:8px;top:88px;z-index:5;width:240px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:8px;box-shadow:0 14px 30px rgba(0,0,0,.35)}
+.fav-menu button{display:flex;align-items:center;gap:12px;width:100%;height:60px;padding:0 14px;border-radius:14px;font-size:19px;font-weight:600;text-align:left}
+.fav-menu button:active{background:var(--surface-2)}
+.fav-menu .danger{color:var(--danger)}
+.fav-menu .ic{width:24px;height:24px}
+.fav-scrim{position:absolute;inset:0;z-index:4}
+.rd-note{font-size:18px;color:var(--text-2);margin:0 0 14px}
+.btn-pill{height:56px;padding:0 20px;border-radius:18px;background:var(--surface-2);font-size:17px;font-weight:600;display:inline-flex;align-items:center;gap:10px}
+.btn-pill.primary{background:var(--accent);color:var(--on-accent)}
+.btn-pill[disabled]{opacity:.4}
+.scan-head{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.scan-head span{font-size:17px;color:var(--text-2)}
+.scan-row{display:flex;align-items:center;gap:14px;height:76px;padding:0 6px 0 16px;border-radius:20px;background:var(--surface-2);margin-bottom:8px;width:100%;text-align:left}
+.scan-row.on{background:var(--accent-soft);box-shadow:inset 0 0 0 2px var(--accent)}
+.scan-row b{font:600 30px/1 var(--font-num);font-variant-numeric:tabular-nums;min-width:96px}
+.scan-row span{flex:1;min-width:0;font-size:17px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scan-row .st{width:60px;height:60px;border-radius:50%;display:grid;place-items:center;color:var(--text-2);flex:none}
+.scan-row .st.on{color:var(--accent)}
+.scan-row .st .ic{width:30px;height:30px}
+.dlg{position:absolute;inset:0;z-index:30;background:var(--scrim);display:grid;place-items:center}
+.dlg-box{width:min(560px,90%);background:var(--surface);border-radius:28px;padding:26px;display:flex;flex-direction:column;gap:16px;border:1px solid var(--line)}
+.dlg-box h3{margin:0;font:600 24px/1.1 var(--font-ui)}
+.dlg-box input{height:64px;border-radius:18px;border:2px solid var(--surface-3);background:var(--surface-2);padding:0 18px;font-size:24px;width:100%}
+.dlg-box input:focus{outline:none;border-color:var(--accent)}
+.dlg-row{display:flex;gap:10px;justify-content:flex-end}
+
+/* Configurações da home */
+.st-cols{display:flex;gap:20px;padding:0 28px 22px;flex:1;min-height:0}
+.scard{flex:1;min-width:0;background:var(--surface-2);border-radius:24px;padding:20px;display:flex;flex-direction:column;gap:16px;overflow:auto;scrollbar-width:none}
+.scard::-webkit-scrollbar{display:none}
+.scard h3{margin:0;font-size:15px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-2)}
+.srow{display:flex;align-items:center;gap:14px}
+.srow > div:first-child{flex:1;min-width:0}
+.srow b{display:block;font-size:20px;font-weight:600}
+.srow small{display:block;font-size:15px;color:var(--text-2);margin-top:3px;line-height:1.3}
+.stepper{display:flex;align-items:center;gap:8px;flex:none}
+.stepper button{width:60px;height:60px;border-radius:18px;background:var(--surface);display:grid;place-items:center}
+.stepper button[disabled]{opacity:.35}
+.stepper .ic{width:28px;height:28px}
+.stepper output{min-width:92px;text-align:center;font:700 26px/1 var(--font-num);font-variant-numeric:tabular-nums}
+.scard .note{font-size:14px;color:var(--text-3);margin:0}
+.chan{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;background:var(--surface)}
+.chan > div{flex:1;min-width:0}
+.chan b{display:block;font-size:20px;font-weight:600}
+.chan small{display:block;font-size:15px;color:var(--text-2)}
+.tag{font-size:14px;font-weight:600;padding:6px 12px;border-radius:999px;background:var(--accent-soft);color:var(--accent-ink);white-space:nowrap}
+.tag.ok{background:rgba(34,197,94,.16);color:#22c55e}
+
+/* Pontos marcados */
+.plist{padding:0 28px 22px;flex:1;min-height:0;overflow:auto;scrollbar-width:none;display:flex;flex-direction:column;gap:8px}
+.plist::-webkit-scrollbar{display:none}
+.prow{display:flex;align-items:center;gap:16px;padding:10px 10px 10px 14px;border-radius:20px;background:var(--surface-2)}
+.prow > div{flex:1;min-width:0}
+.prow b{display:block;font-size:20px;font-weight:600}
+.prow small{display:block;font-size:15px;color:var(--text-2)}
+.dot{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font:700 20px/1 var(--font-num);flex:none;box-shadow:0 0 0 3px var(--surface)}
+.del{height:56px;min-width:56px;padding:0 16px;border-radius:18px;background:var(--surface);display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:17px;font-weight:600;color:var(--text-2)}
+.del.ask{background:var(--danger);color:#fff}
+.del .ic{width:26px;height:26px}
+.empty{padding:6px 2px;font-size:18px;color:var(--text-2)}
+
+/* Marcar ponto */
+.mk-body{flex:1;min-height:0;overflow:auto;padding:0 28px 22px;display:flex;flex-direction:column;gap:16px;scrollbar-width:none}
+.mk-body::-webkit-scrollbar{display:none}
+.mk-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mk-top > span{font-size:18px;color:var(--text-2)}
+.mk-top .stepper{margin-right:auto}
+.mk-kinds{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.mk-k{height:128px;border-radius:22px;background:var(--surface-2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:0 6px}
+.mk-k:active{background:var(--surface-3)}
+.mk-k .dot{width:56px;height:56px;font-size:22px}
+.mk-k span{font-size:16px;font-weight:600;text-align:center;line-height:1.1}
+.mk-note{font-size:15px;color:var(--text-3);margin:0}
 </style>
 </head>
 <body>
 <div class="app" id="app">
   <header class="page-head">
     <h1>Rumo</h1>
-    <p>Protótipo de tela inicial para multimídia Android · v0.2 · limite da via, radares, mídia e sugestões sem abrir nenhum app; a navegação fica no Android Auto</p>
+    <p>Protótipo interativo da tela inicial · dados de exemplo · reflete o app 0.1.1: mapa com rua e limite, radares, mídia, rádio, viagem e pontos marcados; a navegação fica no Android Auto</p>
   </header>
   <main class="viewport" id="viewport">
     <div class="frame" id="frame">
       <div class="stage" id="stage" data-mode="night" data-layout="mapa" data-dock="left">
 
-        <nav class="dock" aria-label="Dock">
+        <nav class="dock" id="dock" aria-label="Dock">
           <button class="dk press on" data-act="home" data-dk="home"><svg class="ic"><use href="#i-home"/></svg><span class="dk-lb">Início</span></button>
           <button class="dk press" data-act="aa" data-dk="aa"><svg class="ic"><use href="#i-cast"/></svg><span class="dk-lb">Android Auto</span></button>
-          <button class="dk press" data-act="media-sheet" data-dk="media"><svg class="ic"><use href="#i-music"/></svg><span class="dk-lb">Música</span></button>
-          <button class="dk press" data-act="phone-sheet" data-dk="phone" id="dkPhone"><svg class="ic"><use href="#i-phone"/></svg><span class="dk-lb">Telefone</span></button>
+          <button class="dk press" data-act="radio-sheet" data-dk="radio"><svg class="ic"><use href="#i-radio"/></svg><span class="dk-lb">Rádio</span></button>
+          <button class="dk press" data-act="audio-sheet" data-dk="audio"><svg class="ic"><use href="#i-music"/></svg><span class="dk-lb">Música</span></button>
+          <button class="dk press" data-act="phone-sheet" data-dk="phone"><svg class="ic"><use href="#i-phone"/></svg><span class="dk-lb">Telefone</span></button>
           <button class="dk press" data-act="apps" data-dk="apps"><svg class="ic"><use href="#i-apps"/></svg><span class="dk-lb">Apps</span></button>
           <div class="dk-gap"></div>
           <button class="dk-mic press" data-act="voice" aria-label="Assistente de voz"><svg class="ic"><use href="#i-mic"/></svg></button>
@@ -543,12 +697,9 @@ body.kiosk .frame{border-radius:0;box-shadow:none}
 
         <header class="status">
           <div class="st-clock"><b id="clkTime">--:--</b><span id="clkDate"></span></div>
-          <div class="st-wx"><svg class="ic"><use href="#i-cloud-sun"/></svg><span>27°</span></div>
-          <button class="st-live press" id="livePill" data-act="live" hidden></button>
           <div class="st-sys">
-            <span class="st-net" id="stNet"></span>
-            <button class="st-btn press" data-act="qs" aria-label="Notificações"><svg class="ic"><use href="#i-bell"/></svg><i class="badge" id="bellBadge">2</i></button>
-            <button class="st-btn press" data-act="qs" aria-label="Ajustes rápidos"><svg class="ic"><use href="#i-sliders"/></svg></button>
+            <button class="st-btn press" data-act="theme" id="btnTheme" aria-label="Tema: automático, escuro ou claro"><svg class="ic"><use href="#i-theme-auto"/></svg></button>
+            <button class="st-btn press" data-act="gear" aria-label="Configurações"><svg class="ic"><use href="#i-gear"/></svg></button>
           </div>
         </header>
 
@@ -559,38 +710,50 @@ body.kiosk .frame{border-radius:0;box-shadow:none}
               <div class="map-shade"></div>
               <div class="street"><small id="streetDir">Sentido norte</small><b id="streetName"></b></div>
               <button class="map-app press" data-act="aa" aria-label="Abrir Android Auto"><svg class="ic"><use href="#i-cast"/></svg><span>Android Auto</span></button>
+              <button class="map-plus press" data-act="mark" aria-label="Marcar ponto aqui"><svg class="ic"><use href="#i-plus"/></svg></button>
               <div class="map-bottom">
-                <span class="lim" id="lim" aria-label="Limite da via"><b id="limV">--</b><small>km/h</small></span>
-                <span class="over" id="over" aria-label="Sua velocidade, acima do limite" hidden><b id="overV">0</b><small>km/h</small></span>
                 <div class="radar" id="radar" hidden><span class="rd-ic"><svg class="ic"><use href="#i-radar"/></svg></span><span class="rd-t"><b id="rdD"></b><small id="rdS"></small></span></div>
+                <span class="lim" id="lim" aria-label="Limite da via" style="margin-left:auto"><b id="limV">--</b><small>km/h</small></span>
               </div>
+              <span class="mapfoot">© OpenStreetMap</span>
             </section>
-            <section class="card media-card" id="mediaCard" data-act="media-sheet" aria-label="Mídia">
+            <section class="card media-card" id="mediaCard" data-act="media-open" aria-label="Mídia">
               <div class="mc">
                 <div class="mc-art" id="mcArt"></div>
                 <div class="mc-meta">
-                  <div class="src" id="mcSrc"><i></i><span id="mcSrcLb">Spotify</span></div>
+                  <div class="src" id="mcSrc"><i></i><span id="mcSrcLb">Rádio</span></div>
                   <div class="mc-title" id="mcTitle"></div>
-                  <div class="mc-artist" id="mcArtist"></div>
+                  <div class="mc-artist" id="mcHint" style="white-space:normal;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical"></div>
                 </div>
-                <div class="mc-prog" id="mcProg"></div>
                 <div class="mc-ctrl" id="mcCtrl"></div>
-                <div class="mc-queue" id="mcQueue"></div>
               </div>
             </section>
-            <section class="card stack-card" id="stackCard" aria-label="Cartão inteligente">
-              <div class="stk-head">
-                <button class="stk-label" data-act="stack-next" id="stkLabel"></button>
-                <div class="dots" id="stkDots"></div>
-              </div>
-              <div class="stk-body" id="stkBody"></div>
+            <section class="card stack-card" id="stackCard" aria-label="Viagem">
+              <div class="stk-head"><span class="stk-label">Viagem</span></div>
+              <div class="stk-body"><div class="stk-page">
+                <div class="trip">
+                  <div class="trip-speed"><b class="num" id="tvSpeed">0</b><span>km/h</span></div>
+                  <div class="trip-cmp"><div class="cmp"><i></i><b id="tvCmp">N</b></div></div>
+                  <div class="trip-stats">
+                    <div class="stat"><b id="tvDist">0,0 km</b><small>distância</small></div>
+                    <div class="stat"><b id="tvTime">0:00</b><small>em movimento</small></div>
+                    <div class="stat"><b id="tvAvg">0 km/h</b><small>média</small></div>
+                  </div>
+                </div>
+              </div></div>
             </section>
           </div>
           <div class="sheet" id="sheet" hidden></div>
         </main>
 
-        <div class="qs-scrim" id="qsScrim" data-act="close-qs" hidden></div>
-        <div class="qs" id="qs" hidden></div>
+        <div class="gmenu" id="gmenu" hidden>
+          <div class="qs-scrim" data-act="close-menu" style="position:absolute;inset:0;background:transparent"></div>
+          <div class="gmenu-box">
+            <button class="gm-item press" data-act="open-settings"><span class="gm-ic"><svg class="ic"><use href="#i-home"/></svg></span><span><b>Configurações da home</b><small>Versão, atualização, mapas e diagnósticos</small></span></button>
+            <button class="gm-item press" data-act="open-android"><span class="gm-ic"><svg class="ic"><use href="#i-gear"/></svg></span><span><b>Configurações do sistema</b><small>Wi-fi, Bluetooth, som e o resto do sistema</small></span></button>
+          </div>
+        </div>
+        <div class="vol" id="vol" hidden></div>
         <div class="aa" id="aa" hidden>
           <div class="aa-in">
             <svg class="ic"><use href="#i-cast"/></svg>
@@ -599,11 +762,6 @@ body.kiosk .frame{border-radius:0;box-shadow:none}
             <button class="btn-soft press" data-act="aa-close">Voltar ao Rumo</button>
           </div>
         </div>
-        <div class="notif" id="notif" hidden></div>
-        <div class="callb" id="callb" hidden></div>
-        <div class="voice" id="voice" hidden></div>
-        <div class="night" id="night" data-act="night-off" hidden></div>
-        <div class="screen-off" id="screenOff" data-act="wake" hidden></div>
         <div class="toast" id="toast" role="status" hidden></div>
       </div>
     </div>
@@ -612,9 +770,11 @@ body.kiosk .frame{border-radius:0;box-shadow:none}
     <div class="grp"><span class="lbl">Simular</span>
       <button class="dbtn" id="dDrive" data-demo="drive" aria-pressed="false"><svg><use href="#i-car"/></svg>Dirigir</button>
       <button class="dbtn" id="dSpeed" data-demo="speeding" aria-pressed="false"><svg><use href="#i-gauge"/></svg>Acima do limite</button>
-      <button class="dbtn" data-demo="call"><svg><use href="#i-phone"/></svg>Chamada</button>
-      <button class="dbtn" data-demo="msg"><svg><use href="#i-message"/></svg>Mensagem</button>
-      <button class="dbtn" data-demo="night"><svg><use href="#i-gauge"/></svg>Painel noturno</button>
+      <button class="dbtn" id="dLight" data-demo="light" aria-pressed="false"><svg><use href="#i-sun"/></svg>Farol aceso</button>
+    </div>
+    <div class="grp"><span class="lbl">Fonte</span>
+      <button class="dbtn" id="dSrcAA" data-demo="src-aa" aria-pressed="false"><svg><use href="#i-cast"/></svg>Android Auto</button>
+      <button class="dbtn" id="dSrcFM" data-demo="src-radio" aria-pressed="true"><svg><use href="#i-radio"/></svg>Rádio</button>
     </div>
     <div class="grp"><span class="lbl">Tela</span>
       <select class="dbtn" id="dProfile" aria-label="Resolução da tela">
@@ -622,14 +782,12 @@ body.kiosk .frame{border-radius:0;box-shadow:none}
         <option value="1280" selected>1280 × 720</option>
         <option value="2000">2000 × 1200</option>
       </select>
-      <button class="dbtn" id="dTheme" data-demo="theme"><svg><use href="#i-moon"/></svg><span>Noite</span></button>
       <button class="dbtn" data-demo="full"><svg><use href="#i-expand"/></svg>Tela cheia</button>
     </div>
   </div>
-  <p class="hint">Toque em Dirigir para começar (o som dos alertas só toca depois de um toque na página). Toque no mapa para abrir o Android Auto. Toque longo em um card abre a personalização. Teclado: D dirigir · A acima do limite · C chamada · M mensagem · N painel noturno · V voz · Esc fecha</p>
+  <p class="hint">Toque em Dirigir para começar (o som dos alertas só toca depois de um toque na página). Toque no mapa para abrir o Android Auto; o + marca um radar que falta. Arraste o dedo no menu da esquerda para a direita: volume. Toque longo numa favorita do rádio: dar nome ou remover. Teclado: D dirigir · A acima do limite · F farol · Esc fecha.</p>
   <p class="rotate-hint">Gire o celular para ver a tela maior.</p>
 </div>
-
 <script>
 (() => {
 'use strict';
@@ -743,124 +901,110 @@ const pathsOf = n => (ICONS[n].match(/ d="([^"]+)"/g) || []).map(m => new Path2D
 /* ================================================================
    Dados de exemplo
    ================================================================ */
-const ACCENTS = {
-  ambar:   { name: 'Âmbar',   fill: '#ffb020', on: '#1c1300', inkN: '#ffc45e', inkD: '#8a4f00', soft: 'rgba(255,176,32,.16)' },
-  ciano:   { name: 'Ciano',   fill: '#3cc8f0', on: '#00171f', inkN: '#72d8f6', inkD: '#006583', soft: 'rgba(60,200,240,.16)' },
-  verde:   { name: 'Verde',   fill: '#3ad98a', on: '#00170b', inkN: '#6fe7aa', inkD: '#08703f', soft: 'rgba(58,217,138,.16)' },
-  vermelho:{ name: 'Vermelho',fill: '#ff5458', on: '#1f0002', inkN: '#ff8587', inkD: '#b3131b', soft: 'rgba(255,84,88,.16)' },
-  violeta: { name: 'Violeta', fill: '#a78bfa', on: '#140b2b', inkN: '#c4b5fd', inkD: '#6127d4', soft: 'rgba(167,139,250,.18)' },
-  gelo:    { name: 'Gelo',    fill: '#e6ebf0', on: '#0b0d10', inkN: '#ffffff', inkD: '#1f2937', soft: 'rgba(230,235,240,.12)' }
+Object.assign(ICONS, {
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  minus: '<path d="M5 12h14"/>',
+  star: '<path d="m12 2.5 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.3l-5.8 3.1 1.1-6.5L2.6 9.3l6.5-.9Z"/>',
+  'star-fill': '<path d="m12 2.5 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.3l-5.8 3.1 1.1-6.5L2.6 9.3l6.5-.9Z" fill="currentColor"/>',
+  trash: '<path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M6 6l1 14a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-14"/>',
+  'theme-auto': '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor"/>'
+});
+/* Os ícones novos entram no sprite depois do restante */
+(() => {
+  const sprite = document.querySelector('svg[aria-hidden="true"]');
+  if (!sprite) return;
+  const extra = ['plus', 'minus', 'star', 'star-fill', 'trash', 'theme-auto'];
+  sprite.insertAdjacentHTML('beforeend', extra.map(k =>
+    `<symbol id="i-${k}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[k]}</symbol>`).join(''));
+})();
+
+const ACCENT = { fill: '#ffb020', on: '#1c1300', inkN: '#ffc45e', inkD: '#8a4f00', soft: 'rgba(255,176,32,.16)' };
+const APP_VERSION = '0.1.1';
+
+/* Tipos de ponto: as mesmas cores das bolinhas do mapa do app. "enf": fiscaliza velocidade (tem limite e bipes). */
+const KINDS = {
+  fixed:  { name: 'Radar fixo',          color: '#facc15', ink: '#1a1400', enf: true },
+  tlr:    { name: 'Semáforo com radar',  color: '#f97316', ink: '#1a1400', enf: true },
+  mobile: { name: 'Radar móvel',         color: '#ea580c', ink: '#1a1400', enf: true },
+  bump:   { name: 'Lombada',             color: '#9ca3af', ink: '#1a1400', enf: false, badge: 'L' },
+  ebump:  { name: 'Lombada eletrônica',  color: '#facc15', ink: '#1a1400', enf: true },
+  cam:    { name: 'Semáforo com câmera', color: '#ef4444', ink: '#ffffff', enf: false, badge: 'S' },
+  police: { name: 'Polícia rodoviária',  color: '#3b82f6', ink: '#ffffff', enf: false, badge: 'P' },
+  toll:   { name: 'Pedágio',             color: '#10b981', ink: '#ffffff', enf: false, badge: '$' }
 };
-const MUSIC_APPS = { spotify: 'Spotify', ytmusic: 'YouTube Music', deezer: 'Deezer' };
-const TRACKS = {
-  stream: [
-    { t: 'Azul da Cor do Mar', a: 'Tim Maia', al: 'Tim Maia (1970)', d: 233, c: ['#0f3b66', '#1f7ab8', '#ffd36b'] },
-    { t: 'País Tropical', a: 'Jorge Ben', al: 'Jorge Ben (1969)', d: 176, c: ['#1b5e20', '#2e7d32', '#ffd54f'] },
-    { t: 'Oceano', a: 'Djavan', al: 'Djavan (1989)', d: 291, c: ['#0b2545', '#1d4e89', '#8ecae6'] },
-    { t: 'Ainda Bem', a: 'Marisa Monte', al: 'O Que Você Quer Saber de Verdade', d: 234, c: ['#3c096c', '#9d4edd', '#ffd6ff'] },
-    { t: 'Leãozinho', a: 'Caetano Veloso', al: 'Bicho (1977)', d: 179, c: ['#7f1d0e', '#d9573a', '#f6d860'] },
-    { t: 'Águas de Março', a: 'Elis Regina & Tom Jobim', al: 'Elis & Tom (1974)', d: 212, c: ['#264653', '#2a9d8f', '#e9c46a'] }
-  ],
-  usb: [
-    { t: 'Tempo Perdido', a: 'Legião Urbana', al: 'Dois (1986)', d: 301, c: ['#1f1f1f', '#4a4a4a', '#e63946'] },
-    { t: 'Pro Dia Nascer Feliz', a: 'Barão Vermelho', al: 'Barão Vermelho 2 (1983)', d: 204, c: ['#3d0000', '#950101', '#ffcc00'] },
-    { t: 'Exagerado', a: 'Cazuza', al: 'Exagerado (1985)', d: 186, c: ['#14213d', '#fca311', '#e5e5e5'] },
-    { t: 'Óculos', a: 'Os Paralamas do Sucesso', al: 'O Passo do Lui (1984)', d: 196, c: ['#023047', '#219ebc', '#ffb703'] }
-  ],
-  bt: [
-    { t: 'Evidências', a: 'Chitãozinho & Xororó', al: 'Cowboy do Asfalto (1990)', d: 271, c: ['#5f0f40', '#9a031e', '#fb8b24'] },
-    { t: 'Amor de Índio', a: 'Beto Guedes', al: 'Amor de Índio (1978)', d: 259, c: ['#283618', '#606c38', '#fefae0'] },
-    { t: 'Trem-Bala', a: 'Ana Vilela', al: 'Trem-Bala (2016)', d: 214, c: ['#22223b', '#4a4e69', '#f2e9e4'] }
-  ]
-};
-const RADIO = [
-  { f: '89,1', g: 'Rock clássico' }, { f: '92,5', g: 'Sertanejo' }, { f: '94,7', g: 'Notícias · trânsito agora' },
-  { f: '96,9', g: 'Pop' }, { f: '100,9', g: 'MPB' }, { f: '102,1', g: 'Esportes' }
+const KIND_ORDER = ['fixed', 'tlr', 'mobile', 'bump', 'ebump', 'cam', 'police', 'toll'];
+const badgeOf = (kind, lim) => KINDS[kind].enf ? String(lim) : KINDS[kind].badge;
+const dotHTML = (kind, lim) => `<span class="dot" style="background:${KINDS[kind].color};color:${KINDS[kind].ink}">${badgeOf(kind, lim)}</span>`;
+
+/* Rádio FM: faixa de 87,5 a 107,9 MHz; o ajuste fino anda 0,2 MHz. O texto RDS gira entre alguns textos e só chega
+   um instante depois de firmar na estação; o app guarda o último de cada frequência por 6 horas. */
+const BAND = { min: 87500, max: 107900, step: 200 };
+const STATIONS = [
+  { k: 89100,  rds: ['Rock clássico', 'O som do seu dia'] },
+  { k: 91300,  rds: ['Notícias · trânsito agora', 'Jornal da manhã'] },
+  { k: 93700,  rds: ['Sertanejo', 'Os maiores sucessos'] },
+  { k: 96900,  rds: ['Pop', 'Hits da hora'] },
+  { k: 98500,  rds: ['MPB', 'Brasilidade'] },
+  { k: 100900, rds: ['Esportes', 'Bate-bola ao vivo'] },
+  { k: 102100, rds: ['Variedades', 'Música e informação'] },
+  { k: 104500, rds: ['Clássicos', 'Grandes sucessos'] },
+  { k: 106700, rds: ['Jovem', 'Pop e eletrônica'] }
 ];
-const SOURCES = [
-  { id: 'stream', icon: 'music' }, { id: 'radio', icon: 'radio', name: 'Rádio FM' },
-  { id: 'usb', icon: 'usb', name: 'Pendrive' }, { id: 'bt', icon: 'bluetooth', name: 'Bluetooth' }
-];
-const srcName = id => id === 'stream' ? MUSIC_APPS[settings.musicApp] : SOURCES.find(s => s.id === id).name;
-const CONTACTS = {
-  mae:     { name: 'Mãe', ini: 'M', h: 340, num: '(11) 95555-0101', kind: 'celular' },
-  ana:     { name: 'Ana Paula', ini: 'AP', h: 200, num: '(11) 95555-0177', kind: 'celular' },
-  marcos:  { name: 'Marcos', ini: 'MA', h: 110, num: '(11) 95555-0123', kind: 'celular' },
-  oficina: { name: 'Oficina', ini: 'OF', h: 30, num: '(11) 3555-0190', kind: 'trabalho' },
-  seguro:  { name: 'Seguro Auto', ini: 'SA', h: 160, num: '0800 555 0100', kind: 'assistência 24h' },
-  casa:    { name: 'Casa', ini: 'C', h: 265, num: '(11) 3555-0110', kind: 'fixo' }
-};
-const FAVS = ['mae', 'ana', 'marcos', 'oficina', 'seguro', 'casa'];
-const RECENTS = [
-  { c: 'ana', type: 'missed', when: 'Hoje, 13:58' },
-  { c: 'mae', type: 'in', when: 'Hoje, 12:10' },
-  { c: 'oficina', type: 'out', when: 'Ontem, 17:42' },
-  { c: null, num: '(11) 95555-0142', type: 'in', when: 'Ontem, 09:15' },
-  { c: 'marcos', type: 'out', when: 'Terça, 19:03' },
-  { c: 'seguro', type: 'out', when: 'Segunda, 08:30' }
-];
+const stationAt = k => STATIONS.find(s => s.k === k);
+const fmtFreq = k => (k / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const DEFAULT_FAVS = [{ k: 89100, name: 'Rock' }, { k: 96900, name: 'Pop' }, { k: 100900, name: '' }, { k: 106700, name: '' }];
+
+/* Apps da gaveta. "Música" e "Telefone" mostram só os apps desse tipo, como no aparelho. */
 const APPS = [
-  { id: 'aa', name: 'Android Auto', cat: 'nav', h: 214, g: 'cast', act: 'aa' },
-  { id: 'waze', name: 'Waze', cat: 'nav', h: 196, g: 'nav' },
-  { id: 'gmaps', name: 'Google Maps', cat: 'nav', h: 140, g: 'map' },
-  { id: 'spotify', name: 'Spotify', cat: 'media', h: 145, g: 'music', act: 'music' },
-  { id: 'ytmusic', name: 'YouTube Music', cat: 'media', h: 356, g: 'play', act: 'music' },
-  { id: 'deezer', name: 'Deezer', cat: 'media', h: 265, g: 'eq', act: 'music' },
-  { id: 'radio', name: 'Rádio FM', cat: 'media', h: 24, g: 'radio', act: 'radio' },
-  { id: 'usb', name: 'Pendrive', cat: 'media', h: 215, g: 'usb', act: 'usb' },
-  { id: 'video', name: 'Vídeos', cat: 'media', h: 330, g: 'video', park: true },
-  { id: 'phone', name: 'Telefone', cat: 'com', h: 150, g: 'phone', act: 'phone' },
-  { id: 'uber', name: 'Uber Driver', cat: 'com', h: 220, s: '6%', txt: 'U' },
-  { id: '99', name: '99 Motorista', cat: 'com', h: 46, s: '95%', txt: '99' },
-  { id: 'voice', name: 'Assistente', cat: 'tools', h: 230, g: 'mic', act: 'voice' },
-  { id: 'weather', name: 'Clima', cat: 'tools', h: 205, g: 'cloud-sun', act: 'weather' },
-  { id: 'calendar', name: 'Agenda', cat: 'tools', h: 4, g: 'calendar' },
-  { id: 'dvr', name: 'Câmera DVR', cat: 'tools', h: 255, g: 'camera', park: true },
-  { id: 'car', name: 'Carro', cat: 'tools', h: 0, s: '0%', g: 'car' },
-  { id: 'eq', name: 'Equalizador', cat: 'tools', h: 285, g: 'eq' },
-  { id: 'browser', name: 'Navegador', cat: 'tools', h: 210, g: 'globe', park: true },
-  { id: 'store', name: 'Play Store', cat: 'tools', h: 160, g: 'bag', park: true },
-  { id: 'files', name: 'Arquivos', cat: 'tools', h: 42, g: 'folder', park: true },
-  { id: 'settings', name: 'Ajustes', cat: 'tools', h: 215, s: '10%', g: 'gear' },
-  { id: 'rumo', name: 'Personalizar', cat: 'tools', g: 'palette', act: 'custom', acc: true }
-];
-const CATS = [['all', 'Todos'], ['nav', 'Navegação'], ['media', 'Mídia'], ['com', 'Comunicação'], ['tools', 'Ferramentas']];
-const LAYOUTS = [
-  { id: 'mapa', name: 'Mapa em foco', desc: 'Mapa grande, mídia e cartão ao lado' },
-  { id: 'equilibrado', name: 'Equilibrado', desc: 'Três colunas do mesmo peso' },
-  { id: 'midia', name: 'Mídia em foco', desc: 'Capa grande, mapa menor' }
-];
-const STACK_PAGES = [
-  { id: 'sugestoes', name: 'Sugestões', icon: 'route' }, { id: 'viagem', name: 'Viagem', icon: 'gauge' },
-  { id: 'clima', name: 'Clima', icon: 'cloud-sun' }, { id: 'favoritos', name: 'Favoritos', icon: 'phone' }
+  { id: 'aa', name: 'Android Auto', t: 'audio', h: 214, g: 'cast', act: 'aa' },
+  { id: 'radio', name: 'Rádio', t: 'audio', h: 24, g: 'radio', act: 'radio' },
+  { id: 'spotify', name: 'Spotify', t: 'audio', h: 145, g: 'music' },
+  { id: 'ytmusic', name: 'YouTube Music', t: 'audio', h: 356, g: 'play' },
+  { id: 'usb', name: 'Reprodutor USB', t: 'audio', h: 215, g: 'usb' },
+  { id: 'phone', name: 'Telefone', t: 'phone', h: 150, g: 'phone' },
+  { id: 'contacts', name: 'Contatos', t: 'phone', h: 200, g: 'phone' },
+  { id: 'waze', name: 'Waze', h: 196, g: 'nav' },
+  { id: 'gmaps', name: 'Google Maps', h: 140, g: 'map' },
+  { id: 'files', name: 'Arquivos', h: 42, g: 'folder' },
+  { id: 'browser', name: 'Navegador', h: 210, g: 'globe' },
+  { id: 'store', name: 'Play Store', h: 160, g: 'bag' },
+  { id: 'camera', name: 'Câmera de ré', h: 255, g: 'camera' },
+  { id: 'eq', name: 'Equalizador', h: 285, g: 'eq' },
+  { id: 'settings', name: 'Ajustes', h: 215, s: '10%', g: 'gear' }
 ];
 const PROFILES = { '1024': { w: 1024, h: 600 }, '1280': { w: 1280, h: 720 }, '2000': { w: 2000, h: 1200 } };
 
 /* ================================================================
-   Configurações (persistem só neste navegador) e estado
+   Configurações (guardadas só neste navegador) e estado
    ================================================================ */
-const DEFAULTS = { layout: 'mapa', accent: 'ambar', theme: 'auto', dock: 'left', musicApp: 'spotify',
-  stackPages: ['sugestoes', 'viagem', 'clima', 'favoritos'], safety: true, profile: '1280',
-  radarSound: 'bipe', radarDist: '500', overTol: '0' };
+const ZONE = { min: 100, max: 1000, step: 50, def: 300 };
+const MARGIN = { min: 0, max: 10, def: 0 };
+const DEFAULTS = { theme: 'auto', profile: '1280', radarDist: ZONE.def, radarMargin: MARGIN.def };
 const settings = Object.assign({}, DEFAULTS, store.get('settings', {}));
-if (!Array.isArray(settings.stackPages) || !settings.stackPages.length) settings.stackPages = DEFAULTS.stackPages.slice();
+settings.radarDist = clamp(Math.round(+settings.radarDist || ZONE.def), ZONE.min, ZONE.max);
+settings.radarMargin = clamp(Math.round(+settings.radarMargin || 0), MARGIN.min, MARGIN.max);
+if (!['auto', 'dark', 'light'].includes(settings.theme)) settings.theme = 'auto';
 
+const hourNow = new Date().getHours();
 const state = {
   moving: false, speeding: false, speed: 0, cruiseOff: 0, cruiseT: 0,
   s: 0, cam: 0, heading: 0, zoom: 0.95,
   radar: null, aa: false,
   trip: { m: 0, t: 0 },
-  media: { source: 'stream', idx: 2, pos: 84, playing: true, radio: 2, shuffle: false, repeat: false },
-  call: null, wasPlaying: false,
-  sheet: null, phoneTab: 'favs', appCat: 'all', dial: '',
-  stackIdx: 0, missed: true,
-  notifs: [
-    { id: 1, app: 'Telefone', icon: 'phone-missed', from: 'Ana Paula', text: 'Chamada perdida', time: '13:58' },
-    { id: 2, app: 'Agenda', icon: 'calendar', from: 'Revisão do carro', text: 'Amanhã, 9:00 · Oficina', time: '08:00' }
-  ],
-  wifi: true, bt: true, dnd: false, bright: 100, vol: 14,
-  night: false, screenOff: false, qs: false, voice: null
+  headlight: hourNow >= 18 || hourNow < 6,
+  source: 'radio',
+  radio: { k: 96900, muted: false, text: '', tunedAt: performance.now() },
+  favs: store.get('favs', DEFAULT_FAVS),
+  names: {},
+  radioTab: 'fav', scan: null, favMenu: null, rename: null,
+  mine: store.get('mine', []), spot: null, markLim: 60, markBoth: false, markList: false,
+  sheet: null, settingsTab: 'config', armed: null,
+  vol: clamp(+store.get('vol', 14) || 14, 0, 30), volOpen: false, volTick: 0, gmenu: false
 };
+if (!Array.isArray(state.favs)) state.favs = DEFAULT_FAVS.slice();
+if (!Array.isArray(state.mine)) state.mine = [];
+state.radioTab = state.favs.length ? 'fav' : 'scan';
+
 
 /* ================================================================
    Elementos
@@ -893,16 +1037,17 @@ function layoutStage() {
 /* ================================================================
    Tema e configurações
    ================================================================ */
+/* Automático: o app segue o farol do carro (serviço do multimídia); aqui o botão "Farol aceso" faz esse papel. */
 function currentMode() {
-  if (settings.theme !== 'auto') return settings.theme;
-  const h = new Date().getHours();
-  return (h >= 18 || h < 6) ? 'night' : 'day';
+  if (settings.theme === 'dark') return 'night';
+  if (settings.theme === 'light') return 'day';
+  return state.headlight ? 'night' : 'day';
 }
 const MC = {};
 function applyTheme() {
   const mode = currentMode();
   stage.dataset.mode = mode;
-  const a = ACCENTS[settings.accent] || ACCENTS.ambar;
+  const a = ACCENT;
   stage.style.setProperty('--accent', a.fill);
   stage.style.setProperty('--on-accent', a.on);
   stage.style.setProperty('--accent-ink', mode === 'day' ? a.inkD : a.inkN);
@@ -914,21 +1059,18 @@ function applyTheme() {
   MC.text = cs.getPropertyValue('--text').trim();
   MC.text2 = cs.getPropertyValue('--text-2').trim();
   MC.accent = a.fill; MC.onAccent = a.on; MC.soft = a.soft;
-  const dt = $('#dTheme');
-  dt.querySelector('span').textContent = mode === 'day' ? 'Dia' : 'Noite';
-  dt.querySelector('use').setAttribute('href', mode === 'day' ? '#i-sun' : '#i-moon');
+  const icon = { auto: 'theme-auto', dark: 'moon', light: 'sun' }[settings.theme];
+  $('#btnTheme use').setAttribute('href', '#i-' + icon);
+  $('#dLight').setAttribute('aria-pressed', String(state.headlight));
   mapDirty = true;
 }
 function applySettings(save = true) {
-  stage.dataset.layout = settings.layout;
-  stage.dataset.dock = settings.dock;
   applyTheme();
   $('#dProfile').value = settings.profile;
-  state.stackIdx = clamp(state.stackIdx, 0, settings.stackPages.length - 1);
-  renderMedia(); renderStack();
   if (save) store.set('settings', settings);
   requestAnimationFrame(resizeMap);
 }
+
 
 /* ================================================================
    Mapa: cidade procedural, percurso em circuito e rota
@@ -973,13 +1115,6 @@ const compassOf = h => COMPASS[mod(Math.round(h / (Math.PI / 4)), 8)];
 /* Limite por tipo de via (padrões do CTB para vias urbanas): avenida arterial 60, rua coletora 40, rua local 30.
    No app, o limite vem do OpenStreetMap (maxspeed); sem ele, usa este padrão e marca como estimado. */
 const limitOf = i => { const a = V[i], b = V[i + 1], k = a.x === b.x ? a.x / S : a.y / S; return k % 4 === 0 ? 60 : k % 3 === 0 ? 30 : 40; };
-const RADARS = [
-  { m: 900, type: 'radar' }, { m: 3400, type: 'lombada' }, { m: 6100, type: 'radar' },
-  { m: 8200, type: 'lombada' }, { m: 9600, type: 'radar' }
-];
-RADARS.forEach((r, k) => { r.id = k; r.s = r.m / MPP; r.lim = limitOf(segAt(r.s)); });
-const RADAR_NAME = { radar: 'Radar fixo', lombada: 'Lombada eletrônica' };
-const RADAR_PATHS = pathsOf('radar');
 const DIR_NAME = { N: 'norte', NE: 'nordeste', L: 'leste', SE: 'sudeste', S: 'sul', SO: 'sudoeste', O: 'oeste', NO: 'noroeste' };
 const CAR_PATH = new Path2D('M12 2 19 21 12 17 5 21Z');
 
@@ -1064,17 +1199,17 @@ function drawMap() {
   ctx.beginPath(); ctx.moveTo(DIAG[0][0], DIAG[0][1]); ctx.lineTo(DIAG[1][0], DIAG[1][1]);
   if (cased) { ctx.strokeStyle = MC.casing; ctx.lineWidth = 22; ctx.stroke(); }
   ctx.strokeStyle = MC.diag; ctx.lineWidth = 18; ctx.stroke();
-  // radares, com o ícone sempre "em pé" na tela
+  // radares e pontos marcados: bolinha na cor do tipo, com o limite (ou a letra) dentro, sempre "em pé" na tela
   for (const rd of RADARS) {
-    const p = pointAt(rd.s), dir = segDir(p.i);
+    const p = pointAt(rd.s), dir = segDir(p.i), kd = KINDS[rd.kind];
     const near = state.radar && state.radar.id === rd.id, alarm = near && state.radar.alarm;
     ctx.save(); ctx.translate(p.x - dir.y * 24, p.y + dir.x * 24); ctx.rotate(state.cam); ctx.scale(1 / z, 1 / z);
-    ctx.beginPath(); ctx.arc(0, 0, near ? 21 : 16, 0, Math.PI * 2);
-    ctx.fillStyle = alarm ? '#dc2626' : '#facc15'; ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = MC.block; ctx.stroke();
-    const k = near ? 1.1 : 0.85; ctx.scale(k, k); ctx.translate(-12, -12);
-    ctx.lineWidth = 2.2; ctx.strokeStyle = alarm ? '#ffffff' : '#1a1400'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    RADAR_PATHS.forEach(p2 => ctx.stroke(p2));
+    ctx.beginPath(); ctx.arc(0, 0, near ? 22 : 17, 0, Math.PI * 2);
+    ctx.fillStyle = alarm ? '#dc2626' : kd.color; ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = MC.block; ctx.stroke();
+    ctx.fillStyle = alarm ? '#ffffff' : kd.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `700 ${near ? 17 : 14}px "Barlow Semi Condensed", Barlow, sans-serif`;
+    ctx.fillText(badgeOf(rd.kind, rd.lim), 0, 1);
     ctx.restore();
   }
   ctx.restore();
@@ -1129,29 +1264,43 @@ function tick(t) {
 /* ================================================================
    Limite de velocidade, radares e alertas sonoros
    ================================================================ */
+/* Radares do trajeto (no app vêm do OpenStreetMap e do MapaRadar) e os pontos que o usuário marca com o "+". */
+const RADARS = [
+  { m: 900, kind: 'fixed' }, { m: 3400, kind: 'ebump' }, { m: 6100, kind: 'fixed' },
+  { m: 8200, kind: 'ebump' }, { m: 9600, kind: 'fixed' }
+];
+RADARS.forEach((r, k) => { r.id = k; r.s = r.m / MPP; r.lim = limitOf(segAt(r.s)); });
+let radarSeq = RADARS.length;
+state.mine.forEach(m => RADARS.push({ id: radarSeq++, s: m.s, kind: m.kind, lim: m.lim, uid: m.uid }));
+
 const fmtDist = m => m >= 995 ? `${fmt1.format(m / 1000)} km` : `${Math.max(10, Math.round(m / 10) * 10)} m`;
+/* A zona de aviso é a configurada; lombada comum, pedágio, polícia e câmera de semáforo avisam a no máximo 300 m */
+const zoneOf = r => KINDS[r.kind].enf ? settings.radarDist : Math.min(settings.radarDist, 300);
 function radarAhead() {
   let best = null;
   for (const r of RADARS) { const d = mod(r.s - state.s, L) * MPP; if (!best || d < best.d) best = { r, d }; }
   return best;
 }
 let overOn = false;
+/* Velocidade em vermelho assim que passa do limite da via (com 1 km/h de histerese, para não piscar) */
 function speedState() {
-  const lim = limitOf(segAt(state.s)), v = Math.round(state.speed), tol = +settings.overTol;
-  // 1 km/h de histerese para o destaque não piscar exatamente no limite
-  overOn = v >= 3 && (overOn ? v > lim + tol - 1 : v > lim + tol);
+  const lim = limitOf(segAt(state.s)), v = Math.round(state.speed);
+  overOn = v >= 3 && (overOn ? v > lim - 1 : v > lim);
   return { lim, v, over: overOn };
 }
 function alertTick() {
-  const a = radarAhead(), zone = +settings.radarDist;
+  const a = radarAhead();
   const same = state.radar && a && state.radar.id === a.r.id;
-  const inZone = a && a.d <= zone && (state.speed > 5 || same);
+  const inZone = a && a.d <= zoneOf(a.r) && (state.speed > 5 || same);
   if (!inZone) { if (state.radar) { state.radar = null; mapDirty = true; } return; }
-  if (!same) { state.radar = { id: a.r.id, lim: a.r.lim, type: a.r.type, d: a.d, alarm: false }; radarChime(a.r, a.d); }
+  if (!same) { state.radar = { id: a.r.id, lim: a.r.lim, kind: a.r.kind, d: a.d, alarm: false, sound: false }; radarChime(); }
   state.radar.d = a.d;
-  const alarm = Math.round(state.speed) > a.r.lim;
+  const enf = KINDS[a.r.kind].enf, v = Math.round(state.speed);
+  // Aviso em vermelho: acima do limite do radar. Bipes: acima do limite mais a margem configurada.
+  const alarm = enf && v > a.r.lim;
+  state.radar.sound = enf && v > a.r.lim + settings.radarMargin;
   if (alarm !== state.radar.alarm) { state.radar.alarm = alarm; mapDirty = true; }
-  if (alarm && !alarmTimer) alarmLoop();
+  if (state.radar.sound && !alarmTimer) alarmLoop();
 }
 
 /* Som: Web Audio (no app Android: canal de orientação de navegação, que abaixa a música) */
@@ -1175,466 +1324,405 @@ function tone(f, t0, dur, type, g) {
 }
 const alertGain = () => 0.08 + state.vol / 30 * 0.22;
 /* Som só com o Rumo na tela: com o Android Auto aberto, quem avisa é o Waze/Maps */
-const canSound = () => settings.radarSound !== 'off' && !state.aa;
-function radarChime(r, d) {
+const canSound = () => !state.aa;
+function radarChime() {
   if (!canSound()) return;
-  const a = audioCtx();
-  if (a) { const t = a.currentTime + 0.02; tone(988, t, 0.32, 'sine', alertGain()); tone(1319, t + 0.2, 0.5, 'sine', alertGain()); }
-  if (settings.radarSound === 'voz') setTimeout(() => speak(`${RADAR_NAME[r.type]} a ${Math.round(d / 50) * 50} metros. Limite ${r.lim}.`), 750);
+  const a = audioCtx(); if (!a) return;
+  const t = a.currentTime + 0.02;
+  tone(988, t, 0.32, 'sine', alertGain()); tone(1319, t + 0.2, 0.5, 'sine', alertGain());
 }
 /* Acima do limite do radar: bipes que ficam mais rápidos e mais agudos conforme o radar se aproxima
-   (de ~1 bipe por segundo na borda da zona de aviso até ~8 por segundo em cima do radar) */
+   (de ~1 bipe por segundo na borda da zona de aviso até ~7 por segundo em cima do radar) */
 let alarmTimer = null;
 function alarmLoop() {
   alarmTimer = null;
   const r = state.radar;
-  if (!r || !r.alarm || !canSound()) return;
-  const d = mod(RADARS[r.id].s - state.s, L) * MPP;
-  if (d > +settings.radarDist) return;  // já passou do radar
-  const k = clamp(1 - d / +settings.radarDist, 0, 1);
+  if (!r || !r.sound || !canSound()) return;
+  const zone = zoneOf(RADARS.find(x => x.id === r.id));
+  const d = mod(RADARS.find(x => x.id === r.id).s - state.s, L) * MPP;
+  if (d > zone) return;  // já passou do radar
+  const k = clamp(1 - d / zone, 0, 1);
   const gap = 950 - 820 * k;
   const a = audioCtx();
   if (a) tone(1300 + 700 * k, a.currentTime + 0.01, Math.min(0.08, gap * 0.45 / 1000), 'square', alertGain() * 0.7);
   alarmTimer = setTimeout(alarmLoop, gap);
 }
 
+
 /* Android Auto (simulado) */
-function openAA() { closeSheet(); closeQS(); closeVoice(); state.aa = true; $('#aa').hidden = false; markDock(); updateSpeedUI(); }
+function openAA() { closeSheet(); closeMenus(); state.aa = true; $('#aa').hidden = false; markDock(); }
 function closeAA() { state.aa = false; $('#aa').hidden = true; markDock(); }
 
 /* ================================================================
-   Renderização: mapa (sobreposições), mídia, cartão inteligente
+   Barra de cima, mapa (sobreposições), mídia e viagem
    ================================================================ */
 let lastLim = null;
 function updateSpeedUI() {
-  const { lim, v, over } = speedState(), r = state.radar;
-  const radarTxt = r ? (r.alarm ? `Reduza · radar ${r.lim} km/h` : `${RADAR_NAME[r.type]} · ${r.lim} km/h`) : '';
-  // tela inicial
+  const { lim } = speedState(), r = state.radar;
   $('#streetName').textContent = streetOf(segAt(state.s));
-  $('#streetDir').textContent = `Sentido ${DIR_NAME[compassOf(state.heading)]}`;
+  $('#streetDir').textContent = state.speed > 1 ? `Sentido ${DIR_NAME[compassOf(state.heading)]}` : 'Parado';
   if (lastLim !== lim) {
     const el = $('#lim'); $('#limV').textContent = lim;
     if (lastLim !== null) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
     lastLim = lim;
   }
-  $('#over').hidden = !over; $('#overV').textContent = v;
   const rd = $('#radar'); rd.hidden = !r;
-  if (r) { rd.classList.toggle('alarm', r.alarm); $('#rdD').textContent = fmtDist(r.d); $('#rdS').textContent = radarTxt; }
-}
-
-function artBg(t) {
-  const [a, b, c] = t.c;
-  return `radial-gradient(circle at 70% 32%, ${c} 0 16%, transparent 16.5%),` +
-    `repeating-linear-gradient(0deg, transparent 0 8px, rgba(0,0,0,.2) 8px 11px) 0 100% / 100% 40% no-repeat,` +
-    `linear-gradient(160deg, ${a}, ${b})`;
-}
-const RADIO_BG = 'radial-gradient(circle at 30% 20%, rgba(255,255,255,.18), transparent 50%), linear-gradient(160deg, #4a1d0a, #b5541c)';
-const curList = () => TRACKS[state.media.source] || [];
-const curTrack = () => { const l = curList(); return l[mod(state.media.idx, l.length)]; };
-function artHTML(big) {
-  const m = state.media;
-  if (m.source === 'radio') { const st = RADIO[m.radio]; return { bg: RADIO_BG, html: `<div class="art-fm"><b>${st.f}</b><span>FM</span></div>` }; }
-  return { bg: artBg(curTrack()), html: '' };
-}
-function renderMedia() {
-  const m = state.media, radio = m.source === 'radio';
-  const art = artHTML();
-  const a = $('#mcArt'); a.style.background = art.bg; a.innerHTML = art.html;
-  $('#mcSrcLb').textContent = srcName(m.source);
-  $('#mcSrc').classList.toggle('paused', !m.playing);
-  if (radio) {
-    const st = RADIO[m.radio];
-    $('#mcTitle').textContent = `${st.f} FM`;
-    $('#mcArtist').textContent = st.g;
-    $('#mcProg').innerHTML = `<div class="rds">${ic('radio')}<span>Sinal estéreo · RDS</span></div>`;
-  } else {
-    const t = curTrack();
-    $('#mcTitle').textContent = t.t;
-    $('#mcArtist').textContent = t.a;
-    $('#mcProg').innerHTML = `<div class="bar"><i id="mcBar"></i></div><div class="times num"><span id="mcPos"></span><span>${mmss(t.d)}</span></div>`;
+  if (r) {
+    const k = KINDS[r.kind];
+    rd.classList.toggle('alarm', r.alarm);
+    $('#rdD').textContent = fmtDist(r.d);
+    $('#rdS').textContent = r.alarm ? `Reduza · ${k.name.toLowerCase()} · ${r.lim} km/h` : `${k.name}${k.enf ? ` · ${r.lim} km/h` : ''}`;
   }
-  $('#mcCtrl').innerHTML = `
-    <button class="cbtn press" data-act="prev" aria-label="${radio ? 'Estação anterior' : 'Faixa anterior'}">${ic('prev')}</button>
-    <button class="cbtn play press" data-act="toggle-play" aria-label="${m.playing ? 'Pausar' : 'Tocar'}">${ic(m.playing ? 'pause' : 'play')}</button>
-    <button class="cbtn press" data-act="next" aria-label="${radio ? 'Próxima estação' : 'Próxima faixa'}">${ic('next')}</button>`;
-  $('#mcQueue').innerHTML = radio ? `<div class="q-h">Memórias</div><div class="presets">${RADIO.map((r, i) => `<button class="preset press ${i === m.radio ? 'on' : ''}" data-act="preset" data-i="${i}"><b>${r.f}</b><small>${r.g.split(' ·')[0]}</small></button>`).join('')}</div>` : `<div class="q-h">A seguir</div>` + [1, 2].map(k => {
-    const t = curList()[mod(m.idx + k, curList().length)];
-    return `<button class="q-row press" data-act="q-play" data-i="${mod(m.idx + k, curList().length)}"><i class="q-art" style="background:${artBg(t)}"></i><span><b>${esc(t.t)}</b><small>${esc(t.a)}</small></span></button>`;
-  }).join('');
-  updateProgress();
-  if (state.sheet === 'media') renderSheet();
-}
-function updateProgress() {
-  if (state.media.source === 'radio') return;
-  const t = curTrack(), p = state.media.pos / t.d * 100;
-  document.querySelectorAll('#mcBar, #msBar').forEach(b => { b.style.width = p + '%'; });
-  document.querySelectorAll('#mcPos, #msPos').forEach(e => { e.textContent = mmss(state.media.pos); });
-}
-function mediaTick() {
-  const m = state.media;
-  if (!m.playing || m.source === 'radio') return;
-  m.pos += 1;
-  if (m.pos >= curTrack().d) { m.repeat ? (m.pos = 0) : step(1); return; }
-  updateProgress();
-}
-function step(d) {
-  const m = state.media;
-  if (m.source === 'radio') { m.radio = mod(m.radio + d, RADIO.length); }
-  else if (m.shuffle && d > 0) { m.idx = mod(m.idx + 1 + Math.floor(Math.random() * (curList().length - 1)), curList().length); m.pos = 0; }
-  else { if (d < 0 && m.pos > 5) m.pos = 0; else { m.idx = mod(m.idx + d, curList().length); m.pos = 0; } }
-  renderMedia(); updateLive();
-}
-function setSource(id) {
-  const m = state.media; if (m.source === id) return;
-  m.source = id; m.idx = 0; m.pos = 0; m.playing = true;
-  renderMedia(); updateLive();
-}
-
-function stackPages() { return settings.stackPages.map(id => STACK_PAGES.find(p => p.id === id)).filter(Boolean); }
-function suggestions() {
-  const out = [];
-  if (state.missed) out.push({ icon: 'phone-missed', t: 'Retornar: Ana Paula', sub: 'Chamada perdida às 13:58', act: 'call', c: 'ana', ok: true });
-  out.push({ icon: 'cast', t: 'Abrir Android Auto', sub: 'Celular conectado', act: 'aa' });
-  out.push({ icon: 'calendar', t: 'Revisão do carro', sub: 'Amanhã, 9:00 · ligar para Oficina', act: 'call', c: 'oficina' });
-  out.push({ icon: 'radio', t: 'Ouvir o trânsito agora', sub: 'Rádio 94,7 FM · boletim a cada 15 min', act: 'radio-947' });
-  return out;
-}
-function renderStack() {
-  const pages = stackPages(); state.stackIdx = clamp(state.stackIdx, 0, pages.length - 1);
-  const pg = pages[state.stackIdx];
-  $('#stkLabel').innerHTML = `${ic(pg.icon)}<span>${pg.name}</span>`;
-  $('#stkDots').innerHTML = pages.length > 1 ? pages.map((p, i) => `<button data-act="stack-go" data-i="${i}" class="${i === state.stackIdx ? 'on' : ''}" aria-label="${p.name}"><i></i></button>`).join('') : '';
-  let html = '';
-  if (pg.id === 'sugestoes') {
-    html = suggestions().map(s => `<button class="sg press" data-act="${s.act}" ${s.dest ? `data-dest="${s.dest}"` : ''} ${s.c ? `data-c="${s.c}"` : ''}>
-      <span class="sg-ic ${s.ok ? 'ok' : ''}" style="flex:none">${ic(s.icon)}</span><span><b>${esc(s.t)}</b><small>${esc(s.sub)}</small></span>${ic('chev-r')}</button>`).join('');
-  } else if (pg.id === 'viagem') {
-    html = `<div class="trip">
-      <div class="trip-speed"><b class="num" id="tvSpeed">0</b><span>km/h</span><span class="lim"><b id="tvLim">--</b><small>km/h</small></span></div>
-      <div class="trip-cmp"><div class="cmp"><i id="tvNeedle"></i><b id="tvCmp">N</b></div><span id="tvDeg">0°</span></div>
-      <div class="trip-stats">
-        <div class="stat"><b id="tvDist">0,0 km</b><small>distância</small></div>
-        <div class="stat"><b id="tvTime">0:00</b><small>tempo</small></div>
-        <div class="stat"><b id="tvAvg">0 km/h</b><small>média</small></div>
-      </div></div>`;
-  } else if (pg.id === 'clima') {
-    const hrs = [[15, 'cloud-sun', 28], [16, 'cloud-sun', 28], [17, 'cloud', 26], [18, 'rain', 23], [19, 'rain', 22]];
-    const now = new Date().getHours();
-    html = `<div class="wx"><div class="wx-now">${ic('cloud-sun')}<b>27°</b><div><strong>Parcialmente nublado</strong>Máx 31° · Mín 19° · chuva 40% às 18h</div></div>
-      <div class="wx-hours">${hrs.slice(0, 4).map(([h, i, t], k) => `<div class="wx-h"><span>${pad2((now + k + 1) % 24)}h</span>${ic(i)}<b>${t}°</b></div>`).join('')}</div></div>`;
-  } else {
-    html = `<div class="favs">${['mae', 'ana', 'marcos', 'oficina'].map(c => { const p = CONTACTS[c]; return `<button class="fav press" data-act="call" data-c="${c}"><span class="av" style="--h:${p.h}">${p.ini}</span><b>${esc(p.name)}</b></button>`; }).join('')}</div>`;
-  }
-  $('#stkBody').innerHTML = `<div class="stk-page">${html}</div>`;
-  updateTrip();
 }
 function updateTrip() {
-  const sp = $('#tvSpeed'); if (!sp) return;
   const ss = speedState();
-  sp.textContent = ss.v; sp.classList.toggle('hot', ss.over); $('#tvLim').textContent = ss.lim;
-  const deg = Math.round(mod(state.heading * 180 / Math.PI, 360));
+  const sp = $('#tvSpeed'); sp.textContent = ss.v; sp.classList.toggle('hot', ss.over);
   $('#tvCmp').textContent = compassOf(state.heading);
-  $('#tvDeg').textContent = `${deg}°`;
-  $('#tvNeedle').style.transform = `rotate(${deg}deg)`;
   $('#tvDist').textContent = `${fmt1.format(state.trip.m / 1000)} km`;
   const t = Math.round(state.trip.t / 60);
   $('#tvTime').textContent = `${Math.floor(t / 60)}:${pad2(t % 60)}`;
   $('#tvAvg').textContent = `${state.trip.t > 5 ? Math.round(state.trip.m / state.trip.t * 3.6) : 0} km/h`;
 }
-
-/* Barra de status */
 function updateClock() {
   const d = new Date();
   $('#clkTime').textContent = hhmm(d);
   $('#clkDate').textContent = d.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' });
 }
-function renderNet() {
-  $('#stNet').innerHTML = `<span style="display:flex;align-items:center;gap:6px">${ic('signal')}4G</span>
-    ${ic('bluetooth', state.bt ? '' : 'off')}${ic('wifi', state.wifi ? '' : 'off')}`;
-  const n = state.notifs.length, b = $('#bellBadge');
-  b.textContent = n; b.hidden = !n;
+
+/* Mídia: o card sabe a fonte (Android Auto ou rádio). No Android Auto os botões mandam teclas de mídia; no rádio, anterior e
+   próxima trocam entre as favoritas e o play liga e desliga o som do rádio. */
+const favOf = k => state.favs.find(f => f.k === k);
+const sortedFavs = () => state.favs.slice().sort((a, b) => a.k - b.k);
+function radioLine() {
+  const r = state.radio, f = favOf(r.k);
+  return [f && f.name, r.text].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(' · ');
 }
-function updateLive() {
-  const el = $('#livePill');
-  let html = '', cls = '';
-  if (state.call && state.call.status !== 'incoming') {
-    cls = 'call';
-    const c = contactOf(state.call);
-    html = `${ic('phone')}<span>${esc(c.name)} · ${state.call.status === 'dialing' ? 'chamando…' : mmss(state.call.t)}</span>`;
-  } else if (state.sheet && state.sheet !== 'media' && state.media.playing) {
-    const radio = state.media.source === 'radio';
-    html = `${ic(radio ? 'radio' : 'music')}<span>${radio ? RADIO[state.media.radio].f + ' FM' : esc(curTrack().t) + ' · ' + esc(curTrack().a)}</span>`;
+function renderMedia() {
+  const radio = state.source === 'radio', r = state.radio;
+  $('#mcArt').innerHTML = ic(radio ? 'radio' : 'cast');
+  $('#mcSrcLb').textContent = radio ? 'Rádio' : 'Android Auto';
+  $('#mcTitle').textContent = radio ? `${fmtFreq(r.k)} FM` : 'Música do celular';
+  $('#mcHint').textContent = radio ? (r.muted ? 'Rádio parado' : radioLine()) : 'Os botões controlam o ZLINK';
+  $('#mcCtrl').innerHTML = `
+    <button class="cb press" data-act="m-prev" aria-label="Anterior">${ic('prev')}</button>
+    <button class="cb pl press" data-act="m-play" aria-label="Play e pausa"><i>${ic('play')}</i></button>
+    <button class="cb press" data-act="m-next" aria-label="Próxima">${ic('next')}</button>`;
+  $('#dSrcAA').setAttribute('aria-pressed', String(!radio));
+  $('#dSrcFM').setAttribute('aria-pressed', String(radio));
+}
+function setSource(src) {
+  state.source = src;
+  if (src === 'radio') state.radio.muted = false;
+  renderMedia();
+  if (state.sheet === 'radio') updateRadioLeft();
+}
+
+/* ================================================================
+   Rádio
+   ================================================================ */
+function tune(k, quiet) {
+  const r = state.radio;
+  r.k = clamp(k, BAND.min, BAND.max); r.text = ''; r.tunedAt = performance.now(); r.muted = false;
+  state.source = 'radio';
+  if (!quiet) { renderMedia(); updateRadioLeft(); updateFavMarks(); }
+}
+/* Busca: vai para a próxima estação com sinal, dando a volta na faixa */
+function seek(up) {
+  const ks = STATIONS.map(s => s.k).sort((a, b) => a - b), k = state.radio.k;
+  const next = up ? (ks.find(x => x > k) ?? ks[0]) : ([...ks].reverse().find(x => x < k) ?? ks[ks.length - 1]);
+  tune(next);
+}
+/* Ajuste fino: 0,2 MHz */
+function stepFreq(up) {
+  let k = state.radio.k + (up ? BAND.step : -BAND.step);
+  if (k > BAND.max) k = BAND.min; else if (k < BAND.min) k = BAND.max;
+  tune(k);
+}
+function toggleFav(k) {
+  if (favOf(k)) state.favs = state.favs.filter(f => f.k !== k);
+  else state.favs = [...state.favs, { k, name: '' }].sort((a, b) => a.k - b.k);
+  store.set('favs', state.favs);
+  state.favMenu = null;
+  if (state.sheet === 'radio') { updateRadioLeft(); renderRadioRight(); renderTabs(); }
+}
+/* O texto RDS chega ~1,5 s depois de firmar e gira entre os textos da emissora; cada frequência guarda o último visto */
+function radioTick() {
+  const r = state.radio, st = stationAt(r.k);
+  let text = '';
+  if (st && !r.muted) {
+    const el = (performance.now() - r.tunedAt) / 1000;
+    if (el >= 1.5) text = st.rds[Math.floor((el - 1.5) / 2.4) % st.rds.length];
   }
-  el.hidden = !html;
-  el.className = 'st-live press ' + cls;
-  if (html && el.innerHTML !== html) el.innerHTML = html;
-  $('#dkPhone').classList.toggle('has-call', !!(state.call && state.call.status !== 'incoming'));
+  if (text === r.text) return;
+  r.text = text;
+  if (text) state.names[r.k] = text;
+  renderMedia();
+  if (state.sheet === 'radio') {
+    updateRadioLeft();
+    document.querySelectorAll('.fav small[data-k]').forEach(el => { const k = +el.dataset.k; el.textContent = favName(k); });
+  }
+}
+const favName = k => { const f = favOf(k); return (f && f.name) || state.names[k] || 'FM'; };
+
+function radioLeftHTML() {
+  const r = state.radio, fav = favOf(r.k);
+  const sub = [fav && fav.name, r.text].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(' · ');
+  return `<div class="rd-title">Rádio</div>
+    <div class="rd-freq"><b>${fmtFreq(r.k)}</b><span>FM</span>
+      <button class="rd-star press ${fav ? 'on' : ''}" data-act="fav-toggle" data-k="${r.k}" aria-label="${fav ? 'Tirar das favoritas' : 'Favoritar'}">${ic(fav ? 'star-fill' : 'star')}</button></div>
+    <div class="rd-sub">${esc(sub) || '&nbsp;'}</div>
+    <div class="rd-ctl">
+      <button class="rd-b press" data-act="seek-down" aria-label="Buscar para baixo">${ic('prev')}<small>Buscar</small></button>
+      <button class="rd-b fine press" data-act="step-down" aria-label="Ajuste fino, 0,2 abaixo">${ic('chev-l')}</button>
+      <button class="rd-b fine press" data-act="step-up" aria-label="Ajuste fino, 0,2 acima">${ic('chev-r')}</button>
+      <button class="rd-b press" data-act="seek-up" aria-label="Buscar para cima">${ic('next')}<small>Buscar</small></button>
+    </div>
+    <button class="rd-link press" data-act="radio-app">App do rádio ›</button>`;
+}
+function updateRadioLeft() { const el = $('#rdLeft'); if (el) el.innerHTML = radioLeftHTML(); }
+function updateFavMarks() {
+  document.querySelectorAll('.fav[data-k]').forEach(el => el.classList.toggle('on', +el.dataset.k === state.radio.k));
+  document.querySelectorAll('.scan-row[data-k]').forEach(el => el.classList.toggle('on', +el.dataset.k === state.radio.k));
+}
+function radioRightHTML() {
+  if (state.radioTab === 'scan') return scanHTML();
+  if (!state.favs.length) {
+    return `<p class="rd-note">Nenhuma favorita ainda. Toque na estrela para favoritar a estação atual, ou use Procurar estações.</p>
+      <button class="btn-pill press" data-act="import-presets">Trazer as 6 memórias do aparelho</button>`;
+  }
+  const items = sortedFavs().map(f => `<div class="fav-w">
+    <button class="fav press ${f.k === state.radio.k ? 'on' : ''}" data-act="tune" data-k="${f.k}" data-fav="${f.k}"><b>${fmtFreq(f.k)}</b><small data-k="${f.k}">${esc(favName(f.k))}</small></button>
+    ${state.favMenu === f.k ? `<div class="fav-menu"><button class="press" data-act="fav-rename" data-k="${f.k}">${ic('check')}Dar nome</button><button class="press danger" data-act="fav-remove" data-k="${f.k}">${ic('trash')}Remover</button></div>` : ''}
+  </div>`).join('');
+  return `${state.favMenu !== null ? '<div class="fav-scrim" data-act="fav-menu-close"></div>' : ''}<div class="fav-grid">${items}</div>`;
+}
+function scanHTML() {
+  const sc = state.scan, found = sc ? sc.found : [];
+  const head = sc && sc.running
+    ? `<button class="btn-pill press" data-act="scan-stop">Parar</button><span>Procurando… ${found.length} ${found.length === 1 ? 'estação' : 'estações'}</span>`
+    : `<button class="btn-pill primary press" data-act="scan-start">${sc ? 'Procurar de novo' : 'Procurar estações'}</button><span>${sc ? `${found.length} estações encontradas` : 'Sobe a faixa e junta as que têm sinal.'}</span>`;
+  const rows = found.map(k => `<div class="scan-row press ${k === state.radio.k ? 'on' : ''}" data-k="${k}" data-act="tune">
+      <b>${fmtFreq(k)}</b><span data-k="${k}">${esc(favName(k) === 'FM' ? '' : favName(k))}</span>
+      <button class="st press ${favOf(k) ? 'on' : ''}" data-act="fav-toggle" data-k="${k}" aria-label="Favoritar">${ic(favOf(k) ? 'star-fill' : 'star')}</button></div>`).join('');
+  return `<div class="scan-head">${head}</div>${rows}`;
+}
+function renderRadioRight() { const el = $('#rdRight'); if (el) el.innerHTML = radioRightHTML(); }
+function renderTabs() {
+  const el = $('#rdTabs'); if (!el) return;
+  el.querySelector('[data-tab="fav"]').textContent = `Favoritas (${state.favs.length})`;
+}
+let scanTimer = null;
+function startScan() {
+  stopScan(true);
+  state.scan = { running: true, found: [], back: state.radio.k };
+  let i = 0;
+  scanTimer = setInterval(() => {
+    if (i >= STATIONS.length) { stopScan(false); return; }
+    const s = STATIONS[i++];
+    state.scan.found.push(s.k);
+    tune(s.k, true);
+    state.names[s.k] = state.names[s.k] || s.rds[0];
+    renderRadioRight(); updateRadioLeft(); renderMedia();
+    // A lista rola para o último resultado enquanto procura
+    const pane = $('#rdRight'); if (pane) pane.scrollTop = pane.scrollHeight;
+  }, 480);
+  renderRadioRight();
+}
+/* Ao acabar (ou parar), volta à estação em que estava antes de procurar */
+function stopScan(silent) {
+  if (scanTimer) { clearInterval(scanTimer); scanTimer = null; }
+  if (state.scan && state.scan.running) {
+    state.scan.running = false;
+    if (!silent) { tune(state.scan.back); }
+  }
+  if (!silent) renderRadioRight();
+}
+
+function sheetRadio() {
+  const t = state.radioTab;
+  return `<div class="rd-wrap">
+    <div class="rd-left" id="rdLeft">${radioLeftHTML()}</div>
+    <div class="rd-right">
+      <div class="rd-tabs" id="rdTabs">
+        <button class="pill press ${t === 'fav' ? 'on' : ''}" data-act="rd-tab" data-tab="fav">Favoritas (${state.favs.length})</button>
+        <button class="pill press ${t === 'scan' ? 'on' : ''}" data-act="rd-tab" data-tab="scan">Procurar estações</button>
+        <button class="x press" data-act="close" aria-label="Fechar">${ic('x')}</button>
+      </div>
+      <div class="rd-pane" id="rdRight">${radioRightHTML()}</div>
+    </div>
+  </div>${state.rename ? `<div class="dlg"><div class="dlg-box"><h3>Nome da ${fmtFreq(state.rename)} FM</h3>
+      <input id="rnIn" maxlength="24" value="${esc((favOf(state.rename) || {}).name || '')}" autocomplete="off">
+      <div class="dlg-row"><button class="btn-pill press" data-act="rename-cancel">Cancelar</button><button class="btn-pill primary press" data-act="rename-save">Salvar</button></div></div></div>` : ''}`;
 }
 
 /* ================================================================
    Folhas (sheets)
    ================================================================ */
-const isLocked = () => state.moving && settings.safety;
-const lockMsg = () => toast('Disponível com o carro parado', 'lock');
+const isParked = () => state.speed < 5 && !state.moving;
+const parkedOnly = () => { toast('Disponível com o carro parado', 'lock'); };
 function openSheet(name) {
-  closeQS();
-  state.sheet = name;
+  closeMenus();
+  if (state.sheet === 'radio' && name !== 'radio') stopScan(false);
+  state.sheet = name; state.armed = null; state.favMenu = null; state.rename = null;
   renderSheet();
   sheetEl.hidden = false;
   sheetEl.style.animation = 'none'; void sheetEl.offsetWidth; sheetEl.style.animation = '';
-  markDock(); updateLive();
+  markDock();
 }
 function closeSheet() {
   if (!state.sheet) return;
-  state.sheet = null; sheetEl.hidden = true; sheetEl.innerHTML = '';
-  markDock(); updateLive();
+  if (state.sheet === 'radio') stopScan(false);
+  state.sheet = null; state.armed = null; state.favMenu = null; state.rename = null;
+  sheetEl.hidden = true; sheetEl.innerHTML = '';
+  markDock();
 }
 function markDock() {
-  const map = { media: 'media', phone: 'phone', apps: 'apps' };
+  const map = { radio: 'radio', audio: 'audio', phone: 'phone', apps: 'apps' };
   const key = state.aa ? 'aa' : state.sheet ? (map[state.sheet] || '') : 'home';
   document.querySelectorAll('.dk').forEach(b => b.classList.toggle('on', b.dataset.dk === key));
 }
-const head = (title, mid = '') => `<div class="sh-head"><h2>${title}</h2>${mid ? `<div class="sh-mid">${mid}</div>` : ''}<button class="x press" data-act="close" aria-label="Fechar">${ic('x')}</button></div>`;
-const seg = (k, opts) => `<div class="seg">${opts.map(([v, l]) => `<button class="${settings[k] === v ? 'on' : ''}" data-act="set" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`;
+const head = (title, sub = '') => `<div class="sh-head"><div class="sh-title"><h2>${title}</h2>${sub ? `<small>${sub}</small>` : ''}</div><button class="x press" data-act="close" aria-label="Fechar">${ic('x')}</button></div>`;
 function renderSheet() {
-  const f = { media: sheetMedia, phone: sheetPhone, apps: sheetApps, custom: sheetCustom }[state.sheet];
+  const f = { radio: sheetRadio, audio: () => sheetApps('Música', 'audio'), phone: () => sheetApps('Telefone', 'phone'), apps: () => sheetApps('Apps'),
+    settings: sheetSettings, mark: sheetMark }[state.sheet];
   if (!f) return;
-  const scroll = sheetEl.querySelector('.sh-body') ? sheetEl.querySelector('.sh-body').scrollTop : 0;
+  const body = sheetEl.querySelector('.sh-body, .plist, .mk-body'); const scroll = body ? body.scrollTop : 0;
   sheetEl.innerHTML = f();
-  const b = sheetEl.querySelector('.sh-body'); if (b) b.scrollTop = scroll;
-  stage.classList.toggle('locked', isLocked());
+  const b = sheetEl.querySelector('.sh-body, .plist, .mk-body'); if (b) b.scrollTop = scroll;
 }
-function sheetMedia() {
-  const m = state.media, radio = m.source === 'radio', art = artHTML(true);
-  const tabs = SOURCES.map(s => `<button class="chip ${m.source === s.id ? 'on' : ''}" data-act="src" data-src="${s.id}">${ic(s.icon)}${srcName(s.id)}</button>`).join('');
-  let main;
-  if (radio) {
-    const st = RADIO[m.radio];
-    main = `<div><div class="ms-title num">${st.f} FM</div><div class="ms-sub">${st.g}</div></div>
-      <div class="ms-ctrl">
-        <button class="cbtn press" data-act="prev" aria-label="Estação anterior">${ic('chev-l')}</button>
-        <button class="cbtn play press" data-act="toggle-play" aria-label="${m.playing ? 'Pausar' : 'Tocar'}">${ic(m.playing ? 'pause' : 'play')}</button>
-        <button class="cbtn press" data-act="next" aria-label="Próxima estação">${ic('chev-r')}</button>
-      </div>
-      <h3 class="sec-h" style="margin-top:6px">Memórias</h3>
-      <div class="presets">${RADIO.map((r, i) => `<button class="preset press ${i === m.radio ? 'on' : ''}" data-act="preset" data-i="${i}"><b>${r.f}</b><small>${r.g.split(' ·')[0]}</small></button>`).join('')}</div>`;
-  } else {
-    const t = curTrack(), list = curList(), max = isLocked() ? 3 : list.length - 1;
-    const q = []; for (let k = 1; k <= Math.min(max, list.length - 1); k++) q.push(mod(m.idx + k, list.length));
-    main = `<div><div class="ms-title">${esc(t.t)}</div><div class="ms-sub">${esc(t.a)} · ${esc(t.al)}</div></div>
-      <div><div class="bar"><i id="msBar"></i></div><div class="times num"><span id="msPos"></span><span>${mmss(t.d)}</span></div></div>
-      <div class="ms-ctrl">
-        <button class="cbtn sm press ${m.shuffle ? 'lit' : 'dim'}" data-act="shuffle" aria-label="Aleatório">${ic('shuffle')}</button>
-        <button class="cbtn press" data-act="prev" aria-label="Faixa anterior">${ic('prev')}</button>
-        <button class="cbtn play press" data-act="toggle-play" aria-label="${m.playing ? 'Pausar' : 'Tocar'}">${ic(m.playing ? 'pause' : 'play')}</button>
-        <button class="cbtn press" data-act="next" aria-label="Próxima faixa">${ic('next')}</button>
-        <button class="cbtn sm press ${m.repeat ? 'lit' : 'dim'}" data-act="repeat" aria-label="Repetir">${ic('repeat')}</button>
-      </div>
-      <div><h3 class="sec-h">A seguir</h3>${q.map(i => { const x = list[i]; return `<button class="q-row press" data-act="q-play" data-i="${i}"><i class="q-art" style="background:${artBg(x)}"></i><span><b>${esc(x.t)}</b><small>${esc(x.a)}</small></span><em>${mmss(x.d)}</em></button>`; }).join('')}
-      ${isLocked() && list.length - 1 > 3 ? `<p class="note" style="margin-top:6px">Lista resumida enquanto o carro está em movimento.</p>` : ''}</div>`;
-  }
-  const html = head('Música', `<div class="chips" style="flex-wrap:nowrap">${tabs}</div>`) +
-    `<div class="sh-body"><div class="ms"><div><div class="ms-art" style="background:${art.bg}">${art.html}</div></div><div class="ms-main">${main}</div></div></div>`;
-  setTimeout(updateProgress);
-  return html;
-}
-const contactOf = x => x.c ? CONTACTS[x.c] : { name: x.num, ini: '#', h: 220, num: x.num, kind: 'desconhecido' };
-function sheetPhone() {
-  const tabs = `<div class="tabs" style="display:flex;gap:6px">${[['favs', 'Favoritos'], ['recent', 'Recentes'], ['dial', 'Teclado']].map(([k, l]) => `<button class="${state.phoneTab === k ? 'on' : ''}" data-act="ph-tab" data-tab="${k}">${l}</button>`).join('')}</div>`;
-  if (state.call && state.call.status !== 'incoming') {
-    const c = contactOf(state.call);
-    return head('Telefone') + `<div class="sh-body"><div class="callbig">
-      <span class="av" style="--h:${c.h}">${c.ini}</span><h3>${esc(c.name)}</h3>
-      <p class="num" id="callTimer">${state.call.status === 'dialing' ? 'Chamando…' : mmss(state.call.t)} · ${esc(c.kind)}</p>
-      <div class="call-actions">
-        <button class="ca press ${state.call.muted ? 'on' : ''}" data-act="mute"><i>${ic(state.call.muted ? 'mic-off' : 'mic')}</i>${state.call.muted ? 'Sem som' : 'Mudo'}</button>
-        <button class="ca press" data-act="ph-keypad" data-park><i>${ic('keypad')}</i>Teclado</button>
-        <button class="ca press" data-act="audio-route"><i>${ic(state.call.handset ? 'phone' : 'speaker')}</i>${state.call.handset ? 'Celular' : 'Alto-falantes'}</button>
-        <button class="ca end press" data-act="hangup"><i>${ic('phone-end')}</i>Encerrar</button>
-      </div></div></div>`;
-  }
-  let body = '';
-  if (state.phoneTab === 'favs') {
-    body = `<div class="ph-favs">${FAVS.map(k => { const c = CONTACTS[k]; return `<button class="ph-fav press" data-act="call" data-c="${k}"><span class="av" style="--h:${c.h}">${c.ini}</span><b>${esc(c.name)}</b><small>${esc(c.kind)}</small></button>`; }).join('')}</div>`;
-  } else if (state.phoneTab === 'recent') {
-    const list = isLocked() ? RECENTS.slice(0, 4) : RECENTS;
-    body = list.map(r => { const c = contactOf(r);
-      const lb = { missed: 'Perdida', in: 'Recebida', out: 'Realizada' }[r.type], icn = { missed: 'phone-missed', in: 'phone-in', out: 'phone-out' }[r.type];
-      return `<button class="row press ${r.type === 'missed' ? 'missed' : ''}" data-act="call" ${r.c ? `data-c="${r.c}"` : `data-num="${r.num}"`}><span class="av" style="--h:${c.h};width:52px;height:52px;font-size:18px">${c.ini}</span><span><b>${esc(c.name)}</b><small>${lb} · ${r.when}</small></span>${ic(icn)}</button>`; }).join('');
-  } else {
-    if (isLocked()) {
-      body = `<div class="locked-note">${ic('lock')}<span>O teclado fica bloqueado com o carro em movimento. Use os favoritos ou diga “Ligar para…”.</span></div>
-        <div style="margin-top:16px"><button class="btn-soft press" data-act="voice">${ic('mic')}Falar com o assistente</button></div>`;
-    } else {
-      body = `<div class="dial"><div class="dial-pad">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map(d => `<button class="press num" data-act="dial" data-d="${d}">${d}</button>`).join('')}</div>
-        <div style="display:flex;flex-direction:column;gap:16px;justify-content:center">
-          <div class="dial-num">${esc(state.dial) || '<span style="color:var(--text-3)">Digite o número</span>'}</div>
-          <div style="display:flex;gap:10px"><button class="round yes press" data-act="dial-call" aria-label="Ligar" style="flex:1">${ic('phone')}</button>
-          <button class="x press" data-act="dial-del" aria-label="Apagar" style="margin:0;height:76px">${ic('backspace')}</button></div>
-        </div></div>`;
-    }
-  }
-  return head('Telefone', tabs) + `<div class="sh-body">${body}</div>`;
-}
-function sheetApps() {
-  const lock = isLocked();
-  const cats = CATS.map(([k, l]) => `<button class="${state.appCat === k ? 'on' : ''}" data-act="cat" data-cat="${k}">${l}</button>`).join('');
-  const list = APPS.filter(a => state.appCat === 'all' || a.cat === state.appCat);
+function sheetApps(title, type) {
+  const list = type ? APPS.filter(a => a.t === type) : APPS;
   const tiles = list.map(a => {
     const style = `--h:${a.h || 0};${a.s ? `--s:${a.s};` : ''}`;
-    const inner = a.txt ? a.txt : ic(a.g);
-    return `<button class="tile press ${a.park ? 'park' : ''}" data-act="app" data-app="${a.id}"><span class="tile-ic ${a.txt ? 'txt' : ''} ${a.acc ? 'acc' : ''}" style="${style}">${inner}</span><b>${esc(a.name)}</b><span class="lk">${ic('lock')}</span></button>`;
+    return `<button class="tile press" data-act="app" data-app="${a.id}"><span class="tile-ic" style="${style}">${ic(a.g)}</span><b>${esc(a.name)}</b></button>`;
   }).join('');
-  return head('Apps', `<button class="searchbox" data-act="search" data-park style="max-width:440px;height:60px">${ic('search')}<span>Buscar apps</span>${lock ? ic('lock', 'lk') : ''}</button>`) +
-    `<div class="cats">${cats}</div><div class="sh-body" style="padding-top:0"><div class="grid-apps">${tiles}</div></div>`;
+  return head(title) + `<div class="sh-body" style="padding-top:0"><div class="grid-apps">${tiles}</div></div>`;
 }
-function sheetCustom() {
-  const lays = LAYOUTS.map(l => `<button class="lay press ${settings.layout === l.id ? 'on' : ''}" data-act="set" data-k="layout" data-v="${l.id}">
-      <span class="mini ${l.id}"><i class="m-map"></i><i class="m-media"></i><i class="m-stack"></i></span><b>${l.name}</b><small>${l.desc}</small></button>`).join('');
-  const sw = Object.entries(ACCENTS).map(([k, a]) => `<button class="swatch press ${settings.accent === k ? 'on' : ''}" data-act="set" data-k="accent" data-v="${k}" aria-label="${a.name}"><i style="background:${a.fill};color:${a.on}">${settings.accent === k ? ic('check') : ''}</i></button>`).join('');
-  const pages = STACK_PAGES.map(p => `<button class="chip press ${settings.stackPages.includes(p.id) ? 'on' : ''}" data-act="stack-toggle" data-p="${p.id}">${ic(p.icon)}${p.name}</button>`).join('');
-  return head('Personalizar') + `<div class="sh-body"><div class="cu">
-    <section class="cu-wide"><h3 class="sec-h">Layout da tela inicial</h3><div class="lays">${lays}</div></section>
-    <section><h3 class="sec-h">Cor de destaque</h3><div class="sw-row">${sw}</div></section>
-    <section><h3 class="sec-h">Tema</h3>${seg('theme', [['auto', 'Automático'], ['day', 'Dia'], ['night', 'Noite']])}
-      <p class="note" style="margin-top:10px">Automático troca para o tema noturno às 18h. No app final: pelo pôr do sol ou pelo fio de iluminação do painel.</p></section>
-    <section><h3 class="sec-h">Lado do dock</h3>${seg('dock', [['left', 'Esquerda'], ['right', 'Direita']])}</section>
-    <section><h3 class="sec-h">Som do alerta de radar</h3>${seg('radarSound', [['bipe', 'Bipe'], ['voz', 'Bipe e voz'], ['off', 'Desligado']])}</section>
-    <section><h3 class="sec-h">Avisar radar a</h3>${seg('radarDist', [['300', '300 m'], ['500', '500 m'], ['800', '800 m']])}</section>
-    <section><h3 class="sec-h">Velocidade em vermelho acima de</h3>${seg('overTol', [['0', 'Limite'], ['5', '+5 km/h'], ['7', '+7 km/h']])}</section>
-    <section class="cu-wide"><h3 class="sec-h">App de música</h3>${seg('musicApp', Object.entries(MUSIC_APPS))}</section>
-    <section class="cu-wide"><h3 class="sec-h">Páginas do cartão inteligente</h3><div class="chips">${pages}</div></section>
-    <section class="cu-wide"><h3 class="sec-h">Segurança</h3><button class="tgl-row press" data-act="toggle-safety"><span>Bloquear teclado, vídeo, busca e listas longas com o carro em movimento</span><i class="sw ${settings.safety ? 'on' : ''}"></i></button></section>
-  </div></div>`;
+function openApp(id) {
+  const a = APPS.find(x => x.id === id); if (!a) return;
+  if (a.act === 'aa') { openAA(); return; }
+  if (a.act === 'radio') { openRadio(); return; }
+  toast(`Abrindo ${a.name}…`, 'external');
+}
+function openRadio() {
+  state.source = 'radio'; state.radio.muted = false;
+  state.radioTab = state.favs.length ? 'fav' : 'scan';
+  renderMedia();
+  openSheet('radio');
 }
 
-/* ================================================================
-   Ajustes rápidos
-   ================================================================ */
-function openQS() { state.qs = true; renderQS(); $('#qs').hidden = false; $('#qsScrim').hidden = false; }
-function closeQS() { state.qs = false; $('#qs').hidden = true; $('#qsScrim').hidden = true; }
-function renderQS() {
-  const mode = currentMode();
-  const tile = (t, icon, name, sub, on) => `<button class="qt press ${on ? 'on' : ''}" data-act="qt" data-t="${t}">${ic(icon)}<span><b>${name}</b><small>${sub}</small></span></button>`;
-  const hideTxt = isLocked();
-  $('#qs').innerHTML = `<div class="qs-col">
-    <div class="slider">${ic('sun')}<input type="range" id="qsBright" min="10" max="100" value="${state.bright}" aria-label="Brilho" style="--v:${(state.bright - 10) / 90 * 100}%"><output class="num" id="qsBrightV">${state.bright}</output></div>
-    <div class="slider">${ic('volume')}<input type="range" id="qsVol" min="0" max="30" value="${state.vol}" aria-label="Volume" style="--v:${state.vol / 30 * 100}%"><output class="num" id="qsVolV">${state.vol}</output></div>
-    <div class="qs-grid">
-      ${tile('wifi', 'wifi', 'Wi-Fi', state.wifi ? 'Roteador do celular' : 'Desligado', state.wifi)}
-      ${tile('bt', 'bluetooth', 'Bluetooth', state.bt ? 'Conectado' : 'Desligado', state.bt)}
-      ${tile('theme', mode === 'day' ? 'sun' : 'moon', 'Tema', { auto: 'Automático', day: 'Dia', night: 'Noite' }[settings.theme], settings.theme !== 'auto')}
-      ${tile('night', 'gauge', 'Painel noturno', 'Só o essencial', false)}
-      ${tile('radar', 'radar', 'Alerta de radar', { bipe: 'Bipe', voz: 'Bipe e voz', off: 'Sem som' }[settings.radarSound], settings.radarSound !== 'off')}
-      ${tile('aa', 'cast', 'Android Auto', 'Abrir', false)}
-      ${tile('dnd', 'dnd', 'Não perturbe', state.dnd ? 'Ativado' : 'Desativado', state.dnd)}
-      ${tile('off', 'power', 'Desligar tela', 'Toque para acordar', false)}
-    </div></div>
-    <div class="qs-col">
-    <div class="nlist"><h3 class="sec-h">Notificações</h3>${state.notifs.length ? state.notifs.slice(0, 4).map(n => `<div class="row"><span class="ri">${ic(n.icon)}</span><span><b>${esc(n.from)}</b><small>${esc(n.app)} · ${hideTxt && n.app === 'WhatsApp' ? 'toque em Ouvir' : esc(n.text)}</small></span><span class="meta num">${n.time}</span></div>`).join('') : '<p class="note" style="margin:0">Nada novo.</p>'}</div>
-    <div style="display:flex;gap:10px"><button class="btn-soft press" data-act="custom" style="flex:1">${ic('palette')}Personalizar</button>
-    ${state.notifs.length ? `<button class="btn-soft press" data-act="clear-notifs">${ic('x')}Limpar</button>` : ''}</div></div>`;
+/* Configurações da home (só com o carro parado) */
+const stepper = (id, value, dec, inc) => `<div class="stepper"><button class="press" data-act="${id}-dec" aria-label="Diminuir" ${dec ? '' : 'disabled'}>${ic('minus')}</button><output>${value}</output><button class="press" data-act="${id}-inc" aria-label="Aumentar" ${inc ? '' : 'disabled'}>${ic('plus')}</button></div>`;
+function sheetSettings() {
+  const t = state.settingsTab;
+  const tabs = [['config', 'Configurações'], ['points', 'Pontos'], ['updates', 'Atualizações']];
+  let body;
+  if (t === 'points') body = `<div class="plist">${pointsHTML()}</div>`;
+  else if (t === 'updates') body = settingsUpdates();
+  else body = settingsMain();
+  return head('Configurações da home', `Rumo ${APP_VERSION} · estável`) +
+    `<div class="pills">${tabs.map(([k, l]) => `<button class="pill press ${t === k ? 'on' : ''}" data-act="st-tab" data-tab="${k}">${l}</button>`).join('')}</div>` + body;
 }
-function applyBright() { stage.style.filter = state.bright < 100 ? `brightness(${0.35 + state.bright / 100 * 0.65})` : ''; }
+function settingsMain() {
+  const z = settings.radarDist, m = settings.radarMargin;
+  const isDef = z === ZONE.def && m === MARGIN.def;
+  return `<div class="st-cols">
+    <div class="scard"><h3>Avisos de radar</h3>
+      <div class="srow"><div><b>Distância do aviso</b><small>O aviso e os bipes começam a esta distância do radar. Lombada, pedágio e câmera de semáforo avisam a no máximo ${300} m.</small></div>${stepper('zone', `${z} m`, z > ZONE.min, z < ZONE.max)}</div>
+      <div class="srow"><div><b>Margem de velocidade</b><small>Vale só para o som: com ${m} km/h, num radar de 50 km/h os bipes começam acima de ${50 + m} km/h. O aviso em vermelho aparece assim que passa do limite.</small></div>${stepper('margin', `${m} km/h`, m > MARGIN.min, m < MARGIN.max)}</div>
+      <div><button class="btn-pill press" data-act="radar-default" ${isDef ? 'disabled' : ''}>Restaurar o padrão</button></div>
+      <p class="note">Padrão: ${ZONE.def} m e ${MARGIN.def} km/h de margem.</p>
+    </div>
+    <div class="scard"><h3>Sistema</h3>
+      <div class="srow"><div><b>Reiniciar o Android</b><small>Reinicia o Android do aparelho (como desligar e ligar). Funciona só com o carro parado.</small></div>
+        <button class="btn-pill press ${state.armed === 'reboot' ? 'primary' : ''}" data-act="reboot">${state.armed === 'reboot' ? 'Toque de novo' : 'Reiniciar'}</button></div>
+      <div class="srow"><div><b>Tema</b><small>Automático segue o farol do carro; o botão ao lado do relógio alterna entre automático, escuro e claro.</small></div></div>
+    </div></div>`;
+}
+function settingsUpdates() {
+  return `<div class="st-cols">
+    <div class="scard"><h3>Aplicativo</h3>
+      <div class="chan"><div><b>Estável · ${APP_VERSION}</b><small>Última versão publicada</small></div><span class="tag ok">Instalada</span></div>
+      <div class="chan"><div><b>Nightly · ${APP_VERSION}-nightly.58</b><small>Compilada a cada mudança; pode ser instável</small></div><button class="btn-pill press" data-act="fake-install">Instalar</button></div>
+      <p class="note">Instalar baixa o APK (com retomada se a conexão cair), confere o hash e abre o instalador do Android.</p>
+    </div>
+    <div class="scard"><h3>Dados do mapa</h3>
+      <div class="chan"><div><b>Santa Catarina</b><small>Mapa, vias, limites e radares · atualizado</small></div><span class="tag ok">Instalado</span></div>
+      <div class="chan"><div><b>Paraná</b><small>Disponível para baixar</small></div><button class="btn-pill press" data-act="fake-install">Baixar</button></div>
+      <div class="chan"><div><b>Rio Grande do Sul</b><small>Disponível para baixar</small></div><button class="btn-pill press" data-act="fake-install">Baixar</button></div>
+      <p class="note">Consulta sozinha ao entrar na aba e de novo quando a internet volta; sem conexão, mantém a última consulta.</p>
+    </div></div>`;
+}
+function dirLabel(m) { return m.both ? 'Os dois sentidos' : `Sentido ${m.dir}`; }
+function pointsHTML() {
+  if (!state.mine.length) return `<p class="empty">Nenhum ponto marcado ainda. Toque no + do mapa para marcar um radar que falta.</p>`;
+  return [...state.mine].reverse().map(m => `<div class="prow">${dotHTML(m.kind, m.lim)}
+    <div><b>${KINDS[m.kind].name}${KINDS[m.kind].enf ? ` · ${m.lim} km/h` : ''}</b><small>${dirLabel(m)} · ${esc(m.street)}</small></div>
+    <button class="del press ${state.armed === 'del' + m.uid ? 'ask' : ''}" data-act="del-point" data-u="${m.uid}" aria-label="Apagar">${state.armed === 'del' + m.uid ? 'Apagar?' : ic('trash')}</button></div>`).join('');
+}
 
-/* ================================================================
-   Chamadas, notificações, voz, painel noturno, toast
-   ================================================================ */
-function pauseForCall() { state.wasPlaying = state.media.playing; if (state.media.playing) { state.media.playing = false; renderMedia(); } }
-function resumeAfterCall() { if (state.wasPlaying) { state.media.playing = true; renderMedia(); } state.wasPlaying = false; }
-function incomingCall(c = 'ana') {
-  if (state.call) return;
-  state.call = { c, status: 'incoming', t: 0 };
-  pauseForCall(); hideNotif(); renderCallBanner();
+/* Marcar ponto: o "+" guarda o lugar e o rumo daquele instante; o tipo escolhido grava */
+function openMark() {
+  if (state.aa) return;
+  const moving = state.speed > 1;
+  state.spot = { s: state.s, dir: DIR_NAME[compassOf(state.heading)], moving, street: streetOf(segAt(state.s)) };
+  state.markLim = limitOf(segAt(state.s)); state.markBoth = !moving; state.markList = false;
+  openSheet('mark');
 }
-function renderCallBanner() {
-  const el = $('#callb');
-  if (!state.call || state.call.status !== 'incoming') { el.hidden = true; return; }
-  const c = contactOf(state.call);
-  el.innerHTML = `<span class="av" style="--h:${c.h}">${c.ini}</span><span class="cb-t"><b>${esc(c.name)}</b><small>Chamada recebida · ${esc(c.kind)}</small></span>
-    <button class="round no press" data-act="decline" aria-label="Recusar">${ic('phone-end')}</button>
-    <button class="round yes press" data-act="accept" aria-label="Atender">${ic('phone')}</button>`;
-  el.hidden = false;
-}
-function startCall(x) {
-  if (state.call) { openSheet('phone'); return; }
-  closeVoice();
-  state.call = Object.assign({ status: 'dialing', t: 0 }, x);
-  if (x.c === 'ana') state.missed = false;
-  pauseForCall(); renderCallBanner(); openSheet('phone'); renderStack();
-  setTimeout(() => { if (state.call && state.call.status === 'dialing') { state.call.status = 'active'; if (state.sheet === 'phone') renderSheet(); updateLive(); } }, 2200);
-}
-function endCall() {
-  if (!state.call) return;
-  state.call = null; renderCallBanner(); resumeAfterCall(); updateLive();
-  if (state.sheet === 'phone') renderSheet();
-  toast('Chamada encerrada', 'phone-end');
-}
-function callTick() {
-  if (state.call && state.call.status === 'active') {
-    state.call.t += 1; updateLive();
-    const el = $('#callTimer'); if (el) el.textContent = `${mmss(state.call.t)} · ${contactOf(state.call).kind}`;
+function sheetMark() {
+  const sp = state.spot; if (!sp) return '';
+  if (state.markList) {
+    return `<div class="sh-head"><div class="sh-title"><h2>Meus pontos</h2><small>Só neste aparelho · ${state.mine.length} marcados</small></div><button class="x press" data-act="mark-back" aria-label="Voltar">${ic('chev-l')}</button></div><div class="plist">${pointsHTML()}</div>`;
   }
+  const kinds = KIND_ORDER.map(k => `<button class="mk-k press" data-act="add-point" data-kind="${k}">${dotHTML(k, state.markLim)}<span>${KINDS[k].name}</span></button>`).join('');
+  return `<div class="sh-head"><div class="sh-title"><h2>Marcar ponto aqui</h2><small>Onde você tocou no +. Fica só neste aparelho, mesmo ao atualizar o Rumo.</small></div><button class="x press" data-act="close" aria-label="Fechar">${ic('x')}</button></div>
+    <div class="mk-body">
+      <div class="mk-top"><span>Limite</span>${stepper('mlim', `${state.markLim} km/h`, state.markLim > 20, state.markLim < 120)}
+        <button class="pill press ${!state.markBoth && sp.moving ? 'on' : ''}" data-act="mk-dir" ${sp.moving ? '' : 'disabled'}>${sp.moving ? `Meu sentido: ${sp.dir}` : 'Meu sentido: parado'}</button>
+        <button class="pill press ${state.markBoth ? 'on' : ''}" data-act="mk-both">Os dois sentidos</button></div>
+      <div class="mk-kinds">${kinds}</div>
+      <p class="mk-note">O limite vale para radar e lombada eletrônica. Parado, o GPS não dá o sentido: vale os dois.</p>
+      ${state.mine.length ? `<div><button class="btn-pill press" data-act="mark-list">Meus pontos (${state.mine.length})</button></div>` : ''}
+    </div>`;
+}
+function addPoint(kind) {
+  const sp = state.spot; if (!sp) return;
+  const uid = (state.mine.reduce((a, m) => Math.max(a, m.uid), 0)) + 1;
+  const m = { uid, kind, lim: state.markLim, s: sp.s, both: state.markBoth || !sp.moving, dir: sp.dir, street: sp.street };
+  state.mine.push(m); store.set('mine', state.mine);
+  RADARS.push({ id: radarSeq++, s: m.s, kind: m.kind, lim: m.lim, uid: m.uid });
+  mapDirty = true; closeSheet();
+  toast(`${KINDS[kind].name} marcado`, 'check');
+}
+function removePoint(uid) {
+  state.mine = state.mine.filter(m => m.uid !== uid); store.set('mine', state.mine);
+  const i = RADARS.findIndex(r => r.uid === uid); if (i >= 0) RADARS.splice(i, 1);
+  if (state.radar && !RADARS.some(r => r.id === state.radar.id)) state.radar = null;
+  state.armed = null; mapDirty = true; renderSheet();
 }
 
-let notifTimer = null;
-function pushNotif() {
-  const n = { id: Date.now(), app: 'WhatsApp', icon: 'message', from: 'Marcos', text: 'Chego em 10 min, te espero na portaria.', time: hhmm(new Date()) };
-  state.notifs.unshift(n); renderNet();
-  if (state.dnd) { toast('Mensagem silenciada (Não perturbe)', 'dnd'); return; }
-  if (state.call && state.call.status === 'incoming') return;
-  const el = $('#notif');
-  const hide = isLocked();
-  el.innerHTML = `<span class="n-ic">${ic('message')}</span><span class="cb-t"><b>${esc(n.from)} · ${n.app}</b>
-    <small>${hide ? 'Texto oculto em movimento. Toque em Ouvir.' : esc(n.text)}</small></span>
-    <span class="n-act"><button class="btn-soft press" data-act="n-listen">${ic('volume2')}Ouvir</button>
-    <button class="btn-soft press" data-act="n-reply">${ic('mic')}Responder</button>
-    <button class="x press" data-act="n-close" aria-label="Dispensar" style="width:64px;height:64px;background:var(--surface-3)">${ic('x')}</button></span>`;
-  el.hidden = false; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
-  clearTimeout(notifTimer); notifTimer = setTimeout(hideNotif, 9000);
+/* Menu da engrenagem e volume flutuante */
+function closeMenus() { state.gmenu = false; $('#gmenu').hidden = true; closeVol(); }
+function openVol() {
+  state.volOpen = true; state.volTick++; renderVol(); $('#vol').hidden = false;
+  clearTimeout(volTimer); volTimer = setTimeout(closeVol, 4000);
 }
-function hideNotif() { $('#notif').hidden = true; clearTimeout(notifTimer); }
-function speak(text) {
-  try {
-    if (!('speechSynthesis' in window)) return false;
-    const u = new SpeechSynthesisUtterance(text); u.lang = 'pt-BR'; u.rate = 1.02;
-    speechSynthesis.cancel(); speechSynthesis.speak(u); return true;
-  } catch (e) { return false; }
+let volTimer = null;
+function closeVol() { state.volOpen = false; $('#vol').hidden = true; clearTimeout(volTimer); }
+function renderVol() {
+  $('#vol').innerHTML = `<button class="vol-b" data-vol="1" aria-label="Aumentar o volume">${ic('plus')}</button>
+    <div class="vol-n" id="volN">${state.vol}</div>
+    <div class="vol-bar"><i id="volBar" style="height:${state.vol / 30 * 100}%"></i></div><small>de 30</small>
+    <button class="vol-b" data-vol="-1" aria-label="Diminuir o volume">${ic('minus')}</button>`;
+}
+function bumpVol(d) {
+  state.vol = clamp(state.vol + d, 0, 30); store.set('vol', state.vol);
+  const n = $('#volN'); if (n) n.textContent = state.vol;
+  const b = $('#volBar'); if (b) b.style.height = (state.vol / 30 * 100) + '%';
+  clearTimeout(volTimer); volTimer = setTimeout(closeVol, 4000);
 }
 
-const VOICE_CMDS = [
-  { t: 'Qual o limite aqui?', icon: 'gauge', run: () => { const lim = limitOf(segAt(state.s)); speak(`O limite nesta via é ${lim} quilômetros por hora.`); toast(`Limite nesta via: ${lim} km/h`, 'gauge'); } },
-  { t: 'Tocar Djavan', icon: 'music', run: () => { state.media.source = 'stream'; state.media.idx = 2; state.media.pos = 0; state.media.playing = true; renderMedia(); updateLive(); toast('Tocando Oceano · Djavan', 'music'); } },
-  { t: 'Ligar para Mãe', icon: 'phone', run: () => startCall({ c: 'mae' }) },
-  { t: 'Vai chover hoje?', icon: 'rain', run: () => { const i = settings.stackPages.indexOf('clima'); if (i >= 0) { state.stackIdx = i; renderStack(); } speak('Sim. Há quarenta por cento de chance de chuva às dezoito horas. Agora faz vinte e sete graus.'); toast('Chuva provável às 18h (40%)', 'rain'); } },
-  { t: 'Rádio 94,7', icon: 'radio', run: () => { state.media.source = 'radio'; state.media.radio = 2; state.media.playing = true; renderMedia(); updateLive(); toast('Rádio 94,7 FM', 'radio'); } },
-  { t: 'Responder: “Já estou chegando”', icon: 'message', run: () => toast('Resposta enviada para Marcos', 'check') }
-];
-function openVoice(reply) {
-  closeQS();
-  state.voice = reply ? 'reply' : 'listen';
-  const el = $('#voice');
-  const cmds = reply ? [VOICE_CMDS[5]] : VOICE_CMDS.slice(0, 5);
-  el.innerHTML = `<div class="vp" data-stop>
-    <div class="vp-top"><span class="orb">${ic('mic')}</span><div class="vp-said" id="vpSaid">${reply ? 'Diga sua resposta para Marcos' : 'Ouvindo…'}<small>${reply ? 'A mensagem é enviada depois da sua confirmação.' : 'Fale naturalmente. Exemplos abaixo — toque para simular.'}</small></div>
-    <button class="x press" data-act="voice-close" aria-label="Fechar">${ic('x')}</button></div>
-    <div class="vp-cmds">${cmds.map((c, i) => `<button class="vcmd press" data-act="voice-cmd" data-i="${VOICE_CMDS.indexOf(c)}">${ic(c.icon)}${c.t}</button>`).join('')}</div></div>`;
-  el.hidden = false;
-}
-function closeVoice() { state.voice = null; $('#voice').hidden = true; }
-
-function renderNight() {
-  const el = $('#night');
-  if (!state.night) { el.hidden = true; return; }
-  const { lim, v, over } = speedState(), r = state.radar, m = state.media;
-  const song = m.source === 'radio' ? `${RADIO[m.radio].f} FM` : `${curTrack().t} · ${curTrack().a}`;
-  el.innerHTML = `<div class="night-top"><span>${hhmm(new Date())}</span><span>${esc(streetOf(segAt(state.s)))}</span></div>
-    <div class="night-mid"><div class="night-alert ${r && r.alarm ? 'alarm' : ''}">${r ? `${ic('radar')}<span>${RADAR_NAME[r.type]} ${r.lim} km/h · ${fmtDist(r.d)}</span>` : ''}</div>
-    <div class="night-speed"><span class="lim"><b>${lim}</b><small>km/h</small></span><b class="${over ? 'hot' : ''}">${v}</b></div><span>km/h</span></div>
-    <div class="night-bot">${m.playing ? esc(song) + ' · ' : ''}toque para voltar</div>`;
-  el.hidden = false;
-}
-
+/* Toast */
 let toastTimer = null;
 function toast(msg, icon) {
   const el = $('#toast');
@@ -1649,144 +1737,114 @@ function toast(msg, icon) {
 function setDriving(on) {
   state.moving = on;
   $('#dDrive').setAttribute('aria-pressed', String(on));
-  stage.classList.toggle('locked', isLocked());
   if (on) {
     state.cruiseT = 0;
-    const i = settings.stackPages.indexOf('viagem'); if (i >= 0) { state.stackIdx = i; renderStack(); }
-    toast('Em movimento: teclado e vídeo bloqueados', 'car');
+    if (state.sheet === 'settings') closeSheet();
+    toast('Em movimento: configurações só com o carro parado', 'car');
   } else { toast('Carro parado', 'car'); if (state.speeding) setSpeeding(false); }
-  if (state.sheet) renderSheet();
 }
 function setSpeeding(on) {
   state.speeding = on; state.cruiseT = 0;
   $('#dSpeed').setAttribute('aria-pressed', String(on));
   if (on && !state.moving) setDriving(true);
 }
-function openApp(id) {
-  const a = APPS.find(x => x.id === id); if (!a) return;
-  if (a.park && isLocked()) { lockMsg(); return; }
-  switch (a.act) {
-    case 'aa': openAA(); break;
-    case 'music': settings.musicApp = id; applySettings(); setSource('stream'); openSheet('media'); break;
-    case 'radio': setSource('radio'); openSheet('media'); break;
-    case 'usb': setSource('usb'); openSheet('media'); break;
-    case 'phone': openSheet('phone'); break;
-    case 'voice': closeSheet(); openVoice(); break;
-    case 'weather': { closeSheet(); const i = settings.stackPages.indexOf('clima'); if (i >= 0) { state.stackIdx = i; renderStack(); } break; }
-    case 'custom': openSheet('custom'); break;
-    default: toast(`Abrindo ${a.name}…`, 'external');
-  }
-}
 const ACT = {
-  home: () => { closeSheet(); closeQS(); closeVoice(); },
+  home: () => { closeAA(); closeSheet(); closeMenus(); },
   aa: () => openAA(),
   'aa-close': () => closeAA(),
-  'media-sheet': () => openSheet('media'),
+  'radio-sheet': () => openRadio(),
+  'audio-sheet': () => openSheet('audio'),
   'phone-sheet': () => openSheet('phone'),
   apps: () => openSheet('apps'),
-  custom: () => openSheet('custom'),
+  voice: () => toast('Abre o assistente de voz do Android', 'mic'),
   close: () => closeSheet(),
-  voice: () => { closeSheet(); openVoice(); },
-  'voice-close': () => closeVoice(),
-  'voice-cmd': el => { const c = VOICE_CMDS[+el.dataset.i]; $('#vpSaid').innerHTML = `“${esc(c.t)}”<small>Entendido.</small>`; setTimeout(() => { closeVoice(); c.run(); }, 650); },
-  qs: () => state.qs ? closeQS() : openQS(),
-  'close-qs': () => closeQS(),
-  'toggle-play': () => { state.media.playing = !state.media.playing; renderMedia(); updateLive(); },
-  prev: () => step(-1), next: () => step(1),
-  shuffle: () => { state.media.shuffle = !state.media.shuffle; renderSheet(); },
-  repeat: () => { state.media.repeat = !state.media.repeat; renderSheet(); },
-  src: el => setSource(el.dataset.src),
-  preset: el => { state.media.radio = +el.dataset.i; state.media.playing = true; renderMedia(); updateLive(); },
-  'q-play': el => { state.media.idx = +el.dataset.i; state.media.pos = 0; state.media.playing = true; renderMedia(); updateLive(); },
-  search: () => toast('Busca: abre o teclado (protótipo)', 'search'),
-  'stack-next': () => { state.stackIdx = mod(state.stackIdx + 1, stackPages().length); renderStack(); },
-  'stack-go': el => { state.stackIdx = +el.dataset.i; renderStack(); },
-  call: el => startCall(el.dataset.c ? { c: el.dataset.c } : { c: null, num: el.dataset.num }),
-  accept: () => { state.call.status = 'active'; state.call.t = 0; renderCallBanner(); updateLive(); if (state.sheet === 'phone') renderSheet(); toast('Chamada em andamento · toque na barra verde para ver', 'phone'); },
-  decline: () => { state.call = null; renderCallBanner(); resumeAfterCall(); updateLive(); state.missed = true; renderStack(); },
-  hangup: () => endCall(),
-  mute: () => { state.call.muted = !state.call.muted; renderSheet(); },
-  'audio-route': () => { state.call.handset = !state.call.handset; renderSheet(); },
-  'ph-keypad': () => toast('Teclado de tons (DTMF)', 'keypad'),
-  'ph-tab': el => { state.phoneTab = el.dataset.tab; renderSheet(); },
-  dial: el => { if (state.dial.length < 15) state.dial += el.dataset.d; renderSheet(); },
-  'dial-del': () => { state.dial = state.dial.slice(0, -1); renderSheet(); },
-  'dial-call': () => { if (state.dial) { const n = state.dial; state.dial = ''; startCall({ c: null, num: n }); } },
-  live: () => { if (state.call && state.call.status !== 'incoming') openSheet('phone'); else openSheet('media'); },
-  'radio-947': () => { state.media.source = 'radio'; state.media.radio = 2; state.media.playing = true; renderMedia(); updateLive(); toast('Rádio 94,7 FM', 'radio'); },
   app: el => openApp(el.dataset.app),
-  cat: el => { state.appCat = el.dataset.cat; renderSheet(); },
-  set: el => { settings[el.dataset.k] = el.dataset.v; applySettings(); if (state.sheet) renderSheet(); if (state.qs) renderQS(); },
-  'stack-toggle': el => {
-    const id = el.dataset.p, on = settings.stackPages.includes(id);
-    if (on && settings.stackPages.length === 1) { toast('Mantenha pelo menos uma página', 'x'); return; }
-    settings.stackPages = STACK_PAGES.map(p => p.id).filter(p => p === id ? !on : settings.stackPages.includes(p));
-    applySettings(); renderSheet();
+  theme: () => { settings.theme = { auto: 'dark', dark: 'light', light: 'auto' }[settings.theme]; applySettings(); toast({ auto: 'Tema automático: segue o farol', dark: 'Tema escuro', light: 'Tema claro' }[settings.theme], 'palette'); },
+  gear: () => { if (state.gmenu) closeMenus(); else { closeVol(); state.gmenu = true; $('#gmenu').hidden = false; } },
+  'close-menu': () => closeMenus(),
+  'open-settings': () => { closeMenus(); if (!isParked()) { parkedOnly(); return; } state.settingsTab = 'config'; openSheet('settings'); },
+  'open-android': () => { closeMenus(); toast('Abre os ajustes do Android', 'gear'); },
+  'st-tab': el => { state.settingsTab = el.dataset.tab; state.armed = null; renderSheet(); },
+  'zone-dec': () => { settings.radarDist = Math.max(ZONE.min, settings.radarDist - ZONE.step); applySettings(); renderSheet(); },
+  'zone-inc': () => { settings.radarDist = Math.min(ZONE.max, settings.radarDist + ZONE.step); applySettings(); renderSheet(); },
+  'margin-dec': () => { settings.radarMargin = Math.max(MARGIN.min, settings.radarMargin - 1); applySettings(); renderSheet(); },
+  'margin-inc': () => { settings.radarMargin = Math.min(MARGIN.max, settings.radarMargin + 1); applySettings(); renderSheet(); },
+  'radar-default': () => { settings.radarDist = ZONE.def; settings.radarMargin = MARGIN.def; applySettings(); renderSheet(); },
+  reboot: () => { if (state.armed === 'reboot') { state.armed = null; toast('No carro, o Android reinicia agora', 'power'); renderSheet(); } else { state.armed = 'reboot'; renderSheet(); } },
+  'fake-install': () => toast('No aparelho: baixa pelo Wi-Fi, confere o SHA-256 e instala', 'external'),
+  'del-point': el => { const u = +el.dataset.u; if (state.armed === 'del' + u) removePoint(u); else { state.armed = 'del' + u; renderSheet(); } },
+  mark: () => openMark(),
+  'add-point': el => addPoint(el.dataset.kind),
+  'mlim-dec': () => { state.markLim = Math.max(20, state.markLim - 10); renderSheet(); },
+  'mlim-inc': () => { state.markLim = Math.min(120, state.markLim + 10); renderSheet(); },
+  'mk-dir': () => { state.markBoth = false; renderSheet(); },
+  'mk-both': () => { state.markBoth = true; renderSheet(); },
+  'mark-list': () => { state.markList = true; state.armed = null; renderSheet(); },
+  'mark-back': () => { state.markList = false; state.armed = null; renderSheet(); },
+  'media-open': () => { if (state.source === 'radio') openRadio(); else openAA(); },
+  'm-prev': () => { if (state.source === 'radio') mediaStep(-1); else toast('Tecla “anterior” enviada ao ZLINK', 'prev'); },
+  'm-next': () => { if (state.source === 'radio') mediaStep(1); else toast('Tecla “próxima” enviada ao ZLINK', 'next'); },
+  'm-play': () => {
+    if (state.source === 'radio') { state.radio.muted = !state.radio.muted; if (!state.radio.muted) state.radio.tunedAt = performance.now(); state.radio.text = ''; renderMedia(); if (state.sheet === 'radio') updateRadioLeft(); }
+    else toast('Tecla play/pausa enviada ao ZLINK', 'play');
   },
-  'toggle-safety': () => { settings.safety = !settings.safety; applySettings(); stage.classList.toggle('locked', isLocked()); renderSheet(); },
-  qt: el => {
-    const t = el.dataset.t;
-    if (t === 'wifi') state.wifi = !state.wifi;
-    else if (t === 'bt') state.bt = !state.bt;
-    else if (t === 'dnd') state.dnd = !state.dnd;
-    else if (t === 'radar') { settings.radarSound = { bipe: 'voz', voz: 'off', off: 'bipe' }[settings.radarSound]; applySettings(); }
-    else if (t === 'aa') { openAA(); return; }
-    else if (t === 'theme') { settings.theme = { auto: 'day', day: 'night', night: 'auto' }[settings.theme]; applySettings(); }
-    else if (t === 'night') { closeQS(); state.night = true; renderNight(); return; }
-    else if (t === 'off') { closeQS(); state.screenOff = true; $('#screenOff').hidden = false; return; }
-    renderNet(); renderQS();
-  },
-  'clear-notifs': () => { state.notifs = []; renderNet(); renderQS(); },
-  'n-listen': () => { const ok = speak('Marcos disse: Chego em 10 minutos, te espero na portaria.'); toast(ok ? 'Lendo a mensagem…' : 'Leitura em voz alta indisponível neste navegador', 'volume2'); hideNotif(); },
-  'n-reply': () => { hideNotif(); openVoice(true); },
-  'n-close': () => hideNotif(),
-  'night-off': () => { state.night = false; renderNight(); },
-  wake: () => { state.screenOff = false; $('#screenOff').hidden = true; }
+  'rd-tab': el => { state.radioTab = el.dataset.tab; state.favMenu = null; if (state.sheet === 'radio') { renderSheet(); } },
+  tune: el => { state.favMenu = null; tune(+el.dataset.k); renderRadioRight(); },
+  'seek-up': () => seek(true), 'seek-down': () => seek(false),
+  'step-up': () => stepFreq(true), 'step-down': () => stepFreq(false),
+  'fav-toggle': el => toggleFav(+el.dataset.k),
+  'fav-menu-close': () => { state.favMenu = null; renderRadioRight(); },
+  'fav-remove': el => { toggleFav(+el.dataset.k); },
+  'fav-rename': el => { if (!isParked()) { state.favMenu = null; renderRadioRight(); toast('Dar nome só com o carro parado', 'lock'); return; } state.rename = +el.dataset.k; state.favMenu = null; renderSheet(); setTimeout(() => { const i = $('#rnIn'); if (i) { i.focus(); i.select(); } }, 30); },
+  'rename-cancel': () => { state.rename = null; renderSheet(); },
+  'rename-save': () => { const f = favOf(state.rename), i = $('#rnIn'); if (f && i) { f.name = i.value.trim(); store.set('favs', state.favs); } state.rename = null; renderSheet(); renderMedia(); },
+  'import-presets': () => { state.favs = STATIONS.slice(0, 6).map(s => ({ k: s.k, name: '' })); store.set('favs', state.favs); state.radioTab = 'fav'; renderSheet(); },
+  'scan-start': () => startScan(),
+  'scan-stop': () => stopScan(false),
+  'radio-app': () => toast('Abre o app de rádio original do aparelho', 'external')
 };
+/* Anterior e próxima no card: entre as favoritas, em ordem de frequência (sem favoritas, busca) */
+function mediaStep(d) {
+  const fs = sortedFavs();
+  if (!fs.length) { seek(d > 0); return; }
+  const k = state.radio.k;
+  const next = d > 0 ? (fs.find(f => f.k > k) || fs[0]) : ([...fs].reverse().find(f => f.k < k) || fs[fs.length - 1]);
+  tune(next.k);
+}
 
 let suppressUntil = 0;
 stage.addEventListener('click', e => {
   if (Date.now() < suppressUntil) { e.preventDefault(); return; }
+  const v = e.target.closest('[data-vol]');
+  if (v && stage.contains(v)) return;  // o volume trata o próprio toque
   const el = e.target.closest('[data-act]');
   if (!el || !stage.contains(el)) return;
-  if (el.closest('.vp') && el === e.target.closest('[data-stop]')) return;
-  if (el.hasAttribute('data-park') && isLocked()) { lockMsg(); return; }
   const fn = ACT[el.dataset.act];
   if (fn) fn(el, e);
 });
-$('#voice').addEventListener('click', e => { if (e.target.id === 'voice') closeVoice(); });
 
-/* Toque longo em card = personalizar; deslizar no cartão inteligente = trocar página */
-let lp = null, sw = null;
+/* Volume: segurar o + ou o − repete */
+let volRep = null;
 stage.addEventListener('pointerdown', e => {
-  const card = e.target.closest('.card');
-  if (!card || state.sheet) return;
-  if (card.id === 'stackCard') sw = { x: e.clientX, y: e.clientY };
-  if (e.target.closest('button')) return;
-  lp = { x: e.clientX, y: e.clientY, t: setTimeout(() => { lp = null; suppressUntil = Date.now() + 600; openSheet('custom'); }, 650) };
+  const b = e.target.closest('[data-vol]'); if (!b) return;
+  e.preventDefault();
+  const d = +b.dataset.vol; bumpVol(d);
+  volRep = setTimeout(function again() { bumpVol(d); volRep = setTimeout(again, 160); }, 400);
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => stage.addEventListener(ev, () => { clearTimeout(volRep); volRep = null; }, true));
+
+/* Arrastar o dedo no menu da esquerda para a direita abre o volume; toque longo numa favorita abre o menu dela */
+let drag = null, lp = null;
+stage.addEventListener('pointerdown', e => {
+  if (e.target.closest('#dock')) drag = { x: e.clientX, opened: false };
+  const fav = e.target.closest('.fav[data-fav]');
+  if (fav) lp = { x: e.clientX, y: e.clientY, t: setTimeout(() => { lp = null; suppressUntil = Date.now() + 500; state.favMenu = +fav.dataset.fav; renderRadioRight(); }, 600) };
 });
 stage.addEventListener('pointermove', e => {
+  if (drag && !drag.opened && (e.clientX - drag.x) / stageScale > 56) { drag.opened = true; suppressUntil = Date.now() + 400; closeMenus(); openVol(); }
   if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 10) { clearTimeout(lp.t); lp = null; }
 });
-const endPointer = e => {
-  if (lp) { clearTimeout(lp.t); lp = null; }
-  if (sw) {
-    const dx = (e.clientX - sw.x) / stageScale, dy = (e.clientY - sw.y) / stageScale;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.3) {
-      state.stackIdx = mod(state.stackIdx + (dx < 0 ? 1 : -1), stackPages().length); renderStack();
-      suppressUntil = Date.now() + 350;
-    }
-    sw = null;
-  }
-};
-stage.addEventListener('pointerup', endPointer);
-stage.addEventListener('pointercancel', () => { if (lp) clearTimeout(lp.t); lp = null; sw = null; });
-
-stage.addEventListener('input', e => {
-  const t = e.target;
-  if (t.id === 'qsBright') { state.bright = +t.value; t.style.setProperty('--v', `${(state.bright - 10) / 90 * 100}%`); $('#qsBrightV').textContent = t.value; applyBright(); }
-  if (t.id === 'qsVol') { state.vol = +t.value; t.style.setProperty('--v', `${state.vol / 30 * 100}%`); $('#qsVolV').textContent = t.value; }
-});
+['pointerup', 'pointercancel'].forEach(ev => stage.addEventListener(ev, () => { drag = null; if (lp) { clearTimeout(lp.t); lp = null; } }));
 
 /* Controles do protótipo (fora da tela) */
 function toggleKiosk(on) { document.body.classList.toggle('kiosk', on); layoutStage(); }
@@ -1795,10 +1853,9 @@ $('#demo').addEventListener('click', e => {
   const k = b.dataset.demo;
   if (k === 'drive') setDriving(!state.moving);
   else if (k === 'speeding') setSpeeding(!state.speeding);
-  else if (k === 'call') incomingCall('ana');
-  else if (k === 'msg') pushNotif();
-  else if (k === 'night') { state.night = !state.night; renderNight(); }
-  else if (k === 'theme') { settings.theme = currentMode() === 'day' ? 'night' : 'day'; applySettings(); if (state.sheet === 'custom') renderSheet(); }
+  else if (k === 'light') { state.headlight = !state.headlight; applyTheme(); toast(state.headlight ? 'Farol aceso' : 'Farol apagado', 'sun'); }
+  else if (k === 'src-aa') setSource('aa');
+  else if (k === 'src-radio') setSource('radio');
   else if (k === 'full') {
     const el = document.documentElement;
     const p = el.requestFullscreen ? el.requestFullscreen() : null;
@@ -1810,23 +1867,21 @@ $('#dProfile').addEventListener('change', e => { settings.profile = e.target.val
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && location.hash !== '#kiosk') toggleKiosk(false); });
 /* Sair do modo quiosque sem teclado: toque longo no relógio */
 let clkLp = null;
-$('.st-clock').addEventListener('pointerdown', () => { clkLp = setTimeout(() => { if (document.body.classList.contains('kiosk')) { if (document.fullscreenElement) document.exitFullscreen(); toggleKiosk(false); if (location.hash === '#kiosk') history.replaceState(null, '', location.pathname + location.search); } }, 1200); });
+$('.st-clock').addEventListener('pointerdown', () => { clkLp = setTimeout(() => { if (document.body.classList.contains('kiosk')) { if (document.fullscreenElement) document.exitFullscreen(); toggleKiosk(false); if (location.hash === '#kiosk') history.replaceState(null, '', location.pathname + location.search); } }, 700); });
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => $('.st-clock').addEventListener(ev, () => clearTimeout(clkLp)));
 
 document.addEventListener('keydown', e => {
-  if (e.target.matches('input, select, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target.matches('input, select, textarea') || e.metaKey || e.ctrlKey || e.altKey) {
+    if (e.key === 'Enter' && e.target.id === 'rnIn') ACT['rename-save']();
+    return;
+  }
   const k = e.key.toLowerCase();
   if (k === 'd') setDriving(!state.moving);
   else if (k === 'a') setSpeeding(!state.speeding);
-  else if (k === 'c') incomingCall('ana');
-  else if (k === 'm') pushNotif();
-  else if (k === 'n') { state.night = !state.night; renderNight(); }
-  else if (k === 'v') { closeSheet(); openVoice(); }
+  else if (k === 'f') { state.headlight = !state.headlight; applyTheme(); }
   else if (k === 'escape') {
-    if (state.screenOff) ACT.wake();
-    else if (state.night) ACT['night-off']();
-    else if (state.voice) closeVoice();
-    else if (state.qs) closeQS();
+    if (state.rename) ACT['rename-cancel']();
+    else if (state.volOpen || state.gmenu) closeMenus();
     else if (state.aa) closeAA();
     else if (state.sheet) closeSheet();
     else if (document.body.classList.contains('kiosk')) toggleKiosk(false);
@@ -1836,25 +1891,18 @@ document.addEventListener('keydown', e => {
 /* ================================================================
    Laços de atualização
    ================================================================ */
-setInterval(() => {
-  alertTick(); updateSpeedUI(); updateTrip();
-  if (state.night) renderNight();
-  if (state.call) updateLive();
-}, 250);
-setInterval(() => { mediaTick(); callTick(); updateClock(); }, 1000);
-setInterval(() => {
-  if (settings.theme === 'auto') { const m = currentMode(); if (m !== stage.dataset.mode) applyTheme(); }
-  if (stackPages()[state.stackIdx].id === 'sugestoes') renderStack();
-}, 20000);
+setInterval(() => { alertTick(); updateSpeedUI(); updateTrip(); }, 250);
+setInterval(() => { radioTick(); updateClock(); }, 1000);
 
 /* ================================================================
    Início
    ================================================================ */
 if (location.hash === '#kiosk') document.body.classList.add('kiosk');
+if (location.hash === '#embed') document.body.classList.add('embed');
 state.s = 0.35 * S;
 state.heading = state.cam = headingOf(segDir(segAt(state.s)));
 applySettings(false);
-renderNet(); updateClock(); updateSpeedUI(); applyBright();
+updateClock(); updateSpeedUI(); updateTrip(); renderMedia();
 layoutStage();
 new ResizeObserver(() => layoutStage()).observe(viewport);
 new ResizeObserver(() => resizeMap()).observe($('#mapCard'));

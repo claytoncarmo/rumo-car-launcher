@@ -2,7 +2,8 @@
 
 **Projeto:** Rumo, um launcher para multimídia Android aftermarket (instalação num Honda)
 **Data:** outubro de 2026
-**Protótipo:** [`prototype/index.html`](../prototype/index.html)
+**Protótipo:** [`prototype/index.html`](../prototype/index.html), publicado em [claytoncarmo.github.io/rumo-car-launcher/prototipo](https://claytoncarmo.github.io/rumo-car-launcher/prototipo/)
+**Nota (nov/2026):** a seção 6 descreve o desenho proposto no estudo (com clima, chamadas, mensagens, cartão inteligente e personalização). O protótipo foi atualizado depois para mostrar o que o app faz hoje (rádio com favoritas, pontos marcados, volume flutuante, Viagem e configurações da home) e deixou de simular esses extras; o que o app tem está no [README](../README.md).
 **Integração com o aparelho de referência:** [`device-integration.md`](device-integration.md)
 
 ---

@@ -10,7 +10,8 @@ Launcher (tela inicial) próprio para o multimídia Android aftermarket de um Ho
 | `data/` | Gerador dos dados offline (mapa, vias, limites e radares do OpenStreetMap). Ver `data/README.md` |
 | `docs/home-screen-study.md` | Estudo das telas iniciais das marcas, segurança, princípios, interface proposta e viabilidade |
 | `docs/device-integration.md` | **Como falar com os serviços do multimídia** (farol, fonte de áudio, rádio): números de transação, formatos e comportamentos |
-| `prototype/index.html` | Protótipo HTML: referência visual e de comportamento |
+| `prototype/index.html` | Protótipo HTML interativo, mantido em dia com o app (dados de exemplo); vai para o site em `/prototipo/` |
+| `site/` | Página inicial do GitHub Pages (`site/index.html`, estática); o workflow `pages.yml` publica junto com o protótipo. Ao mudar o app de forma visível, atualize o protótipo e as funções listadas na página |
 
 Código do app (`android/launcher/src/main/java/app/rumo/`):
 - `core/`: lógica pura e testada (Geo, Roads, Radars, TripMeter, Formatting, Favorites, RadioNames, AudioOwner).

@@ -1,5 +1,7 @@
 # Rumo · launcher para multimídia Android
 
+**Site e protótipo para testar no navegador: [claytoncarmo.github.io/rumo-car-launcher](https://claytoncarmo.github.io/rumo-car-launcher/)**
+
 Tela inicial própria para centrais multimídia Android aftermarket, feita para um Honda. A ideia central é a **camada zero**: rua atual, limite da via, radares, música e a próxima ação ficam na tela inicial, sem abrir nenhum app. A navegação fica no Android Auto; o launcher organiza o essencial e, enquanto está na tela, cuida da velocidade.
 
 Foi desenvolvido e testado num aparelho HCN com Android 9 ([detalhes](docs/home-screen-study.md#aparelho-de-referência-medido)). O farol, a fonte de áudio e a estação do rádio vêm de serviços do fabricante ([como](docs/device-integration.md)); em outro aparelho o Rumo roda, com alternativas mais simples (tema pelo horário, fonte estimada pelo último app de áudio, rádio sem frequência).
@@ -51,7 +53,8 @@ Precisa de JDK 17 e do Android SDK (ou Android Studio): `cd android && ./gradlew
 | [`docs/home-screen-study.md`](docs/home-screen-study.md) | Estudo das telas iniciais das marcas, segurança, princípios, interface e viabilidade |
 | [`docs/device-integration.md`](docs/device-integration.md) | Serviços do multimídia (farol, fonte, rádio) e como investigá-los |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Como contribuir: código em inglês, textos e documentação em português, nomes que não mudam |
-| [`prototype/index.html`](prototype/index.html) | Protótipo interativo em HTML (abra no navegador; os dados são de exemplo) |
+| [`prototype/index.html`](prototype/index.html) | Protótipo interativo em HTML, em dia com o app (abra no navegador; os dados são de exemplo) |
+| [`site/`](site/index.html) | Página inicial do GitHub Pages; o workflow `pages.yml` publica junto com o protótipo |
 
 ## Licença
 
