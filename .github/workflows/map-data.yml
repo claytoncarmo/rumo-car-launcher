@@ -6,6 +6,7 @@ name: Map data (OSM)
 # Detalhes do pacote em data/README.md.
 on:
   push:
+    branches: [main]   # tags não: a release do app não refaz os dados
     paths:
       - "data/**"
       - "!data/maparadar.csv"
@@ -15,8 +16,9 @@ on:
   schedule:
     - cron: "0 6 1 * *"   # todo dia 1, dados novos do OSM
 
+# Só leitura por padrão; escrita só no job que publica (o build roda Gradle e plugins de terceiros com a chave)
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: map-data-${{ github.ref }}
@@ -26,6 +28,10 @@ env:
   # Zoom máximo do mapa: acima disso o MapLibre amplia o último nível (o app chega a 16,5)
   ZOOM: "14"
   PMTILES: "1.31.2"
+  # SHA-256 do go-pmtiles_${PMTILES}_Linux_x86_64.tar.gz (a release não publica checksums: conferido ao fixar a versão)
+  PMTILES_SHA256: "3ed7dbf4ec2e6dfe5e25b6f70d1ffc932729f93c86db353bf514dd71010a312f"
+  # Fontes dos nomes de rua: commit fixo do protomaps/basemaps-assets (não a main, que pode mudar)
+  FONTS_COMMIT: "028c18f713baecad011301ff7a69acc39bcc2ae7"
   # Ordem em que os estados aparecem no app (Sul, depois Sudeste); os nomes e grupos vêm de data/regions/<id>.geojson
   STATES: "pr sc rs sp rj mg es"
 
@@ -51,9 +57,9 @@ jobs:
       # Contorno do estado com ~8 km de folga (para continuar andando além da divisa): data/regions/
       CONTOUR: data/regions/${{ matrix.id }}.geojson
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
 
@@ -61,8 +67,10 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q osmium-tool
-          pip install "osmium>=3.7" pmtiles mapbox-vector-tile==2.2.0 shapely
-          curl -fsSL "https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES}/go-pmtiles_${PMTILES}_Linux_x86_64.tar.gz" | tar xz pmtiles
+          pip install osmium==4.3.2 pmtiles==3.8.1 mapbox-vector-tile==2.2.0 shapely==2.2.0
+          curl -fsSL -o pmtiles.tar.gz "https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES}/go-pmtiles_${PMTILES}_Linux_x86_64.tar.gz"
+          echo "$PMTILES_SHA256  pmtiles.tar.gz" | sha256sum -c -
+          tar xzf pmtiles.tar.gz pmtiles && rm pmtiles.tar.gz
           ./pmtiles version || true
 
       - name: Generator tests
@@ -117,7 +125,7 @@ jobs:
             echo "| roads.db | $(du -h Rumo/regions/$ID/roads.db | cut -f1) |"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: data-${{ matrix.id }}
           path: Rumo
@@ -126,16 +134,18 @@ jobs:
   publish:
     name: manifest and publish
     needs: state
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: data-*
           path: states
@@ -146,7 +156,7 @@ jobs:
             NAME="${f%%:*}"; DIR="common/fonts/${f##*:}"
             mkdir -p "$DIR"
             for r in 0-255 256-511 8192-8447; do
-              curl -fsSL -o "$DIR/$r.pbf" "https://raw.githubusercontent.com/protomaps/basemaps-assets/main/fonts/${NAME// /%20}/$r.pbf"
+              curl -fsSL -o "$DIR/$r.pbf" "https://raw.githubusercontent.com/protomaps/basemaps-assets/$FONTS_COMMIT/fonts/${NAME// /%20}/$r.pbf"
             done
           done
 
