@@ -390,13 +390,14 @@ private fun VolumeControl(s: HomeState, a: HomeActions, modifier: Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        VolumeButton(Icons.plus, 1, s, a)
+        // Número e barra em cima e os dois botões embaixo: o dedo no "+" não tampa o volume
         Txt(s.volume.toString(), 44, weight = FontWeight.Bold, numeric = true, lineHeight = 1f)
         val fraction = if (s.volumeMax > 0) (s.volume.toFloat() / s.volumeMax).coerceIn(0f, 1f) else 0f
         Box(Modifier.size(14.dp, 110.dp).clip(RoundedCornerShape(7.dp)).background(p.surface3), contentAlignment = Alignment.BottomCenter) {
             Box(Modifier.fillMaxWidth().fillMaxHeight(fraction).background(p.accent))
         }
         Txt("de ${s.volumeMax}", 14, color = p.text3)
+        VolumeButton(Icons.plus, 1, s, a)
         VolumeButton(Icons.minus, -1, s, a)
     }
 }

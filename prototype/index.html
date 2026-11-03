@@ -1744,9 +1744,9 @@ function openVol() {
 let volTimer = null;
 function closeVol() { state.volOpen = false; $('#vol').hidden = true; clearTimeout(volTimer); }
 function renderVol() {
-  $('#vol').innerHTML = `<button class="vol-b" data-vol="1" aria-label="Aumentar o volume">${ic('plus')}</button>
-    <div class="vol-n" id="volN">${state.vol}</div>
+  $('#vol').innerHTML = `<div class="vol-n" id="volN">${state.vol}</div>
     <div class="vol-bar"><i id="volBar" style="height:${state.vol / 30 * 100}%"></i></div><small>de 30</small>
+    <button class="vol-b" data-vol="1" aria-label="Aumentar o volume">${ic('plus')}</button>
     <button class="vol-b" data-vol="-1" aria-label="Diminuir o volume">${ic('minus')}</button>`;
 }
 function bumpVol(d) {
