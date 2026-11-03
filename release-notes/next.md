@@ -4,4 +4,4 @@
 - Botão "+" do mapa maior e mais fácil de tocar
 - Rádio mais estável
 - Mais fluidez no mapa e no GPS
-- Correções de erros
+- Avisos sonoros mais confiáveis

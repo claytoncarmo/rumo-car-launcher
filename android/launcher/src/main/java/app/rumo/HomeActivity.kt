@@ -63,6 +63,7 @@ import app.rumo.core.MarkSpot
 import app.rumo.core.RadarAlert
 import app.rumo.core.RadarKind
 import app.rumo.core.RadarSettings
+import app.rumo.core.radarLabel
 import app.rumo.core.RadarWatch
 import app.rumo.core.directionOf
 import app.rumo.core.nearestWayHint
@@ -73,6 +74,7 @@ import app.rumo.core.UserPoints
 import app.rumo.core.RoadMatch
 import app.rumo.core.RoadMatcher
 import app.rumo.device.Aidl
+import app.rumo.device.AlertLog
 import app.rumo.device.Alerts
 import app.rumo.device.BroadcastHunt
 import app.rumo.device.CarStatus
@@ -132,6 +134,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private val state = HomeState()
     private lateinit var gps: Gps
     private lateinit var alerts: Alerts
+    private val alertLog = AlertLog()
+    // Para o registro dos alertas: só as mudanças (radar que entrou ou saiu, bipes pedidos ou não, GPS que caiu ou voltou)
+    private var loggedRadar: Long? = null
+    private var loggedBeeps = false
+    private var loggedGps: GpsStatus? = null
 
     // Vias e radares: uma thread só, que lê o roads.db e guarda o estado do casamento com a via
     private val drive = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
@@ -215,7 +222,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }, "rumo-mapa").start()
         Aidl.packages = applicationContext.packageManager
         gps = Gps(this, ::onGps) { state.satellites = it }
-        alerts = Alerts(this)
+        alerts = Alerts(this, alertLog::add)
         state.favorites = Favorites.decode(prefs.getString(PREF_FAVORITES, null))
         lifecycleScope.launch { state.myPoints = withContext(drive) { minePointsLoaded() } }
         state.radarZoneM = RadarSettings.zone(prefs.getInt(PREF_RADAR_ZONE, RadarSettings.ZONE_DEFAULT))
@@ -299,6 +306,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     override fun onStart() {
         super.onStart()
+        alertLog.add("tela: Rumo na tela (${state.appVersion}) ${alerts.audioState()}")
         gps.start()
         watchNetwork()
         // A pasta Rumo pode ter sido copiada com o Rumo fora da tela
@@ -349,6 +357,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
         unwatchNetwork()
         alerts.stop()
         state.radar = null
+        loggedGps = null
+        alertLog.add("tela: Rumo saiu da tela (sem GPS e sem alertas até voltar)")
+        alertLog.copyTo(getExternalFilesDirs(null).drop(1).filterNotNull())
         super.onStop()
     }
 
@@ -1018,6 +1029,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     override fun testSound() {
         if (soundTesting) return
         soundTesting = true
+        alertLog.add("teste do som: iniciado ${alerts.audioState()}")
         lifecycleScope.launch {
             try {
                 state.toast = "Teste do som: o aviso e os bipes, do longe ao perto"
@@ -1410,6 +1422,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.gps = info
         val lat = info.lat
         val lon = info.lon
+        if (info.status != loggedGps) {
+            loggedGps = info.status
+            alertLog.add("gps: ${info.status}")
+        }
         if (info.status != GpsStatus.OK || lat == null || lon == null) {
             state.road = null
             state.radar = null
@@ -1446,6 +1462,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             state.road = road
             state.radar = radar
             state.over = overSpeed.update(info.speedKmh, road?.limit)
+            logRadar(radar, entered, speed)
             // Durante o teste do som, a posição do GPS não pode calar os bipes de mentira
             if (!soundTesting) {
                 if (entered && radar?.radar?.chimes == true) alerts.chime()
@@ -1457,6 +1474,25 @@ class HomeActivity : ComponentActivity(), HomeActions {
             val nextLat = next?.lat
             val nextLon = next?.lon
             if (next != null && nextLat != null && nextLon != null && state.gps.status == GpsStatus.OK) drive(next, nextLat, nextLon)
+        }
+    }
+
+    /** Anota no registro dos alertas o que o radar pediu (aviso na entrada, bipes ligando e desligando); o que o áudio fez, a [Alerts] anota. */
+    private fun logRadar(radar: RadarAlert?, entered: Boolean, speed: Int) {
+        val r = radar?.radar
+        if (entered && r != null) {
+            alertLog.add(
+                "radar: entrou id=${r.id} ${radarLabel(r.kind)} a ${radar.distanceM} m, vel=$speed limite=${r.limit} " +
+                    "margem=${radars.marginKmh} aviso=${if (r.chimes) "sim" else "não"}",
+            )
+        } else if (r == null && loggedRadar != null) {
+            alertLog.add("radar: saiu id=$loggedRadar")
+        }
+        loggedRadar = r?.id
+        val beeping = radar?.sound == true
+        if (beeping != loggedBeeps) {
+            alertLog.add(if (beeping) "radar: bipes pedidos (vel=$speed, a ${radar?.distanceM} m)" else "radar: bipes não pedidos mais (vel=$speed)")
+            loggedBeeps = beeping
         }
     }
 
