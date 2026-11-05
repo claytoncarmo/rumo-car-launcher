@@ -198,6 +198,16 @@ private fun AppSection(s: HomeState, a: HomeActions) {
             PillButton("Buscar de novo", enabled = !settings.checking && s.transfer == null, primary = false) { a.checkUpdates() }
         }
         Txt(
+            "Aviso no topo da tela: " + if (s.updateCheckedAt > 0) {
+                "última consulta em " + java.time.LocalDateTime.ofInstant(
+                    java.time.Instant.ofEpochMilli(s.updateCheckedAt), java.time.ZoneId.systemDefault(),
+                ).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM 'às' HH:mm")) + ". Consulta de novo 6 horas depois, com o Rumo na tela."
+            } else {
+                "ainda sem consulta. A primeira sai com o Rumo na tela."
+            },
+            14, color = p.text3, maxLines = 3,
+        )
+        Txt(
             "A nightly sai a cada mudança no código e pode ser instável. O Android não deixa voltar para uma versão mais antiga que a instalada.",
             14, color = p.text3, maxLines = 4,
         )

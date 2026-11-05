@@ -187,6 +187,8 @@ class HomeState {
      */
     var update by mutableStateOf<AppRelease?>(null)
     var updateOpen by mutableStateOf(false)
+    /** Quando a última consulta do aviso deu certo (ms desde 1970; 0 = nunca), para a aba Atualizações mostrar. */
+    var updateCheckedAt by mutableStateOf(0L)
     var transfer by mutableStateOf<Transfer?>(null)
 }
 

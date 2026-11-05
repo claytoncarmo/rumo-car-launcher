@@ -252,6 +252,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }
         // A versão nova achada na última consulta continua avisando depois de reiniciar, até ser instalada
         state.update = newerThanInstalled(state.appCode, prefs.getString(PREF_UPDATE_FOUND, null)?.let(::parseAppRelease))
+        state.updateCheckedAt = prefs.getLong(PREF_UPDATE_CHECKED, 0L)
         hideSystemBars()
         setContent { HomeScreen(state, this) }
 
@@ -1241,7 +1242,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
         val found = newerThanInstalled(state.appCode, release)
         state.update = found
         if (found == null) state.updateOpen = false
-        val editor = prefs.edit().putLong(PREF_UPDATE_CHECKED, System.currentTimeMillis())
+        val now = System.currentTimeMillis()
+        state.updateCheckedAt = now
+        val editor = prefs.edit().putLong(PREF_UPDATE_CHECKED, now)
         if (found != null) editor.putString(PREF_UPDATE_FOUND, found.toJson()) else editor.remove(PREF_UPDATE_FOUND)
         editor.apply()
     }
