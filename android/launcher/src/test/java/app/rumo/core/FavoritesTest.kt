@@ -23,6 +23,16 @@ class FavoritesTest {
     }
 
     @Test
+    fun stationLine() {
+        // O texto da emissora vale primeiro; sem ele, o nome dado à favorita; sem nome, a posição na lista
+        assertEquals("Gaspar", Favorites.line(list, 95900, " Gaspar "))
+        assertEquals("CBN", Favorites.line(list, 95900, null))
+        assertEquals("Favorito 3", Favorites.line(list, 102700, ""))
+        assertEquals("", Favorites.line(list, 100100, null))
+        assertEquals("", Favorites.line(list, null, null))
+    }
+
+    @Test
     fun renames() {
         assertEquals("Itapema", Favorites.rename(list, 102700, " Itapema ").last().name)
     }

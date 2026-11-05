@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import app.rumo.core.Favorite
+import app.rumo.core.Favorites
 import app.rumo.core.PT_BR
 
 /** Comandos da tela de rádio (o HomeActivity executa). */
@@ -141,9 +142,7 @@ private fun StationPanel(s: HomeState, a: HomeActions, modifier: Modifier) {
                 }
             }
         }
-        val sub = listOfNotNull(fav?.name?.takeIf { it.isNotBlank() }, radio?.text, radio?.preset?.let { "Memória ${it + 1}" })
-            .distinct().joinToString(" · ")
-        Txt(sub.ifEmpty { " " }, 20, color = p.text2, maxLines = 1)
+        Txt(Favorites.line(s.favorites, radio?.khz, radio?.text).ifEmpty { " " }, 20, color = p.text2, maxLines = 1)
         // Sem "Ouvir rádio": abrir esta tela já põe o rádio para tocar (o serviço do rádio assume o áudio ao ligar)
         Spacer(Modifier.weight(1f))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

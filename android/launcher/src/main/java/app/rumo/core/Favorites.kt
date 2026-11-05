@@ -48,6 +48,17 @@ object Favorites {
     fun remove(list: List<Favorite>, khz: Int): List<Favorite> = list.filterNot { it.khz == khz }
 
     /**
+     * Linha de baixo da estação que toca: o texto que a emissora envia (RDS); sem ele, o nome dado à favorita ou
+     * "Favorito N" (N = posição na lista, em ordem de frequência); fora das favoritas e sem texto, vazia.
+     */
+    fun line(list: List<Favorite>, khz: Int?, rdsText: String?): String {
+        rdsText?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+        val i = list.indexOfFirst { it.khz == khz }
+        if (i < 0) return ""
+        return list[i].name.ifBlank { "Favorito ${i + 1}" }
+    }
+
+    /**
      * Próxima (ou anterior) favorita a partir da estação atual, dando a volta na lista. Fora da lista, a próxima é
      * a primeira e a anterior, a última.
      */

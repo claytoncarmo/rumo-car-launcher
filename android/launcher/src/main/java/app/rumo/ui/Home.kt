@@ -71,6 +71,7 @@ import androidx.compose.ui.window.PopupProperties
 import app.rumo.core.AppRelease
 import app.rumo.core.Channel
 import app.rumo.core.Favorite
+import app.rumo.core.Favorites
 import app.rumo.core.MarkSpot
 import app.rumo.core.PT_BR
 import app.rumo.core.Radar
@@ -391,7 +392,7 @@ private fun VolumeControl(s: HomeState, a: HomeActions, modifier: Modifier) {
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         // Número e barra em cima e os dois botões embaixo: o dedo no "+" não tampa o volume
-        Txt(s.volume.toString(), 44, weight = FontWeight.Bold, numeric = true, lineHeight = 1f)
+        Txt(s.volume.toString(), 44, weight = FontWeight.Bold, numeric = true, lineHeight = 1f, modifier = Modifier.padding(top = 10.dp))
         val fraction = if (s.volumeMax > 0) (s.volume.toFloat() / s.volumeMax).coerceIn(0f, 1f) else 0f
         Box(Modifier.size(14.dp, 110.dp).clip(RoundedCornerShape(7.dp)).background(p.surface3), contentAlignment = Alignment.BottomCenter) {
             Box(Modifier.fillMaxWidth().fillMaxHeight(fraction).background(p.accent))
@@ -557,17 +558,8 @@ private fun HomeCards(s: HomeState, a: HomeActions, night: Boolean, mapAllowed: 
     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         MapCard(s, a, night, mapAllowed, Modifier.weight(1.6f).fillMaxHeight())
         Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            // Linha de baixo no rádio: nome dado na favorita, texto da emissora, memória; "Rádio parado" no mudo
-            val radioLine = if (s.radioMuted) {
-                "Rádio parado"
-            } else {
-                val r = s.radio
-                listOfNotNull(
-                    r?.let { now -> s.favorites.firstOrNull { it.khz == now.khz }?.name?.takeIf(String::isNotBlank) },
-                    r?.text,
-                    r?.preset?.let { "Memória ${it + 1}" },
-                ).distinct().joinToString(" · ")
-            }
+            // Linha de baixo no rádio: texto da emissora ou, se for favorita, o nome dela ("Favorito N"); "Rádio parado" no mudo
+            val radioLine = if (s.radioMuted) "Rádio parado" else Favorites.line(s.favorites, s.radio?.khz, s.radio?.text)
             MediaCard(s.source, s.radio, radioLine, s.usageAccess || s.sourceLive, a, Modifier.weight(1.12f).fillMaxWidth())
             TripCard(s.gps, s.over, Modifier.weight(1f).fillMaxWidth())
         }
