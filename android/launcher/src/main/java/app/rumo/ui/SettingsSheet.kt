@@ -201,7 +201,7 @@ private fun AppSection(s: HomeState, a: HomeActions) {
             "Aviso no topo da tela: " + if (s.updateCheckedAt > 0) {
                 "última consulta em " + java.time.LocalDateTime.ofInstant(
                     java.time.Instant.ofEpochMilli(s.updateCheckedAt), java.time.ZoneId.systemDefault(),
-                ).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM 'às' HH:mm")) + ". Consulta de novo 6 horas depois, com o Rumo na tela."
+                ).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM 'às' HH:mm")) + ". Consulta de novo 4 horas depois, com o Rumo na tela."
             } else {
                 "ainda sem consulta. A primeira sai com o Rumo na tela."
             },

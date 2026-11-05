@@ -25,7 +25,7 @@ Foi desenvolvido e testado num aparelho HCN com Android 9 ([detalhes](docs/home-
 
 ## Atualizar
 
-Com o Rumo na tela, ele consulta a cada 6 horas se há versão nova **no canal da versão instalada** (quem usa a estável só é avisado de estável nova; quem usa a nightly, de nightly nova). Quando há, aparece um ícone de download ao lado do botão de tema; tocar nele (com o carro parado) mostra as novidades em poucas linhas e o botão **Baixar e instalar**. As novidades de cada versão ficam em [`release-notes/`](release-notes/README.md).
+Com o Rumo na tela, ele consulta a cada 4 horas se há versão nova **no canal da versão instalada** (quem usa a estável só é avisado de estável nova; quem usa a nightly, de nightly nova). Quando há, aparece um ícone de download ao lado do botão de tema; tocar nele (com o carro parado) mostra as novidades em poucas linhas e o botão **Baixar e instalar**. As novidades de cada versão ficam em [`release-notes/`](release-notes/README.md).
 
 As **configurações da home** (engrenagem › Configurações da home, só abaixo de 5 km/h) mostram a versão instalada e as últimas publicadas nos canais **estável** e **nightly**. **Instalar** baixa o APK (com retomada se a conexão cair), confere o hash e abre o instalador do Android. A mesma tela baixa e atualiza os dados do mapa. O Android não deixa instalar uma versão mais antiga que a instalada: de nightly só se volta para a estável quando ela for mais nova.
 

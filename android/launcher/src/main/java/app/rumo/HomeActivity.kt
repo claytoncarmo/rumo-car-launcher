@@ -287,7 +287,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             }
         }
 
-        // Versão nova no canal da instalada, de 6 em 6 horas. Só com o Rumo na tela (nada roda em segundo plano): ao
+        // Versão nova no canal da instalada, de 4 em 4 horas. Só com o Rumo na tela (nada roda em segundo plano): ao
         // voltar, confere pela hora da última consulta o que falta. Falhou (sem rede): tenta de novo em meia hora.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {

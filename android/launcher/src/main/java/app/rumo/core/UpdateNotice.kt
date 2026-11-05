@@ -1,7 +1,7 @@
 package app.rumo.core
 
 /** De quanto em quanto tempo o Rumo, na tela, consulta se há versão nova. */
-const val UPDATE_CHECK_EVERY_MS = 6L * 60 * 60 * 1000
+const val UPDATE_CHECK_EVERY_MS = 4L * 60 * 60 * 1000
 
 /** Depois de uma consulta que falhou (sem rede, GitHub fora), tenta de novo em meia hora. */
 const val UPDATE_RETRY_MS = 30L * 60 * 1000

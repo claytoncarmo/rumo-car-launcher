@@ -22,11 +22,11 @@ class UpdateNoticeTest {
     }
 
     @Test
-    fun checksEverySixHours() {
+    fun checksEveryFourHours() {
         val hour = 3_600_000L
         assertEquals(0L, msUntilUpdateCheck(0, 5 * hour))
-        assertEquals(4 * hour, msUntilUpdateCheck(10 * hour, 12 * hour))
-        assertEquals(0L, msUntilUpdateCheck(10 * hour, 16 * hour))
+        assertEquals(2 * hour, msUntilUpdateCheck(10 * hour, 12 * hour))
+        assertEquals(0L, msUntilUpdateCheck(10 * hour, 14 * hour))
         assertEquals(0L, msUntilUpdateCheck(10 * hour, 30 * hour))
     }
 
