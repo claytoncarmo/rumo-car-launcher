@@ -120,9 +120,9 @@ Para investigar outro aparelho (ou outra versão de firmware) o Rumo traz ferram
 |---|---|---|
 | Toque longo no botão de tema (barra de cima) | Por 20 s, enquanto se acende e apaga o farol: ouve a MCU e os avisos (broadcasts) do sistema, compara os ajustes e lista as classes do fabricante e as interfaces dos serviços do carro | `headlight-test.txt` |
 | Toque longo no card de mídia | Por 60 s: liga nos serviços do rádio, lê as funções de leitura, registra os ouvintes e anota o que muda ao trocar de estação | `radio-test.txt` |
-| Toque longo no botão "FM" (tela de rádio) | Registro dos comandos mandados ao rádio (FM e online) | `radio-commands-test.txt` |
-| Sozinho, quando o Rumo fecha com erro | O erro, a fonte de áudio e os últimos comandos do rádio; na abertura seguinte um aviso diz que há relatório novo | `crash-report.txt` |
+| Toque longo no botão "FM" (tela de rádio) | Registro dos comandos mandados ao rádio (FM e online), o da sessão anterior e o log do Android com as linhas do Rumo | `radio-commands-test.txt` |
+| Sozinho, quando o Rumo fecha | Erro Java na hora; na abertura seguinte completa com o trecho do log do Android do fechamento (pega também erro nativo) e os comandos do rádio de antes de fechar, e avisa | `crash-report.txt` |
 
-Os relatórios vão para `Rumo/` na memória interna e para `Android/data/app.rumo/files/` de cada pendrive ou cartão. O código está em `device/` (`BroadcastHunt`, `CarSourceProbe`, `NightSignal`, `RadioProbe`).
+Os relatórios vão para `Rumo/` na memória interna e para `Android/data/app.rumo/files/` de cada pendrive ou cartão. O código está em `device/` (`BroadcastHunt`, `CarSourceProbe`, `NightSignal`, `RadioProbe`, `CrashReport`). Um app comum lê no logcat só as próprias linhas, mas inclusive as do processo que acabou de morrer: é assim que o relatório acha o fechamento.
 
 **Receita para um aparelho novo:** liste os serviços (`ServiceManager.listServices`) e filtre por nomes de carro, MCU e rádio; leia o `interfaceDescriptor` de cada um; carregue a classe da interface e do `Stub` e liste as constantes `TRANSACTION_*`; chame primeiro só as funções de leitura (`get…`/`is…`); procure nos APKs do fabricante nomes de ação de broadcast e de propriedades; só depois registre ouvintes.

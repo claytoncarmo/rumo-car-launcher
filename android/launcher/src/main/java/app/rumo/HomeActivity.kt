@@ -206,6 +206,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var webNear: List<WebStation> = emptyList()
     private var webState: BrState? = null
     private var webLoading = false
+    // Registro dos comandos do rádio em arquivo, gravado numa thread só (na ordem), e o da sessão anterior
+    private val radioLogFile by lazy { File(filesDir, "radio-log.txt") }
+    private val logWriter = Executors.newSingleThreadExecutor()
+    @Volatile private var previousRadioLog: List<String> = emptyList()
     @Volatile private var scanCancelled = false
     /** Outro comando pediu o rádio durante a procura: ela para sem voltar à estação de antes. */
     @Volatile private var scanInterrupted = false
@@ -234,6 +238,15 @@ class HomeActivity : ComponentActivity(), HomeActions {
         super.onCreate(savedInstanceState)
         // Fechou com erro: o relatório vai para a pasta Rumo e o pendrive, com os últimos comandos do rádio
         CrashReport.install(this)
+        // Primeiro da fila do registro: guarda o da sessão anterior e começa um arquivo novo
+        logWriter.execute {
+            previousRadioLog = try {
+                radioLogFile.takeIf { it.isFile }?.readLines().orEmpty()
+            } catch (e: Exception) {
+                emptyList()
+            }
+            radioLogFile.delete()
+        }
         CrashReport.extra = { state.radioLog.takeLast(CRASH_LOG_LINES) + "fonte: ${state.source} · tela de rádio: ${state.radioBand} · online: ${state.web.status}" }
         // A biblioteca nativa do mapa (9,5 MB) demora a carregar: começa já, numa thread à parte, em vez de na hora de
         // criar o mapa na thread principal. Se o nome mudar numa versão do MapLibre, só deixa de adiantar.
@@ -283,7 +296,16 @@ class HomeActivity : ComponentActivity(), HomeActions {
         // A versão nova achada na última consulta continua avisando depois de reiniciar, até ser instalada
         state.update = newerThanInstalled(state.appCode, prefs.getString(PREF_UPDATE_FOUND, null)?.let(::parseAppRelease))
         state.updateCheckedAt = prefs.getLong(PREF_UPDATE_CHECKED, 0L)
-        if (CrashReport.takeNew(this)) state.toast = "O Rumo fechou com um erro: relatório em Rumo/${CrashReport.FILE}"
+        // O registro dos comandos do rádio vai para um arquivo (sobrevive a um fechamento); o da sessão anterior entra no
+        // relatório de fechamento, se houver
+        lifecycleScope.launch {
+            val crashed = withContext(Dispatchers.IO) {
+                // Espera a fila do registro ler o arquivo da sessão anterior (pedido no começo do onCreate)
+                logWriter.submit {}.get()
+                CrashReport.collect(this@HomeActivity, previousRadioLog)
+            }
+            if (crashed) state.toast = "O Rumo fechou da última vez: relatório em Rumo/${CrashReport.FILE}"
+        }
         hideSystemBars()
         setContent { HomeScreen(state, this) }
 
@@ -886,7 +908,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
             }
             RadioCmd.StopScan -> scanCancelled = true
             RadioCmd.SaveLog -> lifecycleScope.launch {
-                val saved = withContext(Dispatchers.IO) { saveReport("Teste dos comandos do rádio", "radio-commands-test.txt", state.radioLog) }
+                val lines = state.radioLog + listOf("", "Sessão anterior:") + previousRadioLog
+                val saved = withContext(Dispatchers.IO) {
+                    val log = listOf("", "Log do Android (só as linhas do Rumo):") + CrashReport.logcat(REPORT_LOGCAT_LINES)
+                    saveReport("Teste dos comandos do rádio", "radio-commands-test.txt", lines + log)
+                }
                 state.toast = if (saved.isEmpty()) "Não consegui salvar o registro" else "Registro salvo: ${saved.first()}"
             }
             is RadioCmd.Band -> when {
@@ -1092,6 +1118,13 @@ class HomeActivity : ComponentActivity(), HomeActions {
     /** Registro dos comandos do rádio, com a hora (pode vir de qualquer thread). */
     private fun radioLog(line: String) {
         val stamped = "${java.time.LocalTime.now().withNano(0)}  $line"
+        logWriter.execute {
+            try {
+                if (radioLogFile.length() > RADIO_LOG_FILE_MAX) radioLogFile.delete()
+                radioLogFile.appendText(stamped + "\n")
+            } catch (e: Exception) {
+            }
+        }
         runOnUiThread { state.radioLog = (state.radioLog + stamped).takeLast(RADIO_LOG_LINES) }
     }
 
@@ -1837,6 +1870,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_RADIO_MUTED = "radio_muted"
         const val RADIO_LOG_LINES = 300
         const val CRASH_LOG_LINES = 40
+        const val RADIO_LOG_FILE_MAX = 256 * 1024L
+        const val REPORT_LOGCAT_LINES = 1_500
         const val PREF_RADIO_BAND = "radio_band"
         const val PREF_WEB_FAVORITES = "web_favorites"
         const val PREF_WEB_LAST = "web_last"
