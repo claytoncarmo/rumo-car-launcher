@@ -120,7 +120,8 @@ Para investigar outro aparelho (ou outra versão de firmware) o Rumo traz ferram
 |---|---|---|
 | Toque longo no botão de tema (barra de cima) | Por 20 s, enquanto se acende e apaga o farol: ouve a MCU e os avisos (broadcasts) do sistema, compara os ajustes e lista as classes do fabricante e as interfaces dos serviços do carro | `headlight-test.txt` |
 | Toque longo no card de mídia | Por 60 s: liga nos serviços do rádio, lê as funções de leitura, registra os ouvintes e anota o que muda ao trocar de estação | `radio-test.txt` |
-| Toque longo no título "Rádio" (tela de rádio) | Registro dos comandos mandados ao rádio | `radio-commands-test.txt` |
+| Toque longo no botão "FM" (tela de rádio) | Registro dos comandos mandados ao rádio (FM e online) | `radio-commands-test.txt` |
+| Sozinho, quando o Rumo fecha com erro | O erro, a fonte de áudio e os últimos comandos do rádio; na abertura seguinte um aviso diz que há relatório novo | `crash-report.txt` |
 
 Os relatórios vão para `Rumo/` na memória interna e para `Android/data/app.rumo/files/` de cada pendrive ou cartão. O código está em `device/` (`BroadcastHunt`, `CarSourceProbe`, `NightSignal`, `RadioProbe`).
 

@@ -51,6 +51,7 @@ import app.rumo.core.RadioNames
 import app.rumo.core.fineStep
 import app.rumo.core.formatRadioFreq
 import app.rumo.device.RadioControl
+import app.rumo.device.CrashReport
 import app.rumo.core.BrState
 import app.rumo.core.WebFilter
 import app.rumo.core.WebRadio
@@ -231,6 +232,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Fechou com erro: o relatório vai para a pasta Rumo e o pendrive, com os últimos comandos do rádio
+        CrashReport.install(this)
+        CrashReport.extra = { state.radioLog.takeLast(CRASH_LOG_LINES) + "fonte: ${state.source} · tela de rádio: ${state.radioBand} · online: ${state.web.status}" }
         // A biblioteca nativa do mapa (9,5 MB) demora a carregar: começa já, numa thread à parte, em vez de na hora de
         // criar o mapa na thread principal. Se o nome mudar numa versão do MapLibre, só deixa de adiantar.
         Thread({
@@ -279,6 +283,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         // A versão nova achada na última consulta continua avisando depois de reiniciar, até ser instalada
         state.update = newerThanInstalled(state.appCode, prefs.getString(PREF_UPDATE_FOUND, null)?.let(::parseAppRelease))
         state.updateCheckedAt = prefs.getLong(PREF_UPDATE_CHECKED, 0L)
+        if (CrashReport.takeNew(this)) state.toast = "O Rumo fechou com um erro: relatório em Rumo/${CrashReport.FILE}"
         hideSystemBars()
         setContent { HomeScreen(state, this) }
 
@@ -891,6 +896,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
                     loadWebCatalog()
                 }
                 !cmd.web && state.radioBand == RadioBand.WEB -> {
+                    radioLog("tela de rádio: volta para o FM")
                     leaveWeb()
                     radio(RadioCmd.Play)
                     lifecycleScope.launch { refreshRadio() }
@@ -945,10 +951,12 @@ class HomeActivity : ComponentActivity(), HomeActions {
             return
         }
         state.web = WebNow(s, WebStatus.CONNECTING)
+        radioLog("online: tocar ${s.name} (${s.codec} ${s.kbps} kbps${if (s.hls) ", HLS" else ""})")
         webPlayer.play(s)
     }
 
     private fun stopWeb(status: WebStatus = WebStatus.OFF) {
+        if (webPlayerOrNull != null) radioLog("online: parar ($status)")
         webPlayerOrNull?.stop()
         state.web = state.web.copy(status = status, title = null)
     }
@@ -974,6 +982,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         } ?: w.station
         // Parado pelo Rumo por falta de Wi-Fi: o "sem Wi-Fi" fica até a rede voltar
         val status = if (p.status == WebStatus.OFF && (w.status == WebStatus.LOST || w.status == WebStatus.NO_WIFI)) w.status else p.status
+        if (status != w.status) radioLog("online: ${w.status} → $status")
         state.web = WebNow(station, status, p.title.takeIf { status == WebStatus.LIVE })
         if ((status == WebStatus.CONNECTING || status == WebStatus.LIVE) && state.source != Source.WEB) {
             state.source = Source.WEB
@@ -1827,6 +1836,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_SCAN = "radio_found"
         const val PREF_RADIO_MUTED = "radio_muted"
         const val RADIO_LOG_LINES = 300
+        const val CRASH_LOG_LINES = 40
         const val PREF_RADIO_BAND = "radio_band"
         const val PREF_WEB_FAVORITES = "web_favorites"
         const val PREF_WEB_LAST = "web_last"
