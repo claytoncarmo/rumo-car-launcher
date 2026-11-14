@@ -193,7 +193,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var lastRawOwner: String? = null
     private var sourceInfoMissing = false
     private val radioControl by lazy {
-        RadioControl(this, prefs.getInt(PREF_RADIO_UNIT, 0).takeIf { it > 0 }) { unit ->
+        RadioControl(
+            this,
+            prefs.getInt(PREF_RADIO_UNIT, 0).takeIf { it > 0 },
+            onLost = { radioLog("o serviço do app de rádio caiu (onServiceDisconnected)") },
+        ) { unit ->
             prefs.edit().putInt(PREF_RADIO_UNIT, unit).apply()
         }
     }
@@ -854,6 +858,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         when (cmd) {
             RadioCmd.OpenApp -> openRadio()
             RadioCmd.Play -> tunerCommand {
+                settleRadio()
                 radioLog(withContext(Dispatchers.IO) { radioControl.playAudio() })
             }
             is RadioCmd.Seek -> tunerCommand {
@@ -871,7 +876,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
             }
             is RadioCmd.Tune -> tunerCommand {
                 // Escolher uma estação com outra fonte tocando: pede o rádio como fonte (teste do requestPlayAudio)
-                if (state.source != Source.RADIO) radioLog(withContext(Dispatchers.IO) { radioControl.playAudio() })
+                if (state.source != Source.RADIO) {
+                    settleRadio()
+                    radioLog(withContext(Dispatchers.IO) { radioControl.playAudio() })
+                }
                 val ok = withContext(Dispatchers.IO) { radioControl.tune(cmd.khz, ::radioLog) }
                 if (!ok) state.toast = "Não consegui sintonizar ${formatRadioFreq(cmd.khz)}"
                 refreshRadio()
@@ -1086,6 +1094,18 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.webBrowse = b.copy(stations = list, place = webState?.name)
     }
 
+    /**
+     * O serviço do app de rádio acabou de nascer (o Rumo o tinha soltado para calar o FM, ao ir para o rádio online
+     * ou no play do card): espera ele se ajeitar antes de pedir o áudio. Ao voltar do online para o FM, o serviço caía.
+     */
+    private suspend fun settleRadio() {
+        val since = SystemClock.elapsedRealtime() - radioControl.connectedAt
+        if (since < RADIO_SETTLE_MS) {
+            radioLog("espera o serviço do rádio (${RADIO_SETTLE_MS - since} ms)")
+            delay(RADIO_SETTLE_MS - since)
+        }
+    }
+
     private suspend fun ensureRadio() = radioConnect.withLock {
         if (radioControl.connected) return@withLock
         // Sem registerRadioClientBinder: os comandos funcionam sem ele, e o "cliente saiu" pode parar o rádio
@@ -1250,7 +1270,13 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private fun onRadio(now: RadioNow) {
         val tuned = state.radio?.khz != null && state.radio?.khz != now.khz
         state.radio = now
-        if (tuned && state.source != Source.RADIO) applyAudioOwner(RADIO_PKG)
+        // Com o rádio online parado, trocar de estação no app do rádio devolve a fonte ao FM
+        if (tuned && state.source == Source.WEB && !webPlaying()) {
+            radioLog("estação trocada no app do rádio: fonte volta ao FM")
+            setRadioBand(RadioBand.FM)
+            state.source = Source.RADIO
+        }
+        if (tuned && state.source != Source.RADIO && state.source != Source.WEB) applyAudioOwner(RADIO_PKG)
     }
 
     override fun voice() {
@@ -1805,12 +1831,13 @@ class HomeActivity : ComponentActivity(), HomeActions {
      */
     private fun applyAudioOwner(name: String) {
         val owner = audioOwnerOf(name) ?: return
-        if (state.source == Source.WEB && webPlaying()) {
-            // Com o rádio online tocando, o sourceinfo pode dizer "outro app" (o som sai como mídia do Android) ou ainda
-            // "rádio" (a última fonte do aparelho): a fonte continua sendo o rádio online. Só o ZLINK o tira (o Android
-            // Auto também pede o foco de áudio, e o player pausa sozinho).
+        if (state.source == Source.WEB) {
+            // Com o rádio online (tocando ou parado pelo play do card), o sourceinfo pode dizer "outro app" (o som sai
+            // como mídia do Android) ou ainda "rádio" (a última fonte do aparelho): a fonte continua sendo o rádio
+            // online, e o play do card volta a tocá-lo. Só o ZLINK o tira (o Android Auto também pede o foco de áudio,
+            // e o player pausa sozinho). A troca de estação no app do rádio é vista em onRadio.
             if (owner != AudioOwner.ZLINK) return
-            stopWeb()
+            if (webPlaying()) stopWeb()
         }
         state.source = when (owner) {
             AudioOwner.ZLINK -> Source.ZLINK
@@ -1870,6 +1897,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_RADIO_MUTED = "radio_muted"
         const val RADIO_LOG_LINES = 300
         const val CRASH_LOG_LINES = 40
+        const val RADIO_SETTLE_MS = 1_500L
         const val RADIO_LOG_FILE_MAX = 256 * 1024L
         const val REPORT_LOGCAT_LINES = 1_500
         const val PREF_RADIO_BAND = "radio_band"

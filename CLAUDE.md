@@ -54,6 +54,7 @@ HCN, Android **9 (API 28)** embora exiba "15", 32 bits (`armeabi-v7a`), 8× Cort
 A lista viva de tarefas (incluindo suporte a outros aparelhos) está em `TODO.md`.
 
 - Validar o play do card de mídia no rádio como "parar": o mudo do `fmradio` sozinho não calou o rádio; o Rumo agora também solta a ligação com o serviço do rádio (que só existe enquanto alguém está ligado nele) e liga de novo ao tocar.
+- **Fechamento ao voltar do Online para o FM (14/nov/2026):** não deixa `crash-report.txt`, e no teste do rádio o serviço do `com.hcn.autoradio` morreu (`DeadObjectException`) com o Rumo vivo: o que fecha deve ser o app de rádio do fabricante, ao ser solto e ligado de novo. A nightly seguinte espera 1,5 s depois de ligar antes do `requestPlayAudio` e anota no registro do rádio quando o serviço cai; a validar.
 - **Rádio online a validar no carro:** se o som sai junto com o FM calado (sem os dois ao mesmo tempo), o que o `sourceinfo` informa com ele tocando (o Rumo mantém a fonte "Rádio online" com qualquer valor que não seja o ZLINK), o volume, a notificação de mídia no firmware e se o catálogo abre (TLS do aparelho).
 - Testar andando: rua e limite em cruzamentos e ruas paralelas, avisos de radar, desempenho do mapa e a velocidade do GPS contra o painel do carro.
 - Completar os radares além do OSM (ANTT, dados abertos de prefeituras).

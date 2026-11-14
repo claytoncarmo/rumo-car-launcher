@@ -19,7 +19,13 @@ import kotlin.coroutines.resume
  * Nunca grava nas memórias do aparelho: a procura de estações usa a busca (seek), não o "AS" (auto store), que
  * sobrescreve as 6 memórias.
  */
-class RadioControl(context: Context, savedUnit: Int? = null, private val onUnit: (Int) -> Unit = {}) {
+class RadioControl(
+    context: Context,
+    savedUnit: Int? = null,
+    /** O serviço do app de rádio morreu com a ligação aberta (o app de rádio fechou ou foi encerrado). */
+    private val onLost: () -> Unit = {},
+    private val onUnit: (Int) -> Unit = {},
+) {
     private val ctx = context.applicationContext
     @Volatile private var api: IBinder? = null
     private var connection: ServiceConnection? = null
@@ -33,6 +39,10 @@ class RadioControl(context: Context, savedUnit: Int? = null, private val onUnit:
         private set
 
     val connected: Boolean get() = api?.isBinderAlive == true
+
+    /** Quando a ligação atual abriu (o serviço acabou de nascer se o Rumo o tinha soltado antes). */
+    @Volatile var connectedAt = 0L
+        private set
 
     /**
      * Liga no serviço do app de rádio (cria se preciso: a tela de rádio foi aberta de propósito). Thread principal.
@@ -55,6 +65,7 @@ class RadioControl(context: Context, savedUnit: Int? = null, private val onUnit:
                     // novo quando for aberta
                     override fun onServiceDisconnected(name: ComponentName) {
                         api = null
+                        onLost()
                         disconnect()
                     }
                 }
@@ -70,6 +81,7 @@ class RadioControl(context: Context, savedUnit: Int? = null, private val onUnit:
             disconnect()
             return "serviço do rádio não respondeu"
         }
+        connectedAt = android.os.SystemClock.elapsedRealtime()
         return "ligado ao serviço do rádio"
     }
 
