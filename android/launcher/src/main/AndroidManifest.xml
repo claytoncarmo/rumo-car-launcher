@@ -30,6 +30,11 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Rádio online: o som continua com o Rumo fora da tela (serviço de mídia em primeiro plano) e o Wi-Fi não dorme -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <!-- Configurações da home › Reiniciar o Android: só vale se o Rumo for app privilegiado (senão tenta `su`) -->
     <uses-permission
         android:name="android.permission.REBOOT"
@@ -50,12 +55,15 @@
         <package android:name="com.hcn.autoradio" />
     </queries>
 
+    <!-- usesCleartextTraffic: boa parte das rádios online só transmite por http. As conexões do próprio Rumo
+         (versões, dados do mapa, catálogo de rádios) continuam só em https -->
     <application
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="false"
-        android:theme="@style/Theme.Rumo">
+        android:theme="@style/Theme.Rumo"
+        android:usesCleartextTraffic="true">
 
         <activity
             android:name=".HomeActivity"
@@ -89,6 +97,16 @@
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/power_service" />
+        </service>
+
+        <!-- Rádio online (player e sessão de mídia); só o próprio Rumo liga nele -->
+        <service
+            android:name=".device.WebRadioService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
         </service>
 
         <!-- Entrega o APK baixado ao instalador do Android -->

@@ -81,6 +81,11 @@ dependencies {
     // Mapa vetorial offline (PMTiles desde a 11.7). A linha 11 usa OpenGL ES 3 (o Mali-T720 tem 3.1);
     // a 13 passou a usar Vulkan por padrão.
     implementation("org.maplibre.gl:android-sdk:11.13.5")
+    // Rádio online: player de streaming (MP3/AAC e HLS) e o serviço de mídia que toca com o Rumo fora da tela
+    val media3 = "1.5.1"
+    implementation("androidx.media3:media3-exoplayer:$media3")
+    implementation("androidx.media3:media3-exoplayer-hls:$media3")
+    implementation("androidx.media3:media3-session:$media3")
 
     testImplementation("junit:junit:4.13.2")
     // O org.json do Android é só um molde nos testes de JVM; com este os manifestos podem ser lidos neles

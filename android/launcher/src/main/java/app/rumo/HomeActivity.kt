@@ -51,6 +51,16 @@ import app.rumo.core.RadioNames
 import app.rumo.core.fineStep
 import app.rumo.core.formatRadioFreq
 import app.rumo.device.RadioControl
+import app.rumo.core.BrState
+import app.rumo.core.WebFilter
+import app.rumo.core.WebRadio
+import app.rumo.core.WebStation
+import app.rumo.core.WebStatus
+import app.rumo.device.WebPlayback
+import app.rumo.device.WebRadioCatalog
+import app.rumo.device.WebRadioPlayer
+import app.rumo.ui.RadioBand
+import app.rumo.ui.WebNow
 import app.rumo.ui.RadioCmd
 import app.rumo.ui.RadioScan
 import app.rumo.core.OverSpeed
@@ -186,6 +196,15 @@ class HomeActivity : ComponentActivity(), HomeActions {
             prefs.edit().putInt(PREF_RADIO_UNIT, unit).apply()
         }
     }
+    // Rádio online: o player (no serviço de mídia, ligado na primeira vez que precisa), o catálogo e as listas dele
+    private var webPlayerOrNull: WebRadioPlayer? = null
+    private val webPlayer: WebRadioPlayer
+        get() = webPlayerOrNull ?: WebRadioPlayer(this, ::onWebPlayback).also { webPlayerOrNull = it }
+    private val webCatalog by lazy { WebRadioCatalog(File(filesDir, "web-radio")) }
+    private var webCountry: List<WebStation> = emptyList()
+    private var webNear: List<WebStation> = emptyList()
+    private var webState: BrState? = null
+    private var webLoading = false
     @Volatile private var scanCancelled = false
     /** Outro comando pediu o rádio durante a procura: ela para sem voltar à estação de antes. */
     @Volatile private var scanInterrupted = false
@@ -230,6 +249,13 @@ class HomeActivity : ComponentActivity(), HomeActions {
         radars.zoneM = state.radarZoneM
         radars.marginKmh = state.radarMarginKmh
         state.radioMuted = prefs.getBoolean(PREF_RADIO_MUTED, false)
+        state.webFavorites = WebRadio.decode(prefs.getString(PREF_WEB_FAVORITES, null))
+        state.web = WebNow(WebRadio.decode(prefs.getString(PREF_WEB_LAST, null)).firstOrNull())
+        if (prefs.getString(PREF_RADIO_BAND, null) == RadioBand.WEB.name) {
+            state.radioBand = RadioBand.WEB
+            // Pode estar tocando desde antes (a tela foi recriada): liga no serviço para saber
+            webPlayer.connect()
+        }
         radioNames.load(prefs.getString(PREF_RADIO_NAMES, null))
         state.radioNames = radioNames.valid()
         prefs.getString(PREF_SCAN, null)?.split(',')?.mapNotNull { it.trim().toIntOrNull() }
@@ -367,11 +393,12 @@ class HomeActivity : ComponentActivity(), HomeActions {
     /** Acompanha se há rede, para a aba Atualizações consultar de novo quando a conexão volta. */
     private fun watchNetwork() {
         val manager = getSystemService(ConnectivityManager::class.java) ?: return
-        state.online = manager.activeNetwork != null
+        onNetwork(manager.activeNetwork != null)
         if (networkCallback != null) return
         val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) = runOnUiThread { state.online = true }
-            override fun onLost(network: Network) = runOnUiThread { state.online = false }
+            override fun onAvailable(network: Network) = runOnUiThread { onNetwork(true) }
+            // Trocar de rede também avisa a perda da antiga: só vale como "sem rede" se não sobrou nenhuma
+            override fun onLost(network: Network) = runOnUiThread { onNetwork(manager.activeNetwork != null) }
         }
         try {
             manager.registerDefaultNetworkCallback(callback)
@@ -402,6 +429,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
         unregisterReceiver(packagesChanged)
         alerts.stop()
         radioControl.disconnect()
+        // O serviço do rádio online continua tocando sem a tela; a próxima tela liga nele de novo
+        webPlayerOrNull?.release()
         radioIpc.executor.execute {
             sourceInfo.stop()
             radioStation.stop()
@@ -764,6 +793,12 @@ class HomeActivity : ComponentActivity(), HomeActions {
     /** Tela de rádio do Rumo: liga no serviço do rádio e lê as memórias do aparelho (para trazer às favoritas). */
     override fun openRadioScreen() {
         state.sheet = Sheet.RADIO
+        if (state.radioBand == RadioBand.WEB) {
+            // Abrir a tela põe o rádio online para tocar, como o FM
+            if (!webPlaying()) playWeb(null)
+            loadWebCatalog()
+            return
+        }
         // Abrir a tela de rádio põe o rádio para tocar: sem mudo
         if (state.radioMuted) setRadioMuted(false)
         lifecycleScope.launch {
@@ -782,7 +817,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     override fun radio(cmd: RadioCmd) {
         // Qualquer comando de sintonia, o play ou abrir o app do rádio põem o rádio para tocar de novo
-        if (cmd is RadioCmd.Play || cmd is RadioCmd.Tune || cmd is RadioCmd.Seek || cmd is RadioCmd.Step || cmd is RadioCmd.OpenApp) {
+        val tunerCmd = cmd is RadioCmd.Play || cmd is RadioCmd.Tune || cmd is RadioCmd.Seek || cmd is RadioCmd.Step || cmd is RadioCmd.OpenApp
+        // O FM volta: o rádio online para (os dois juntos se sobrepõem)
+        if ((tunerCmd || cmd is RadioCmd.Scan) && (state.radioBand == RadioBand.WEB || webPlaying())) leaveWeb()
+        if (tunerCmd) {
             if (state.radioMuted) setRadioMuted(false)
             if (lastRawOwner == "") lastRawOwner = null
         }
@@ -846,7 +884,171 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 val saved = withContext(Dispatchers.IO) { saveReport("Teste dos comandos do rádio", "radio-commands-test.txt", state.radioLog) }
                 state.toast = if (saved.isEmpty()) "Não consegui salvar o registro" else "Registro salvo: ${saved.first()}"
             }
+            is RadioCmd.Band -> when {
+                cmd.web && state.radioBand != RadioBand.WEB -> {
+                    if (state.radioScan?.running == true) scanCancelled = true
+                    playWeb(null)
+                    loadWebCatalog()
+                }
+                !cmd.web && state.radioBand == RadioBand.WEB -> {
+                    leaveWeb()
+                    radio(RadioCmd.Play)
+                    lifecycleScope.launch { refreshRadio() }
+                }
+            }
+            is RadioCmd.WebPlay -> playWeb(cmd.station)
+            RadioCmd.WebToggle -> if (webPlaying()) stopWeb() else playWeb(null)
+            is RadioCmd.WebStep -> webStep(cmd.forward)
+            is RadioCmd.WebFavorite -> {
+                val had = state.webFavorites.any { it.id == cmd.station.id }
+                state.webFavorites = WebRadio.toggle(state.webFavorites, cmd.station)
+                prefs.edit().putString(PREF_WEB_FAVORITES, WebRadio.encode(state.webFavorites)).apply()
+                state.toast = if (had) "${cmd.station.name} saiu das favoritas" else "${cmd.station.name} nas favoritas"
+            }
+            is RadioCmd.WebPickFilter -> {
+                state.webBrowse = state.webBrowse.copy(filter = cmd.filter)
+                publishWebBrowse()
+            }
+            is RadioCmd.ListenFm -> radio(RadioCmd.Tune(cmd.khz))
         }
+    }
+
+    // ---- rádio online ----
+
+    private fun webPlaying() = state.web.status == WebStatus.CONNECTING || state.web.status == WebStatus.LIVE
+
+    private fun setRadioBand(band: RadioBand) {
+        if (state.radioBand == band) return
+        state.radioBand = band
+        prefs.edit().putString(PREF_RADIO_BAND, band.name).apply()
+    }
+
+    /**
+     * Toca [station] (ou a última, a primeira favorita, a primeira da lista). Cala o FM antes, soltando a ligação com o
+     * serviço do rádio (é o que o cala de fato). Sem rede, não tenta: fica "sem Wi-Fi" e volta sozinho quando ela vier.
+     */
+    private fun playWeb(station: WebStation?) {
+        setRadioBand(RadioBand.WEB)
+        val s = station ?: state.web.station ?: state.webFavorites.firstOrNull() ?: state.webBrowse.stations.firstOrNull()
+        if (s == null) {
+            state.web = WebNow(null, WebStatus.OFF)
+            return
+        }
+        if (s.id != state.web.station?.id) prefs.edit().putString(PREF_WEB_LAST, WebRadio.encode(listOf(s))).apply()
+        if (state.source == Source.RADIO || radioControl.connected) {
+            if (!state.radioMuted) setRadioMuted(true) else radioControl.disconnect()
+        }
+        state.source = Source.WEB
+        if (!state.online) {
+            webPlayerOrNull?.stop()
+            state.web = WebNow(s, WebStatus.NO_WIFI)
+            return
+        }
+        state.web = WebNow(s, WebStatus.CONNECTING)
+        webPlayer.play(s)
+    }
+
+    private fun stopWeb(status: WebStatus = WebStatus.OFF) {
+        webPlayerOrNull?.stop()
+        state.web = state.web.copy(status = status, title = null)
+    }
+
+    /** Volta para o FM: para o rádio online e a tela mostra o FM. */
+    private fun leaveWeb() {
+        stopWeb()
+        setRadioBand(RadioBand.FM)
+        if (state.source == Source.WEB) state.source = Source.RADIO
+    }
+
+    /** Anterior/próxima: pelas favoritas online; sem favoritas, pela lista do Explorar. */
+    private fun webStep(forward: Boolean) {
+        val list = state.webFavorites.ifEmpty { state.webBrowse.stations }
+        WebRadio.step(list, state.web.station?.id, forward)?.let(::playWeb)
+            ?: run { state.toast = "Favorite estações online para trocar entre elas" }
+    }
+
+    private fun onWebPlayback(p: WebPlayback) {
+        val w = state.web
+        val station = p.stationId?.let { id ->
+            w.station?.takeIf { it.id == id } ?: (state.webFavorites + webNear + webCountry).firstOrNull { it.id == id }
+        } ?: w.station
+        // Parado pelo Rumo por falta de Wi-Fi: o "sem Wi-Fi" fica até a rede voltar
+        val status = if (p.status == WebStatus.OFF && (w.status == WebStatus.LOST || w.status == WebStatus.NO_WIFI)) w.status else p.status
+        state.web = WebNow(station, status, p.title.takeIf { status == WebStatus.LIVE })
+        if ((status == WebStatus.CONNECTING || status == WebStatus.LIVE) && state.source != Source.WEB) {
+            state.source = Source.WEB
+            setRadioBand(RadioBand.WEB)
+        }
+        if (status == WebStatus.ERROR && w.status != WebStatus.ERROR && state.sheet != Sheet.RADIO) {
+            state.toast = "A rádio online não respondeu"
+        }
+    }
+
+    /** A rede caiu ou voltou: para o rádio online (sem Wi-Fi) ou retoma o que estava tocando. */
+    private fun onNetwork(online: Boolean) {
+        if (state.online == online) return
+        state.online = online
+        if (!online && webPlaying()) {
+            stopWeb(WebStatus.LOST)
+            state.toast = "O Wi-Fi caiu: rádio online parado"
+        } else if (online && state.source == Source.WEB && (state.web.status == WebStatus.LOST || state.web.status == WebStatus.NO_WIFI)) {
+            playWeb(state.web.station)
+        }
+        if (online && state.radioBand == RadioBand.WEB) loadWebCatalog()
+    }
+
+    /**
+     * Lista do Explorar: primeiro a cópia guardada (aparece na hora, até sem rede); com rede e a cópia velha (mais de um
+     * dia), consulta o catálogo: as mais ouvidas do país e as do estado onde o carro está.
+     */
+    private fun loadWebCatalog() {
+        if (webLoading) return
+        webLoading = true
+        lifecycleScope.launch {
+            val g = state.gps
+            val lat = g.lat ?: state.mapStart?.lat
+            val lon = g.lon ?: state.mapStart?.lon
+            webState = if (lat != null && lon != null) {
+                val region = withContext(drive) { data?.regionAt(lat, lon) }
+                WebRadio.stateOf(region) ?: WebRadio.nearestState(lat, lon)
+            } else {
+                null
+            }
+            val st = webState
+            val stateKey = st?.let { "state-${it.code.lowercase()}" }
+            withContext(Dispatchers.IO) {
+                if (webCountry.isEmpty()) webCountry = webCatalog.cached(KEY_COUNTRY).orEmpty()
+                webNear = stateKey?.let(webCatalog::cached).orEmpty()
+            }
+            publishWebBrowse()
+            val stale = !webCatalog.fresh(KEY_COUNTRY) || (stateKey != null && !webCatalog.fresh(stateKey))
+            if (state.online && stale) {
+                state.webBrowse = state.webBrowse.copy(loading = true, error = null)
+                val error = withContext(Dispatchers.IO) {
+                    try {
+                        webCountry = webCatalog.fetch(WebRadio.countryQuery(), KEY_COUNTRY)
+                        if (st != null && stateKey != null) webNear = webCatalog.fetch(WebRadio.stateQuery(st), stateKey)
+                        null
+                    } catch (e: IOException) {
+                        "Não consegui abrir a lista de estações. Tente de novo mais tarde."
+                    }
+                }
+                state.webBrowse = state.webBrowse.copy(loading = false, error = error)
+                publishWebBrowse()
+            }
+            webLoading = false
+        }
+    }
+
+    private fun publishWebBrowse() {
+        val b = state.webBrowse
+        val g = state.gps
+        val list = when (b.filter) {
+            WebFilter.NEAR -> (webNear + WebRadio.near(webCountry, webState, g.lat ?: state.mapStart?.lat, g.lon ?: state.mapStart?.lon))
+                .distinctBy { it.id }
+            else -> WebRadio.filter(webCountry, b.filter)
+        }
+        state.webBrowse = b.copy(stations = list, place = webState?.name)
     }
 
     private suspend fun ensureRadio() = radioConnect.withLock {
@@ -908,6 +1110,15 @@ class HomeActivity : ComponentActivity(), HomeActions {
     // chega ao app de rádio; parado: tira o mudo e pede o rádio como fonte); com favoritas do Rumo, anterior/próxima
     // andam por elas em vez das memórias do aparelho.
     override fun mediaKey(keyCode: Int) {
+        // Rádio online: o play toca e para; anterior e próxima andam pelas favoritas online
+        if (state.source == Source.WEB) {
+            when (keyCode) {
+                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> radio(RadioCmd.WebToggle)
+                KeyEvent.KEYCODE_MEDIA_NEXT -> radio(RadioCmd.WebStep(true))
+                KeyEvent.KEYCODE_MEDIA_PREVIOUS -> radio(RadioCmd.WebStep(false))
+            }
+            return
+        }
         if (state.source == Source.RADIO && keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
             // O sourceinfo informa vazio quando o rádio não está tocando
             if (radioPlayStarts(state.radioMuted, lastRawOwner, radioControl.connected)) radio(RadioCmd.Play) else setRadioMuted(true)
@@ -1551,13 +1762,21 @@ class HomeActivity : ComponentActivity(), HomeActions {
      * quando o sourceinfo responder vazio ao abrir, é ele que vale.
      */
     private fun applyAudioOwner(name: String) {
-        state.source = when (audioOwnerOf(name) ?: return) {
+        val owner = audioOwnerOf(name) ?: return
+        if (state.source == Source.WEB && webPlaying()) {
+            // Com o rádio online tocando, o sourceinfo pode dizer "outro app" (o som sai como mídia do Android) ou ainda
+            // "rádio" (a última fonte do aparelho): a fonte continua sendo o rádio online. Só o ZLINK o tira (o Android
+            // Auto também pede o foco de áudio, e o player pausa sozinho).
+            if (owner != AudioOwner.ZLINK) return
+            stopWeb()
+        }
+        state.source = when (owner) {
             AudioOwner.ZLINK -> Source.ZLINK
             AudioOwner.RADIO -> Source.RADIO
             AudioOwner.OTHER -> sourceOf(name) ?: Source.OTHER
         }
         // Outra fonte tocando: o mudo que o Rumo pôs no rádio não pode ficar para depois
-        if (state.source != Source.RADIO && state.radioMuted) setRadioMuted(false)
+        if (state.source != Source.RADIO && state.source != Source.WEB && state.radioMuted) setRadioMuted(false)
         // O ZLINK repete o aviso quase a cada segundo: só grava quando muda
         if (name != savedOwner) {
             savedOwner = name
@@ -1608,6 +1827,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_SCAN = "radio_found"
         const val PREF_RADIO_MUTED = "radio_muted"
         const val RADIO_LOG_LINES = 300
+        const val PREF_RADIO_BAND = "radio_band"
+        const val PREF_WEB_FAVORITES = "web_favorites"
+        const val PREF_WEB_LAST = "web_last"
+        const val KEY_COUNTRY = "country-br"
         const val MAX_ACTIONS = 2_000
         /** As configurações da home só abrem abaixo desta velocidade. */
         const val PARKED_BELOW_KMH = 5

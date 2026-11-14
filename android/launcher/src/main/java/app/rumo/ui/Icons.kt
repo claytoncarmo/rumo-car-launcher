@@ -42,6 +42,17 @@ object Icons {
     val next = icon("next", f("M5 5l10.5 7L5 19Z"), s("M19 5v14", 2.6f))
     // Play e pausa juntos: o ZLINK não informa se está tocando, então o botão só alterna
     val playPause = icon("play-pause", f("M3.5 5 12.5 12 3.5 19Z"), s("M17 5v14", 3f), s("M21.5 5v14", 3f))
+    val play = icon("play", f("M7 4.5 19.5 12 7 19.5Z"))
+    val stop = icon("stop", f(rect(6f, 6f, 12f, 12f, 1.5f)))
+    val globe = icon(
+        "globe",
+        s(circle(12f, 12f, 10f)), s("M2 12h20"),
+        s("M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"),
+    )
+    val wifi = icon(
+        "wifi",
+        s("M5 12.55a11 11 0 0 1 14.08 0"), s("M1.42 9a16 16 0 0 1 21.16 0"), s("M8.53 16.11a6 6 0 0 1 6.95 0"), s("M12 20h.01", 3f),
+    )
     val nav = icon("nav", f("M12 2 19 21 12 17 5 21Z"))
     val pin = icon("pin", s("M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"), s(circle(12f, 10f, 3f)))
     val gear = icon(

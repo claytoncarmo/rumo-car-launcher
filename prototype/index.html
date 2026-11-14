@@ -629,7 +629,7 @@ body.embed .app{padding-block:8px;gap:8px}
 .scan-row .st{width:60px;height:60px;border-radius:50%;display:grid;place-items:center;color:var(--text-2);flex:none}
 .scan-row .st.on{color:var(--accent)}
 .scan-row .st .ic{width:30px;height:30px}
-/* Rádio online (proposta) */
+/* Rádio online */
 .rd-title .seg button{height:50px;padding:0 18px;display:inline-flex;align-items:center;gap:8px}
 .rd-title .seg .ic{width:22px;height:22px}
 .rd-title .seg small{font-size:13px;font-weight:500;color:var(--danger)}
@@ -836,7 +836,7 @@ body.embed .app{padding-block:8px;gap:8px}
       <button class="dbtn" data-demo="full"><svg><use href="#i-expand"/></svg>Tela cheia</button>
     </div>
   </div>
-  <p class="hint">Toque em Dirigir para começar (o som dos alertas só toca depois de um toque na página). Toque no mapa para abrir o Android Auto; o + marca um radar que falta. Arraste o dedo no menu da esquerda para a direita: volume. Toque longo numa favorita do rádio: dar nome ou remover. No rádio, a aba Online é uma proposta de rádio pela internet (teste o botão Wi-Fi). O ícone de download no topo é o aviso de versão nova. Teclado: D dirigir · A acima do limite · F farol · Esc fecha.</p>
+  <p class="hint">Toque em Dirigir para começar (o som dos alertas só toca depois de um toque na página). Toque no mapa para abrir o Android Auto; o + marca um radar que falta. Arraste o dedo no menu da esquerda para a direita: volume. Toque longo numa favorita do rádio: dar nome ou remover. No rádio, a aba Online toca rádios pela internet (teste o botão Wi-Fi). O ícone de download no topo é o aviso de versão nova. Teclado: D dirigir · A acima do limite · F farol · Esc fecha.</p>
   <p class="rotate-hint">Gire o celular para ver a tela maior.</p>
 </div>
 <script>
@@ -1007,9 +1007,9 @@ const stationAt = k => STATIONS.find(s => s.k === k);
 const fmtFreq = k => (k / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const DEFAULT_FAVS = [{ k: 89100, name: 'Rock' }, { k: 96900, name: 'Pop' }, { k: 100900, name: '' }, { k: 106700, name: '' }];
 
-/* Rádio online: PROPOSTA, ainda não está no app. Só com Wi-Fi (rede do aparelho ou roteador do celular). No app, a
-   lista viria do Radio Browser (catálogo aberto e gratuito) e o som de um player de streaming; o texto "tocando agora"
-   vem dos metadados do próprio stream, quando a emissora manda. Estações abaixo são fictícias. `fm` = a mesma emissora
+/* Rádio online: só com Wi-Fi (rede do aparelho ou roteador do celular). No app, a lista vem do Radio Browser
+   (catálogo aberto e gratuito) e o som de um player de streaming; o texto "tocando agora" vem dos metadados do
+   próprio stream, quando a emissora manda. Estações abaixo são fictícias. `fm` = a mesma emissora
    também no FM daqui, para trocar quando o Wi-Fi cai. */
 const WEB = [
   { id: 'w1', name: 'Litoral Notícias', city: 'Florianópolis, SC', uf: 'SC', tag: 'Notícias', codec: 'AAC', kbps: 64, fm: 91300, now: ['Jornal da tarde', 'Trânsito: BR-101 lenta no km 205'] },
@@ -1023,7 +1023,7 @@ const WEB = [
   { id: 'w9', name: 'Esporte Total', city: 'Chapecó, SC', uf: 'SC', tag: 'Esportes', codec: 'AAC', kbps: 48, fm: 100900 }
 ];
 const webOf = id => WEB.find(s => s.id === id) || WEB[0];
-/* "Perto de você" = estado da posição atual (no app, pelo GPS); a busca por nome com teclado ficaria só com o carro parado */
+/* "Perto de você" = estado da posição atual (no app, pelo GPS) */
 const WEB_FILTERS = [['near', 'Perto de você'], ['Notícias', 'Notícias'], ['Esportes', 'Esportes'], ['music', 'Música'], ['all', 'Todas']];
 
 /* Apps da gaveta. "Música" e "Telefone" mostram só os apps desse tipo, como no aparelho. */
@@ -1633,7 +1633,7 @@ function stopScan(silent) {
 }
 
 /* ================================================================
-   Rádio online (proposta)
+   Rádio online
    ================================================================ */
 const isPlayingWeb = () => state.source === 'web' && (state.web.status === 'connecting' || state.web.status === 'live');
 function webStatusLine() {
@@ -1719,7 +1719,7 @@ function webLeftHTML() {
       <button class="rd-b wb-play press" data-act="web-play" aria-label="${playing ? 'Parar' : 'Tocar'}" ${state.wifi ? '' : 'disabled'}>${ic(playing ? 'stop' : 'play')}<small>${playing ? 'Parar' : 'Tocar'}</small></button>
       <button class="rd-b press" data-act="web-next" aria-label="Próxima estação">${ic('next')}<small>Próxima</small></button>
     </div>
-    <div class="wb-foot"><span>Proposta: ainda não está no app</span><span>Lista: Radio Browser</span></div>`;
+    <div class="wb-foot"><span></span><span>Lista: Radio Browser</span></div>`;
 }
 function webRightHTML() {
   if (state.webTab === 'fav') {

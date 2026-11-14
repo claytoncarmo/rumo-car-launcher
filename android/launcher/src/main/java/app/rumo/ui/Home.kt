@@ -72,6 +72,7 @@ import app.rumo.core.AppRelease
 import app.rumo.core.Channel
 import app.rumo.core.Favorite
 import app.rumo.core.Favorites
+import app.rumo.core.WebStation
 import app.rumo.core.MarkSpot
 import app.rumo.core.PT_BR
 import app.rumo.core.Radar
@@ -104,8 +105,9 @@ enum class Sheet { NONE, APPS, AUDIO, PHONE, RADIO, SETTINGS, KEYS, MARK }
 /**
  * De onde vem o som: pelo serviço sourceinfo do multimídia (avisa a cada troca de fonte, inclusive pelo volante)
  * ou, sem ele, estimado pelo último app de áudio que foi para a tela. Nem o ZLINK nem o rádio informam o que tocam.
+ * [WEB] é o rádio online do próprio Rumo (o Rumo sabe quando ele toca).
  */
-enum class Source { NONE, ZLINK, RADIO, OTHER }
+enum class Source { NONE, ZLINK, RADIO, WEB, OTHER }
 
 /** Pasta Rumo (mapa, vias e radares): procurando, sem permissão para ler, não encontrada, pronta. */
 enum class MapStatus { LOADING, NO_PERMISSION, MISSING, READY }
@@ -149,6 +151,12 @@ class HomeState {
     var radioNames by mutableStateOf<Map<Int, String>>(emptyMap())
     /** O play do card parou o rádio (mudo do fmradio). */
     var radioMuted by mutableStateOf(false)
+    /** Tela de rádio: FM (rádio do aparelho) ou Online (pela internet, com Wi-Fi). */
+    var radioBand by mutableStateOf(RadioBand.FM)
+    /** Rádio online: estação, estado e o "tocando agora"; favoritas próprias; a aba Explorar. */
+    var web by mutableStateOf(WebNow())
+    var webFavorites by mutableStateOf<List<WebStation>>(emptyList())
+    var webBrowse by mutableStateOf(WebBrowse())
     /** Memórias do aparelho (kHz), para trazer para as favoritas. */
     var devicePresets by mutableStateOf<List<Int>>(emptyList())
     /** Registro dos comandos do rádio (teste): sai no relatório com toque longo no título da tela de rádio. */
@@ -562,7 +570,7 @@ private fun HomeCards(s: HomeState, a: HomeActions, night: Boolean, mapAllowed: 
         Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             // Linha de baixo no rádio: texto da emissora ou, se for favorita, o nome dela ("Favorito N"); "Rádio parado" no mudo
             val radioLine = if (s.radioMuted) "Rádio parado" else Favorites.line(s.favorites, s.radio?.khz, s.radio?.text)
-            MediaCard(s.source, s.radio, radioLine, s.usageAccess || s.sourceLive, a, Modifier.weight(1.12f).fillMaxWidth())
+            MediaCard(s.source, s.radio, radioLine, s.web, s.usageAccess || s.sourceLive, a, Modifier.weight(1.12f).fillMaxWidth())
             TripCard(s.gps, s.over, Modifier.weight(1f).fillMaxWidth())
         }
     }
@@ -779,12 +787,13 @@ private fun GpsChip(g: GpsInfo, sats: Satellites, a: HomeActions, modifier: Modi
  */
 @OptIn(ExperimentalFoundationApi::class) // combinedClickable
 @Composable
-private fun MediaCard(source: Source, radio: RadioNow?, radioLine: String, detected: Boolean, a: HomeActions, modifier: Modifier) {
+private fun MediaCard(source: Source, radio: RadioNow?, radioLine: String, web: WebNow, detected: Boolean, a: HomeActions, modifier: Modifier) {
     val p = LocalPalette.current
-    val known = source == Source.ZLINK || source == Source.RADIO
+    val known = source == Source.ZLINK || source == Source.RADIO || source == Source.WEB
     val icon = when (source) {
         Source.ZLINK -> Icons.cast
         Source.RADIO -> Icons.radio
+        Source.WEB -> Icons.globe
         else -> Icons.music
     }
     val (label, title, hint) = when (source) {
@@ -795,6 +804,7 @@ private fun MediaCard(source: Source, radio: RadioNow?, radioLine: String, detec
             radio?.khz?.let(::formatRadioFreq) ?: "Rádio do aparelho",
             radioLine,
         )
+        Source.WEB -> Triple("Rádio online", web.station?.name ?: "Rádio online", webLine(web))
         Source.OTHER -> Triple("Mídia", "Outro app de áudio", "Abra o Android Auto ou o rádio para usar os botões")
         Source.NONE -> Triple("Mídia", "Nenhuma fonte", "Abra o Android Auto ou o rádio para usar os botões")
     }
@@ -802,7 +812,9 @@ private fun MediaCard(source: Source, radio: RadioNow?, radioLine: String, detec
         modifier
             .card(p)
             // Toque longo: teste da mídia (o que o serviço sourceinfo informa)
-            .combinedClickable(onLongClick = { a.probeMedia() }) { if (source == Source.RADIO) a.openRadioScreen() else a.openZlink() }
+            .combinedClickable(onLongClick = { a.probeMedia() }) {
+                if (source == Source.RADIO || source == Source.WEB) a.openRadioScreen() else a.openZlink()
+            }
             .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 16.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {

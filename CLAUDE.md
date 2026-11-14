@@ -15,8 +15,8 @@ Launcher (tela inicial) próprio para o multimídia Android aftermarket de um Ho
 | `site/` | Página inicial do GitHub Pages (`site/index.html`, estática); o workflow `pages.yml` publica junto com o protótipo. Ao mudar o app de forma visível, atualize o protótipo e as funções listadas na página. A página tem português (texto-base no HTML), inglês e espanhol (dicionários em `site/i18n.js`, por chave `data-i18n`): abre no idioma do navegador, com seletor no topo. Ao mudar um texto, ajuste as três línguas; o protótipo continua só em português |
 
 Código do app (`android/launcher/src/main/java/app/rumo/`):
-- `core/`: lógica pura e testada (Geo, Roads, Radars, TripMeter, Formatting, Favorites, RadioNames, AudioOwner).
-- `device/`: acesso ao aparelho (Gps, Apps, MapData, Alerts, Aidl, CarStatus, RadioStation, RadioControl) e os diagnósticos (BroadcastHunt, CarSourceProbe, NightSignal, RadioProbe).
+- `core/`: lógica pura e testada (Geo, Roads, Radars, TripMeter, Formatting, Favorites, RadioNames, AudioOwner, WebRadio).
+- `device/`: acesso ao aparelho (Gps, Apps, MapData, Alerts, Aidl, CarStatus, RadioStation, RadioControl, WebRadioService/Player/Catalog) e os diagnósticos (BroadcastHunt, CarSourceProbe, NightSignal, RadioProbe).
 - `ui/`: telas em Compose (Home, RadioSheet, DriveMap, Theme, Icons).
 - `HomeActivity.kt`: liga tudo.
 
@@ -30,6 +30,7 @@ Código do app (`android/launcher/src/main/java/app/rumo/`):
 - **Pontos do usuário:** o "+" no card do mapa marca radar, lombada, polícia ou pedágio que falta, **só no aparelho** (`Rumo/my-points.csv` e `files/my-points.csv`, sobrevivem a atualizar o app; não vão para o repositório nem para as Releases). Posição e rumo são os do toque no "+". Detalhes em `android/README.md`.
 - **Dados:** limites pelo OpenStreetMap offline + padrões do CTB quando faltar (marcados "estimado"); radares: OSM junto com a base do MapaRadar (`data/maparadar.csv`, CC BY-NC-ND 4.0, uso pessoal; o Clayton atualiza o arquivo à mão). **A licença proíbe distribuir alterações:** o projeto publica só a cópia ORIGINAL do CSV (release `rumo-maparadar`, workflow `maparadar.yml`) e o app a processa no aparelho (recorte pelos contornos dos estados, sentido pela via, junção com o OSM, cache em `radars.bin`); nada derivado dele vai para o `roads.db` nem para as Releases. Outras fontes possíveis: ANTT, dados abertos de prefeituras.
 - **Rádio:** tela própria e favoritas próprias (lista do Rumo, em ordem de frequência, com nome dado pelo dono; só com o carro parado). A procura de estações repete a busca do rádio; **nunca usar o "AS" (auto store)** e não gravar nas memórias do aparelho sem o dono pedir. Abrir a tela de rádio já põe o rádio para tocar (sem botão "Ouvir rádio").
+- **Rádio online:** aba Online na tela de rádio, só com rede (Wi-Fi do aparelho ou roteador do celular). Catálogo aberto Radio Browser; favoritas online próprias; Explorar com Perto de você, Notícias, Esportes, Música e Todas. Toca num serviço de mídia (com a notificação do Android enquanto toca) para continuar fora do Rumo, como o FM; o Android Auto tem prioridade (o player pausa quando ele pega o som). Tocar o online cala o FM e vice-versa. Se o Wi-Fi cai, para e oferece a mesma emissora no FM quando a frequência está no nome e tem sinal aqui.
 - **Fonte e estação:** a fonte de áudio vem do serviço `sourceinfo` e a estação do `fmradio` (ver `docs/device-integration.md`); o tema automático segue o farol (`carstatus`).
 - **O carro não tem controles de som no volante:** tudo é pela tela. Roteiros de teste não devem citar volante.
 
@@ -53,6 +54,7 @@ HCN, Android **9 (API 28)** embora exiba "15", 32 bits (`armeabi-v7a`), 8× Cort
 A lista viva de tarefas (incluindo suporte a outros aparelhos) está em `TODO.md`.
 
 - Validar o play do card de mídia no rádio como "parar": o mudo do `fmradio` sozinho não calou o rádio; o Rumo agora também solta a ligação com o serviço do rádio (que só existe enquanto alguém está ligado nele) e liga de novo ao tocar.
+- **Rádio online a validar no carro:** se o som sai junto com o FM calado (sem os dois ao mesmo tempo), o que o `sourceinfo` informa com ele tocando (o Rumo mantém a fonte "Rádio online" com qualquer valor que não seja o ZLINK), o volume, a notificação de mídia no firmware e se o catálogo abre (TLS do aparelho).
 - Testar andando: rua e limite em cruzamentos e ruas paralelas, avisos de radar, desempenho do mapa e a velocidade do GPS contra o painel do carro.
 - Completar os radares além do OSM (ANTT, dados abertos de prefeituras).
 - Fonte Barlow ainda não adicionada; o cartão inteligente só tem a página Viagem; telefone/Bluetooth não integrados.

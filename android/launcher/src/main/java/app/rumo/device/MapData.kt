@@ -75,6 +75,14 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
 
     fun close() = regions.forEach { it.close() }
 
+    // Contornos dos estados instalados, lidos na primeira consulta (o arquivo tem alguns MB): pasta do estado → contorno
+    private val contours: List<Pair<String, Contour>> by lazy {
+        regions.mapNotNull { r -> r.contourFile()?.let { f -> Contour.parse(f.readText())?.let { r.id to it } } }
+    }
+
+    /** Estado instalado (o id da pasta, que é a sigla: "sc") em que cai o ponto, ou null. Fora da thread principal. */
+    fun regionAt(lat: Double, lon: Double): String? = contours.firstOrNull { it.second.contains(lat, lon) }?.first
+
     /**
      * Junta o `maparadar.csv` original (pasta Rumo) com os radares do OSM: recorta pelos contornos dos estados
      * instalados e acha, em cada ponto, o sentido da via. É o processamento no aparelho (a licença não deixa publicar
@@ -122,6 +130,7 @@ class MapData private constructor(val dir: File, private val regions: List<Regio
     /** roads.db e map.pmtiles de um estado. */
     private class RegionData(dir: File, private val db: SQLiteDatabase?) {
         private val dir = dir
+        val id: String = dir.name
         val mapFile: File? = File(dir, MAP).takeIf { it.isFile }
 
         fun contourFile(): File? = File(dir, CONTOUR).takeIf { it.isFile }
