@@ -629,6 +629,33 @@ body.embed .app{padding-block:8px;gap:8px}
 .scan-row .st{width:60px;height:60px;border-radius:50%;display:grid;place-items:center;color:var(--text-2);flex:none}
 .scan-row .st.on{color:var(--accent)}
 .scan-row .st .ic{width:30px;height:30px}
+/* Rádio online (proposta) */
+.rd-title .seg button{height:50px;padding:0 18px;display:inline-flex;align-items:center;gap:8px}
+.rd-title .seg .ic{width:22px;height:22px}
+.rd-title .seg small{font-size:13px;font-weight:500;color:var(--danger)}
+.wb-name{display:flex;align-items:center;gap:10px;margin-top:14px;min-height:112px}
+.wb-name b{flex:1;min-width:0;font:600 44px/1.08 var(--font-ui);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.wb-meta{display:flex;align-items:center;gap:10px;font-size:18px;color:var(--text-2);min-height:34px;white-space:nowrap;overflow:hidden}
+.wb-meta span:last-child{overflow:hidden;text-overflow:ellipsis}
+.wb-chip{flex:none;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:15px;background:var(--surface-2);font-size:15px;font-weight:600;color:var(--text-2)}
+.wb-chip i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.wb-chip.live{color:var(--text)}
+.wb-chip.warn{color:var(--danger)}
+.wb-chip .ic{width:16px;height:16px}
+.wb-now{margin-top:8px;font-size:20px;color:var(--text);min-height:52px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.wb-now.dim{color:var(--text-2);font-size:17px}
+.wb-fm{align-self:flex-start;margin-top:6px}
+.rd-b.wb-play{width:180px;background:var(--accent);color:var(--on-accent)}
+.rd-b.wb-play small{color:inherit;opacity:.8}
+.rd-b.wb-play[disabled]{opacity:.4}
+.wb-foot{display:flex;justify-content:space-between;margin-top:10px;font-size:13px;color:var(--text-2)}
+.wfav b{font:600 19px/1.15 var(--font-ui);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rd-pane .chips{gap:6px;margin-bottom:12px}
+.rd-pane .chip{height:52px;padding:0 12px;font-size:15px}
+.wb-row{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.scan-row .wb-row b{font:600 20px/1.1 var(--font-ui);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scan-row .wb-row span{flex:none;font-size:15px}
+.scan-row:has(.wb-row){height:84px}
 .dlg{position:absolute;inset:0;z-index:30;background:var(--scrim);display:grid;place-items:center}
 .dlg-box{width:min(560px,90%);background:var(--surface);border-radius:28px;padding:26px;display:flex;flex-direction:column;gap:16px;border:1px solid var(--line)}
 .dlg-box h3{margin:0;font:600 24px/1.1 var(--font-ui)}
@@ -794,6 +821,7 @@ body.embed .app{padding-block:8px;gap:8px}
       <button class="dbtn" id="dDrive" data-demo="drive" aria-pressed="false"><svg><use href="#i-car"/></svg>Dirigir</button>
       <button class="dbtn" id="dSpeed" data-demo="speeding" aria-pressed="false"><svg><use href="#i-gauge"/></svg>Acima do limite</button>
       <button class="dbtn" id="dLight" data-demo="light" aria-pressed="false"><svg><use href="#i-sun"/></svg>Farol aceso</button>
+      <button class="dbtn" id="dWifi" data-demo="wifi" aria-pressed="true"><svg><use href="#i-wifi"/></svg>Wi-Fi</button>
     </div>
     <div class="grp"><span class="lbl">Fonte</span>
       <button class="dbtn" id="dSrcAA" data-demo="src-aa" aria-pressed="false"><svg><use href="#i-cast"/></svg>Android Auto</button>
@@ -808,7 +836,7 @@ body.embed .app{padding-block:8px;gap:8px}
       <button class="dbtn" data-demo="full"><svg><use href="#i-expand"/></svg>Tela cheia</button>
     </div>
   </div>
-  <p class="hint">Toque em Dirigir para começar (o som dos alertas só toca depois de um toque na página). Toque no mapa para abrir o Android Auto; o + marca um radar que falta. Arraste o dedo no menu da esquerda para a direita: volume. Toque longo numa favorita do rádio: dar nome ou remover. O ícone de download no topo é o aviso de versão nova. Teclado: D dirigir · A acima do limite · F farol · Esc fecha.</p>
+  <p class="hint">Toque em Dirigir para começar (o som dos alertas só toca depois de um toque na página). Toque no mapa para abrir o Android Auto; o + marca um radar que falta. Arraste o dedo no menu da esquerda para a direita: volume. Toque longo numa favorita do rádio: dar nome ou remover. No rádio, a aba Online é uma proposta de rádio pela internet (teste o botão Wi-Fi). O ícone de download no topo é o aviso de versão nova. Teclado: D dirigir · A acima do limite · F farol · Esc fecha.</p>
   <p class="rotate-hint">Gire o celular para ver a tela maior.</p>
 </div>
 <script>
@@ -856,6 +884,7 @@ const ICONS = {
   signal: '<path d="M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 20V4"/>',
   play: '<path d="M7 4.5 19.5 12 7 19.5Z" fill="currentColor"/>',
   pause: '<path d="M8 5v14M16 5v14" stroke-width="4.2"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/>',
   prev: '<path d="M19 5 8.5 12 19 19Z" fill="currentColor"/><path d="M5 5v14" stroke-width="2.6"/>',
   next: '<path d="M5 5l10.5 7L5 19Z" fill="currentColor"/><path d="M19 5v14" stroke-width="2.6"/>',
   shuffle: '<path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/>',
@@ -978,6 +1007,25 @@ const stationAt = k => STATIONS.find(s => s.k === k);
 const fmtFreq = k => (k / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const DEFAULT_FAVS = [{ k: 89100, name: 'Rock' }, { k: 96900, name: 'Pop' }, { k: 100900, name: '' }, { k: 106700, name: '' }];
 
+/* Rádio online: PROPOSTA, ainda não está no app. Só com Wi-Fi (rede do aparelho ou roteador do celular). No app, a
+   lista viria do Radio Browser (catálogo aberto e gratuito) e o som de um player de streaming; o texto "tocando agora"
+   vem dos metadados do próprio stream, quando a emissora manda. Estações abaixo são fictícias. `fm` = a mesma emissora
+   também no FM daqui, para trocar quando o Wi-Fi cai. */
+const WEB = [
+  { id: 'w1', name: 'Litoral Notícias', city: 'Florianópolis, SC', uf: 'SC', tag: 'Notícias', codec: 'AAC', kbps: 64, fm: 91300, now: ['Jornal da tarde', 'Trânsito: BR-101 lenta no km 205'] },
+  { id: 'w2', name: 'Serra Sertaneja', city: 'Lages, SC', uf: 'SC', tag: 'Sertanejo', music: true, codec: 'MP3', kbps: 128, now: ['Moda de viola ao vivo', 'Os maiores sucessos'] },
+  { id: 'w3', name: 'Bola na Rede', city: 'Porto Alegre, RS', uf: 'RS', tag: 'Esportes', codec: 'AAC', kbps: 64, now: ['Futebol ao vivo: 2º tempo', 'Gol! 1 a 0'] },
+  { id: 'w4', name: 'Jazz da Ilha', city: 'Florianópolis, SC', uf: 'SC', tag: 'Jazz', music: true, codec: 'AAC', kbps: 96, now: ['Quarteto da Ilha · Noite de maré', 'Trio Lagoa · Sambinha'] },
+  { id: 'w5', name: 'Rock Estrada', city: 'Curitiba, PR', uf: 'PR', tag: 'Rock', music: true, codec: 'MP3', kbps: 128 },
+  { id: 'w6', name: 'Clássica Brasil', city: 'São Paulo, SP', uf: 'SP', tag: 'Clássica', music: true, codec: 'MP3', kbps: 128, now: ['Villa-Lobos · Bachianas nº 5'] },
+  { id: 'w7', name: 'Trânsito Agora', city: 'Joinville, SC', uf: 'SC', tag: 'Notícias', codec: 'AAC', kbps: 32 },
+  { id: 'w8', name: 'MPB Raiz', city: 'Salvador, BA', uf: 'BA', tag: 'MPB', music: true, codec: 'MP3', kbps: 64, now: ['Clássicos da MPB'] },
+  { id: 'w9', name: 'Esporte Total', city: 'Chapecó, SC', uf: 'SC', tag: 'Esportes', codec: 'AAC', kbps: 48, fm: 100900 }
+];
+const webOf = id => WEB.find(s => s.id === id) || WEB[0];
+/* "Perto de você" = estado da posição atual (no app, pelo GPS); a busca por nome com teclado ficaria só com o carro parado */
+const WEB_FILTERS = [['near', 'Perto de você'], ['Notícias', 'Notícias'], ['Esportes', 'Esportes'], ['music', 'Música'], ['all', 'Todas']];
+
 /* Apps da gaveta. "Música" e "Telefone" mostram só os apps desse tipo, como no aparelho. */
 const APPS = [
   { id: 'aa', name: 'Android Auto', t: 'audio', h: 214, g: 'cast', act: 'aa' },
@@ -1021,12 +1069,17 @@ const state = {
   favs: store.get('favs', DEFAULT_FAVS),
   names: {},
   radioTab: 'fav', scan: null, favMenu: null, rename: null,
+  band: 'fm', wifi: true,
+  web: { id: 'w1', status: 'off', at: 0, text: '' },
+  webFavs: store.get('webFavs', ['w1', 'w4', 'w9']), webTab: 'fav', webFilter: 'near',
   mine: store.get('mine', []), spot: null, markLim: 60, markBoth: false, markList: false,
   sheet: null, settingsTab: 'config', armed: null,
   vol: clamp(+store.get('vol', 14) || 14, 0, 30), volOpen: false, volTick: 0, gmenu: false
 };
 if (!Array.isArray(state.favs)) state.favs = DEFAULT_FAVS.slice();
 if (!Array.isArray(state.mine)) state.mine = [];
+if (!Array.isArray(state.webFavs)) state.webFavs = [];
+state.webFavs = state.webFavs.filter(id => WEB.some(s => s.id === id));
 state.radioTab = state.favs.length ? 'fav' : 'scan';
 
 
@@ -1422,23 +1475,32 @@ function radioLine() {
   return [f && f.name, r.text].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(' · ');
 }
 function renderMedia() {
-  const radio = state.source === 'radio', r = state.radio;
-  $('#mcArt').innerHTML = ic(radio ? 'radio' : 'cast');
-  $('#mcSrcLb').textContent = radio ? 'Rádio' : 'Android Auto';
-  $('#mcTitle').textContent = radio ? `${fmtFreq(r.k)} FM` : 'Música do celular';
-  $('#mcHint').textContent = radio ? (r.muted ? 'Rádio parado' : radioLine()) : 'Os botões controlam o ZLINK';
+  const radio = state.source === 'radio', web = state.source === 'web', r = state.radio;
+  if (web) {
+    const st = webOf(state.web.id);
+    $('#mcArt').innerHTML = ic('globe');
+    $('#mcSrcLb').textContent = 'Rádio online';
+    $('#mcTitle').textContent = st.name;
+    $('#mcHint').textContent = webStatusLine();
+  } else {
+    $('#mcArt').innerHTML = ic(radio ? 'radio' : 'cast');
+    $('#mcSrcLb').textContent = radio ? 'Rádio' : 'Android Auto';
+    $('#mcTitle').textContent = radio ? `${fmtFreq(r.k)} FM` : 'Música do celular';
+    $('#mcHint').textContent = radio ? (r.muted ? 'Rádio parado' : radioLine()) : 'Os botões controlam o ZLINK';
+  }
   $('#mcCtrl').innerHTML = `
     <button class="cb press" data-act="m-prev" aria-label="Anterior">${ic('prev')}</button>
     <button class="cb pl press" data-act="m-play" aria-label="Play e pausa"><i>${ic('play')}</i></button>
     <button class="cb press" data-act="m-next" aria-label="Próxima">${ic('next')}</button>`;
-  $('#dSrcAA').setAttribute('aria-pressed', String(!radio));
-  $('#dSrcFM').setAttribute('aria-pressed', String(radio));
+  $('#dSrcAA').setAttribute('aria-pressed', String(state.source === 'aa'));
+  $('#dSrcFM').setAttribute('aria-pressed', String(state.source !== 'aa'));
 }
 function setSource(src) {
   state.source = src;
-  if (src === 'radio') state.radio.muted = false;
+  if (src === 'radio') { state.radio.muted = false; state.band = 'fm'; }
+  state.web.status = 'off'; state.web.text = '';
   renderMedia();
-  if (state.sheet === 'radio') updateRadioLeft();
+  if (state.sheet === 'radio') renderSheet();
 }
 
 /* ================================================================
@@ -1447,7 +1509,7 @@ function setSource(src) {
 function tune(k, quiet) {
   const r = state.radio;
   r.k = clamp(k, BAND.min, BAND.max); r.text = ''; r.tunedAt = performance.now(); r.muted = false;
-  state.source = 'radio';
+  state.source = 'radio'; state.band = 'fm'; state.web.status = 'off'; state.web.text = '';
   if (!quiet) { renderMedia(); updateRadioLeft(); updateFavMarks(); }
 }
 /* Busca: vai para a próxima estação com sinal, dando a volta na faixa */
@@ -1473,7 +1535,7 @@ function toggleFav(k) {
 function radioTick() {
   const r = state.radio, st = stationAt(r.k);
   let text = '';
-  if (st && !r.muted) {
+  if (st && !r.muted && state.source === 'radio') {
     const el = (performance.now() - r.tunedAt) / 1000;
     if (el >= 1.5) text = st.rds[Math.floor((el - 1.5) / 2.4) % st.rds.length];
   }
@@ -1488,10 +1550,17 @@ function radioTick() {
 }
 const favName = k => { const f = favOf(k); return (f && f.name) || state.names[k] || 'FM'; };
 
+/* Seletor FM / Online no topo da tela de rádio */
+const bandSeg = () => `<div class="rd-title"><div class="seg" role="tablist" aria-label="Fonte do rádio">
+    <button class="press ${state.band === 'fm' ? 'on' : ''}" data-act="band" data-band="fm" role="tab" aria-selected="${state.band === 'fm'}">${ic('radio')}FM</button>
+    <button class="press ${state.band === 'web' ? 'on' : ''}" data-act="band" data-band="web" role="tab" aria-selected="${state.band === 'web'}">${ic(state.wifi ? 'globe' : 'wifi')}Online${state.wifi ? '' : '<small>sem Wi-Fi</small>'}</button>
+  </div></div>`;
+
 function radioLeftHTML() {
+  if (state.band === 'web') return webLeftHTML();
   const r = state.radio, fav = favOf(r.k);
   const sub = [fav && fav.name, r.text].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(' · ');
-  return `<div class="rd-title">Rádio</div>
+  return `${bandSeg()}
     <div class="rd-freq"><b>${fmtFreq(r.k)}</b><span>FM</span>
       <button class="rd-star press ${fav ? 'on' : ''}" data-act="fav-toggle" data-k="${r.k}" aria-label="${fav ? 'Tirar das favoritas' : 'Favoritar'}">${ic(fav ? 'star-fill' : 'star')}</button></div>
     <div class="rd-sub">${esc(sub) || '&nbsp;'}</div>
@@ -1509,6 +1578,7 @@ function updateFavMarks() {
   document.querySelectorAll('.scan-row[data-k]').forEach(el => el.classList.toggle('on', +el.dataset.k === state.radio.k));
 }
 function radioRightHTML() {
+  if (state.band === 'web') return webRightHTML();
   if (state.radioTab === 'scan') return scanHTML();
   if (!state.favs.length) {
     return `<p class="rd-note">Nenhuma favorita ainda. Toque na estrela para favoritar a estação atual, ou use Procurar estações.</p>
@@ -1562,14 +1632,122 @@ function stopScan(silent) {
   if (!silent) renderRadioRight();
 }
 
+/* ================================================================
+   Rádio online (proposta)
+   ================================================================ */
+const isPlayingWeb = () => state.source === 'web' && (state.web.status === 'connecting' || state.web.status === 'live');
+function webStatusLine() {
+  const w = state.web, st = webOf(w.id);
+  return { off: 'Parada', connecting: 'Conectando…', live: w.text || `${st.tag} · ao vivo`, nowifi: 'Sem Wi-Fi', lost: 'O Wi-Fi caiu · parada' }[w.status];
+}
+/* Tocar: sem Wi-Fi não tenta; com Wi-Fi conecta (~1,5 s de buffer) e passa a "ao vivo" */
+function webPlay(id) {
+  const w = state.web;
+  if (id) w.id = id;
+  if (state.scan && state.scan.running) stopScan(true);
+  state.source = 'web'; state.band = 'web'; state.radio.muted = true;
+  w.text = '';
+  if (state.wifi) { w.status = 'connecting'; w.at = performance.now(); } else w.status = 'nowifi';
+  refreshWeb();
+}
+function webStop() { state.web.status = 'off'; state.web.text = ''; refreshWeb(); }
+function refreshWeb() {
+  renderMedia();
+  if (state.sheet === 'radio' && state.band === 'web') {
+    updateRadioLeft();
+    document.querySelectorAll('[data-wid]').forEach(el => el.classList.toggle('on', el.dataset.wid === state.web.id));
+  }
+}
+function webTick() {
+  const w = state.web;
+  if (state.source !== 'web') return;
+  let changed = false;
+  if (w.status === 'connecting' && performance.now() - w.at > 1400) { w.status = 'live'; w.at = performance.now(); changed = true; }
+  if (w.status === 'live') {
+    const st = webOf(w.id), el = (performance.now() - w.at) / 1000;
+    const t = st.now && el > 1 ? st.now[Math.floor(el / 6) % st.now.length] : '';
+    if (t !== w.text) { w.text = t; changed = true; }
+  }
+  if (changed) refreshWeb();
+}
+/* Anterior e próxima: entre as favoritas online, na ordem da lista (sem favoritas, a lista toda) */
+function webStep(d) {
+  const ids = state.webFavs.length ? state.webFavs : WEB.map(s => s.id);
+  const i = ids.indexOf(state.web.id);
+  webPlay(ids[i < 0 ? (d > 0 ? 0 : ids.length - 1) : mod(i + d, ids.length)]);
+}
+function toggleWebFav(id) {
+  state.webFavs = state.webFavs.includes(id) ? state.webFavs.filter(x => x !== id) : [...state.webFavs, id];
+  store.set('webFavs', state.webFavs);
+  if (state.sheet === 'radio') renderSheet();
+}
+function setBand(b) {
+  if (b === state.band) return;
+  if (b === 'web') { if (state.scan && state.scan.running) stopScan(false); webPlay(); }
+  else tune(state.radio.k, true);
+  state.favMenu = null;
+  renderMedia(); renderSheet();
+}
+/* O Wi-Fi do protótipo liga e desliga pelo painel de simulação. Se cair tocando, para e oferece o FM da mesma emissora. */
+function setWifi(on) {
+  state.wifi = on;
+  $('#dWifi').setAttribute('aria-pressed', String(on));
+  const w = state.web;
+  if (!on && isPlayingWeb()) { w.status = 'lost'; w.text = ''; toast('O Wi-Fi caiu: rádio online parado', 'wifi'); }
+  else if (on && state.source === 'web' && (w.status === 'lost' || w.status === 'nowifi')) { toast('Wi-Fi de volta: reconectando', 'wifi'); webPlay(); }
+  else toast(on ? 'Wi-Fi conectado' : 'Wi-Fi desconectado', 'wifi');
+  renderMedia();
+  if (state.sheet === 'radio') renderSheet();
+}
+function webLeftHTML() {
+  const w = state.web, st = webOf(w.id), fav = state.webFavs.includes(w.id), playing = isPlayingWeb();
+  const chip = w.status === 'live' ? '<span class="wb-chip live"><i></i>Ao vivo</span>'
+    : w.status === 'connecting' ? '<span class="wb-chip">Conectando…</span>'
+    : (w.status === 'nowifi' || w.status === 'lost') ? `<span class="wb-chip warn">${ic('wifi')}Sem Wi-Fi</span>`
+    : '<span class="wb-chip">Parada</span>';
+  const now = !state.wifi
+    ? '<div class="wb-now dim">Ligue o Wi-Fi do aparelho numa rede, como o roteador do celular.</div>'
+    : `<div class="wb-now">${w.status === 'live' && w.text ? esc(w.text) : '&nbsp;'}</div>`;
+  return `${bandSeg()}
+    <div class="wb-name"><b>${esc(st.name)}</b>
+      <button class="rd-star press ${fav ? 'on' : ''}" data-act="web-fav" data-w="${st.id}" aria-label="${fav ? 'Tirar das favoritas' : 'Favoritar'}">${ic(fav ? 'star-fill' : 'star')}</button></div>
+    <div class="wb-meta">${chip}<span>${esc(st.city)} · ${st.codec} ${st.kbps} kbps</span></div>
+    ${now}
+    ${!state.wifi && st.fm ? `<button class="btn-pill press wb-fm" data-act="web-fm" data-k="${st.fm}">${ic('radio')}Ouvir no FM ${fmtFreq(st.fm)}</button>` : ''}
+    <div class="rd-ctl">
+      <button class="rd-b press" data-act="web-prev" aria-label="Estação anterior">${ic('prev')}<small>Anterior</small></button>
+      <button class="rd-b wb-play press" data-act="web-play" aria-label="${playing ? 'Parar' : 'Tocar'}" ${state.wifi ? '' : 'disabled'}>${ic(playing ? 'stop' : 'play')}<small>${playing ? 'Parar' : 'Tocar'}</small></button>
+      <button class="rd-b press" data-act="web-next" aria-label="Próxima estação">${ic('next')}<small>Próxima</small></button>
+    </div>
+    <div class="wb-foot"><span>Proposta: ainda não está no app</span><span>Lista: Radio Browser</span></div>`;
+}
+function webRightHTML() {
+  if (state.webTab === 'fav') {
+    if (!state.webFavs.length) return '<p class="rd-note">Nenhuma favorita online ainda. Toque na estrela de uma estação em Explorar.</p>';
+    return `<div class="fav-grid">${state.webFavs.map(id => { const s = webOf(id); return `<div class="fav-w">
+      <button class="fav wfav press ${id === state.web.id ? 'on' : ''}" data-act="web-tune" data-wid="${id}"><b>${esc(s.name)}</b><small>${esc(s.tag)} · ${esc(s.city.split(',')[0])}</small></button></div>`; }).join('')}</div>`;
+  }
+  const f = state.webFilter;
+  const list = WEB.filter(s => f === 'all' || (f === 'near' ? s.uf === 'SC' : f === 'music' ? s.music : s.tag === f));
+  const chips = WEB_FILTERS.map(([k, l]) => `<button class="chip press ${k === f ? 'on' : ''}" data-act="web-filter" data-f="${k}">${l}</button>`).join('');
+  const rows = list.map(s => { const fav = state.webFavs.includes(s.id); return `<div class="scan-row press ${s.id === state.web.id ? 'on' : ''}" data-act="web-tune" data-wid="${s.id}">
+      <div class="wb-row"><b>${esc(s.name)}</b><span>${esc(s.tag)} · ${esc(s.city)}${s.fm ? ` · também no FM ${fmtFreq(s.fm)}` : ''}</span></div>
+      <button class="st press ${fav ? 'on' : ''}" data-act="web-fav" data-w="${s.id}" aria-label="Favoritar">${ic(fav ? 'star-fill' : 'star')}</button></div>`; }).join('');
+  return `<div class="chips">${chips}</div>${rows}`;
+}
+
 function sheetRadio() {
-  const t = state.radioTab;
+  const t = state.radioTab, wt = state.webTab;
+  const tabs = state.band === 'web'
+    ? `<button class="pill press ${wt === 'fav' ? 'on' : ''}" data-act="web-tab" data-tab="fav">Favoritas (${state.webFavs.length})</button>
+        <button class="pill press ${wt === 'browse' ? 'on' : ''}" data-act="web-tab" data-tab="browse">Explorar</button>`
+    : `<button class="pill press ${t === 'fav' ? 'on' : ''}" data-act="rd-tab" data-tab="fav">Favoritas (${state.favs.length})</button>
+        <button class="pill press ${t === 'scan' ? 'on' : ''}" data-act="rd-tab" data-tab="scan">Procurar estações</button>`;
   return `<div class="rd-wrap">
     <div class="rd-left" id="rdLeft">${radioLeftHTML()}</div>
     <div class="rd-right">
       <div class="rd-tabs" id="rdTabs">
-        <button class="pill press ${t === 'fav' ? 'on' : ''}" data-act="rd-tab" data-tab="fav">Favoritas (${state.favs.length})</button>
-        <button class="pill press ${t === 'scan' ? 'on' : ''}" data-act="rd-tab" data-tab="scan">Procurar estações</button>
+        ${tabs}
         <button class="x press" data-act="close" aria-label="Fechar">${ic('x')}</button>
       </div>
       <div class="rd-pane" id="rdRight">${radioRightHTML()}</div>
@@ -1628,8 +1806,10 @@ function openApp(id) {
   if (a.act === 'radio') { openRadio(); return; }
   toast(`Abrindo ${a.name}…`, 'external');
 }
+/* Abrir a tela de rádio já toca: o FM, ou a estação online se a tela estava em Online */
 function openRadio() {
-  state.source = 'radio'; state.radio.muted = false;
+  if (state.band === 'web') { if (!isPlayingWeb()) webPlay(); }
+  else { state.source = 'radio'; state.radio.muted = false; }
   state.radioTab = state.favs.length ? 'fav' : 'scan';
   renderMedia();
   openSheet('radio');
@@ -1818,11 +1998,12 @@ const ACT = {
   'mk-both': () => { state.markBoth = true; renderSheet(); },
   'mark-list': () => { state.markList = true; state.armed = null; renderSheet(); },
   'mark-back': () => { state.markList = false; state.armed = null; renderSheet(); },
-  'media-open': () => { if (state.source === 'radio') openRadio(); else openAA(); },
-  'm-prev': () => { if (state.source === 'radio') mediaStep(-1); else toast('Tecla “anterior” enviada ao ZLINK', 'prev'); },
-  'm-next': () => { if (state.source === 'radio') mediaStep(1); else toast('Tecla “próxima” enviada ao ZLINK', 'next'); },
+  'media-open': () => { if (state.source === 'aa') openAA(); else openRadio(); },
+  'm-prev': () => { if (state.source === 'web') webStep(-1); else if (state.source === 'radio') mediaStep(-1); else toast('Tecla “anterior” enviada ao ZLINK', 'prev'); },
+  'm-next': () => { if (state.source === 'web') webStep(1); else if (state.source === 'radio') mediaStep(1); else toast('Tecla “próxima” enviada ao ZLINK', 'next'); },
   'm-play': () => {
-    if (state.source === 'radio') { state.radio.muted = !state.radio.muted; if (!state.radio.muted) state.radio.tunedAt = performance.now(); state.radio.text = ''; renderMedia(); if (state.sheet === 'radio') updateRadioLeft(); }
+    if (state.source === 'web') { if (isPlayingWeb()) webStop(); else webPlay(); }
+    else if (state.source === 'radio') { state.radio.muted = !state.radio.muted; if (!state.radio.muted) state.radio.tunedAt = performance.now(); state.radio.text = ''; renderMedia(); if (state.sheet === 'radio') updateRadioLeft(); }
     else toast('Tecla play/pausa enviada ao ZLINK', 'play');
   },
   'rd-tab': el => { state.radioTab = el.dataset.tab; state.favMenu = null; if (state.sheet === 'radio') { renderSheet(); } },
@@ -1838,7 +2019,15 @@ const ACT = {
   'import-presets': () => { state.favs = STATIONS.slice(0, 6).map(s => ({ k: s.k, name: '' })); store.set('favs', state.favs); state.radioTab = 'fav'; renderSheet(); },
   'scan-start': () => startScan(),
   'scan-stop': () => stopScan(false),
-  'radio-app': () => toast('Abre o app de rádio original do aparelho', 'external')
+  'radio-app': () => toast('Abre o app de rádio original do aparelho', 'external'),
+  band: el => setBand(el.dataset.band),
+  'web-tab': el => { state.webTab = el.dataset.tab; renderSheet(); },
+  'web-filter': el => { state.webFilter = el.dataset.f; renderRadioRight(); },
+  'web-tune': el => webPlay(el.dataset.wid),
+  'web-fav': el => toggleWebFav(el.dataset.w),
+  'web-play': () => { if (isPlayingWeb()) webStop(); else webPlay(); },
+  'web-prev': () => webStep(-1), 'web-next': () => webStep(1),
+  'web-fm': el => { tune(+el.dataset.k, true); renderMedia(); renderSheet(); toast(`Mesma emissora no FM ${fmtFreq(+el.dataset.k)}`, 'radio'); }
 };
 /* Anterior e próxima no card: entre as favoritas, em ordem de frequência (sem favoritas, busca) */
 function mediaStep(d) {
@@ -1891,6 +2080,7 @@ $('#demo').addEventListener('click', e => {
   if (k === 'drive') setDriving(!state.moving);
   else if (k === 'speeding') setSpeeding(!state.speeding);
   else if (k === 'light') { state.headlight = !state.headlight; applyTheme(); toast(state.headlight ? 'Farol aceso' : 'Farol apagado', 'sun'); }
+  else if (k === 'wifi') setWifi(!state.wifi);
   else if (k === 'src-aa') setSource('aa');
   else if (k === 'src-radio') setSource('radio');
   else if (k === 'full') {
@@ -1930,7 +2120,7 @@ document.addEventListener('keydown', e => {
    Laços de atualização
    ================================================================ */
 setInterval(() => { alertTick(); updateSpeedUI(); updateTrip(); }, 250);
-setInterval(() => { radioTick(); updateClock(); }, 1000);
+setInterval(() => { radioTick(); webTick(); updateClock(); }, 1000);
 
 /* ================================================================
    Início
