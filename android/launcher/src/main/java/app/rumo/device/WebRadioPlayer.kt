@@ -25,6 +25,8 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
     private val ctx = context.applicationContext
     private var player: ExoPlayer? = null
     private var connection: ServiceConnection? = null
+    /** A ligação atual cria o serviço ([connect] com create); a sem create só espera um serviço que já rode. */
+    private var creates = false
     private val pending = ArrayList<(ExoPlayer) -> Unit>()
 
     private val listener = object : Player.Listener {
@@ -37,6 +39,17 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
 
     /** Liga no serviço; [create] falso só liga se ele já estiver rodando (tela recriada com o rádio tocando). */
     fun connect(create: Boolean = true) {
+        // Ligação só "se já estiver rodando" e sem player: para tocar, refaz criando o serviço (senão o pedido esperava
+        // um serviço que ninguém iniciava, e a primeira estação não tocava)
+        if (connection != null && create && !creates && player == null) {
+            connection?.let {
+                try {
+                    ctx.unbindService(it)
+                } catch (e: Exception) {
+                }
+            }
+            connection = null
+        }
         if (connection != null) return
         val conn = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName, service: IBinder) {
@@ -60,6 +73,7 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
         }
         if (ok) {
             connection = conn
+            creates = create
         } else {
             try {
                 ctx.unbindService(conn)

@@ -47,10 +47,11 @@ class WebRadioService : Service() {
             .setReadTimeoutMs(READ_MS)
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(DefaultMediaSourceFactory(this).setDataSourceFactory(http))
-            // Sem pedir o foco de áudio: com ele o sourceinfo marca o Rumo como fonte e o firmware o encerra quando o rádio
-            // ou o Android Auto pegam a fonte. Quem para o online quando o ZLINK pega o som é o próprio Rumo (sourceinfo)
+            // O firmware marca como fonte (e depois encerra) o app que toca som do tipo mídia, com ou sem foco de áudio;
+            // os alertas de radar, do tipo navegação, nunca foram marcados. Tipo "jogo": mesmo volume e mesma saída da
+            // mídia, sem ser mídia. Sem pedir o foco de áudio: quem para o online quando o ZLINK pega o som é o Rumo
             .setAudioAttributes(
-                AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),
+                AudioAttributes.Builder().setUsage(C.USAGE_GAME).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),
                 /* handleAudioFocus = */ false,
             )
             .setWakeMode(C.WAKE_MODE_NETWORK)
