@@ -284,8 +284,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.web = WebNow(WebRadio.decode(prefs.getString(PREF_WEB_LAST, null)).firstOrNull())
         if (prefs.getString(PREF_RADIO_BAND, null) == RadioBand.WEB.name) {
             state.radioBand = RadioBand.WEB
-            // Pode estar tocando desde antes (a tela foi recriada): liga no serviço para saber
-            webPlayer.connect()
+            // Pode estar tocando desde antes (a tela foi recriada): liga no serviço só se ele já estiver rodando
+            webPlayer.connect(create = false)
         }
         radioNames.load(prefs.getString(PREF_RADIO_NAMES, null))
         state.radioNames = radioNames.valid()

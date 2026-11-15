@@ -99,17 +99,12 @@
                 android:resource="@xml/power_service" />
         </service>
 
-        <!-- Rádio online (player e sessão de mídia); só o próprio Rumo liga nele. Em processo à parte: quando o rádio do
-             aparelho vira a fonte, o firmware encerra o app de mídia que tocava, e assim não leva a tela inicial junto -->
+        <!-- Rádio online (só o player, sem sessão de mídia); só o próprio Rumo liga nele. Sem o filtro de serviço de
+             mídia de propósito: com ele o firmware trata o Rumo como app de mídia e o encerra a cada troca de fonte -->
         <service
             android:name=".device.WebRadioService"
             android:exported="false"
-            android:process=":web"
-            android:foregroundServiceType="mediaPlayback">
-            <intent-filter>
-                <action android:name="androidx.media3.session.MediaSessionService" />
-            </intent-filter>
-        </service>
+            android:foregroundServiceType="mediaPlayback" />
 
         <!-- Entrega o APK baixado ao instalador do Android -->
         <provider
