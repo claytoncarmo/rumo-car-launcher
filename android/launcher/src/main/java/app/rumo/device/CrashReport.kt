@@ -29,17 +29,25 @@ object CrashReport {
     /**
      * Na abertura: junta o que houver do fechamento anterior (o relatório do erro Java, se gravou; o trecho do logcat
      * com o fechamento, que pega também erro nativo; e os comandos do rádio da sessão anterior) e grava o
-     * `crash-report.txt`. Verdadeiro se havia fechamento novo. Fora da thread principal.
+     * `crash-report.txt`. [endedOutside]: a sessão anterior acabou sem o Rumo sair da tela (o processo foi encerrado).
+     * Verdadeiro se havia fechamento novo. Fora da thread principal.
      */
-    fun collect(context: Context, previousLog: List<String>): Boolean {
+    fun collect(context: Context, previousLog: List<String>, endedOutside: Boolean): Boolean {
         val prefs = context.getSharedPreferences("rumo", Context.MODE_PRIVATE)
         val own = File(context.filesDir, FILE)
         val recorded = own.takeIf { it.isFile && it.lastModified() > prefs.getLong(PREF_SEEN, 0L) }?.readText()
         val block = CrashLog.lastCrash(logcat(LOGCAT_LINES), Process.myPid())
         val newBlock = block != null && block.firstOrNull() != prefs.getString(PREF_LAST_BLOCK, null)
-        if (recorded == null && !newBlock) return false
+        if (recorded == null && !newBlock && !endedOutside) return false
         val text = buildString {
-            append(recorded ?: "Rumo ${versionOf(context)} · fechou (achado no log do Android) · ${LocalDateTime.now()}\n")
+            append(
+                recorded ?: if (newBlock) {
+                    "Rumo ${versionOf(context)} · fechou (achado no log do Android) · ${LocalDateTime.now()}\n"
+                } else {
+                    // Sem erro do Rumo: o processo foi encerrado de fora (pelo sistema ou pelo firmware) com a tela aberta
+                    "Rumo ${versionOf(context)} · foi encerrado sem erro, de fora (sistema ou firmware) · ${LocalDateTime.now()}\n"
+                },
+            )
             if (newBlock && block != null) {
                 append("\nLog do Android no fechamento:\n")
                 block.forEach { append(it).append('\n') }

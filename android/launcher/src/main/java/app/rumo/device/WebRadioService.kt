@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -36,6 +37,13 @@ class WebRadioService : MediaSessionService() {
             )
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()
+        // Parado e sem estação: o serviço se encerra assim que a tela soltar a ligação (libera o player, o foco de
+        // áudio e a sessão de mídia antes de o FM voltar)
+        player.addListener(object : Player.Listener {
+            override fun onEvents(p: Player, events: Player.Events) {
+                if (p.mediaItemCount == 0 && !p.playWhenReady) stopSelf()
+            }
+        })
         val open = packageManager.getLaunchIntentForPackage(packageName)?.let {
             PendingIntent.getActivity(this, 0, it, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         }

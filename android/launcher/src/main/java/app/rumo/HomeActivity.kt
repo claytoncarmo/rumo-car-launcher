@@ -210,6 +210,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var webNear: List<WebStation> = emptyList()
     private var webState: BrState? = null
     private var webLoading = false
+    /** Quando o rádio online foi desligado por inteiro (o FM espera um pouco depois disso). */
+    private var webReleasedAt = 0L
     // Registro dos comandos do rádio em arquivo, gravado numa thread só (na ordem), e o da sessão anterior
     private val radioLogFile by lazy { File(filesDir, "radio-log.txt") }
     private val logWriter = Executors.newSingleThreadExecutor()
@@ -242,6 +244,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
         super.onCreate(savedInstanceState)
         // Fechou com erro: o relatório vai para a pasta Rumo e o pendrive, com os últimos comandos do rádio
         CrashReport.install(this)
+        // Sessão anterior que não passou pelo onStop: o processo foi encerrado com o Rumo na tela
+        val endedOutside = prefs.getBoolean(PREF_SESSION_OPEN, false)
         // Primeiro da fila do registro: guarda o da sessão anterior e começa um arquivo novo
         logWriter.execute {
             previousRadioLog = try {
@@ -306,9 +310,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
             val crashed = withContext(Dispatchers.IO) {
                 // Espera a fila do registro ler o arquivo da sessão anterior (pedido no começo do onCreate)
                 logWriter.submit {}.get()
-                CrashReport.collect(this@HomeActivity, previousRadioLog)
+                CrashReport.collect(this@HomeActivity, previousRadioLog, endedOutside)
             }
-            if (crashed) state.toast = "O Rumo fechou da última vez: relatório em Rumo/${CrashReport.FILE}"
+            if (crashed) state.toast = "O Rumo foi fechado da última vez: relatório em Rumo/${CrashReport.FILE}"
         }
         hideSystemBars()
         setContent { HomeScreen(state, this) }
@@ -364,6 +368,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     override fun onStart() {
         super.onStart()
+        prefs.edit().putBoolean(PREF_SESSION_OPEN, true).commit()
         alertLog.add("tela: Rumo na tela (${state.appVersion}) ${alerts.audioState()}")
         gps.start()
         watchNetwork()
@@ -401,6 +406,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     // Alertas só com o Rumo na tela: com o Android Auto aberto, nada toca
     override fun onStop() {
+        prefs.edit().putBoolean(PREF_SESSION_OPEN, false).apply()
         scanCancelled = true
         // A ligação com o serviço do rádio fica aberta: se o rádio foi ligado pela tela do Rumo, o serviço só
         // existe por causa dela, e desligar ao sair (ao abrir o ZLINK) parava o rádio. Os ouvintes saem na mesma
@@ -995,9 +1001,18 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.web = state.web.copy(status = status, title = null)
     }
 
-    /** Volta para o FM: para o rádio online e a tela mostra o FM. */
+    /**
+     * Volta para o FM: desliga o rádio online por inteiro (o serviço se encerra e solta a sessão de mídia) e a tela mostra
+     * o FM. O FM só é chamado depois de [WEB_RELEASE_MS] ([waitWebReleased]): com o FM virando a fonte e o Rumo ainda
+     * como app de mídia, o firmware encerrava o Rumo.
+     */
     private fun leaveWeb() {
         stopWeb()
+        webPlayerOrNull?.let {
+            it.shutdown()
+            webReleasedAt = SystemClock.elapsedRealtime()
+            radioLog("online: serviço solto, o FM espera ${WEB_RELEASE_MS} ms")
+        }
         setRadioBand(RadioBand.FM)
         if (state.source == Source.WEB) state.source = Source.RADIO
     }
@@ -1098,6 +1113,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
      * O serviço do app de rádio acabou de nascer (o Rumo o tinha soltado para calar o FM, ao ir para o rádio online
      * ou no play do card): espera ele se ajeitar antes de pedir o áudio. Ao voltar do online para o FM, o serviço caía.
      */
+    private suspend fun waitWebReleased() {
+        val since = SystemClock.elapsedRealtime() - webReleasedAt
+        if (since < WEB_RELEASE_MS) delay(WEB_RELEASE_MS - since)
+    }
+
     private suspend fun settleRadio() {
         val since = SystemClock.elapsedRealtime() - radioControl.connectedAt
         if (since < RADIO_SETTLE_MS) {
@@ -1124,6 +1144,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }
         lifecycleScope.launch {
             radioCommands.withLock {
+                waitWebReleased()
                 ensureRadio()
                 block()
             }
@@ -1220,6 +1241,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.radioMuted = on
         prefs.edit().putBoolean(PREF_RADIO_MUTED, on).apply()
         lifecycleScope.launch {
+            if (!on) waitWebReleased()
             radioLog(withContext(Dispatchers.IO) { radioControl.mute(on) })
             // O mudo do fmradio sozinho não calou o rádio no aparelho. O serviço do rádio só existe enquanto o Rumo
             // está ligado nele (ao atualizar o app ele morre e o rádio cala): soltar a ligação o encerra. Para voltar,
@@ -1898,6 +1920,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val RADIO_LOG_LINES = 300
         const val CRASH_LOG_LINES = 40
         const val RADIO_SETTLE_MS = 1_500L
+        const val WEB_RELEASE_MS = 1_500L
+        /** Ligado enquanto o Rumo está na tela: ainda ligado na abertura seguinte = o processo foi encerrado de fora. */
+        const val PREF_SESSION_OPEN = "session_open"
         const val RADIO_LOG_FILE_MAX = 256 * 1024L
         const val REPORT_LOGCAT_LINES = 1_500
         const val PREF_RADIO_BAND = "radio_band"

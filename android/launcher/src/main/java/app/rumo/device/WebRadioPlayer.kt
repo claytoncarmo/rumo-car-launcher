@@ -88,6 +88,15 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
         pending.clear()
     }
 
+    /**
+     * Para e solta a ligação com o serviço: ele se encerra e libera o player, o foco de áudio e a sessão de mídia.
+     * O próximo [play] liga de novo.
+     */
+    fun shutdown() {
+        stop()
+        release()
+    }
+
     private fun withController(block: (MediaController) -> Unit) {
         val c = controller
         if (c != null) block(c) else {
