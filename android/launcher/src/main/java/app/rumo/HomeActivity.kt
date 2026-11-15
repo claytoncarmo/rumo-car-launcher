@@ -184,6 +184,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private val sourceInfo = SourceInfo { name ->
         runOnUiThread {
             lastRawOwner = name
+            // Só as mudanças (o ZLINK repete o aviso quase a cada segundo)
+            if (name != loggedOwner) {
+                loggedOwner = name
+                radioLog("sourceinfo: \"$name\"")
+            }
             applyAudioOwner(name)
         }
     }
@@ -212,6 +217,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var webLoading = false
     /** Quando o rádio online foi desligado por inteiro (o FM espera um pouco depois disso). */
     private var webReleasedAt = 0L
+    private var loggedOwner: String? = null
     // Registro dos comandos do rádio em arquivo, gravado numa thread só (na ordem), e o da sessão anterior
     private val radioLogFile by lazy { File(filesDir, "radio-log.txt") }
     private val logWriter = Executors.newSingleThreadExecutor()
@@ -864,6 +870,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         when (cmd) {
             RadioCmd.OpenApp -> openRadio()
             RadioCmd.Play -> tunerCommand {
+                if (cameFromWeb()) return@tunerCommand
                 settleRadio()
                 radioLog(withContext(Dispatchers.IO) { radioControl.playAudio() })
             }
@@ -882,7 +889,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             }
             is RadioCmd.Tune -> tunerCommand {
                 // Escolher uma estação com outra fonte tocando: pede o rádio como fonte (teste do requestPlayAudio)
-                if (state.source != Source.RADIO) {
+                if (state.source != Source.RADIO && !cameFromWeb()) {
                     settleRadio()
                     radioLog(withContext(Dispatchers.IO) { radioControl.playAudio() })
                 }
@@ -1113,6 +1120,17 @@ class HomeActivity : ComponentActivity(), HomeActions {
      * O serviço do app de rádio acabou de nascer (o Rumo o tinha soltado para calar o FM, ao ir para o rádio online
      * ou no play do card): espera ele se ajeitar antes de pedir o áudio. Ao voltar do online para o FM, o serviço caía.
      */
+    /**
+     * Logo depois de desligar o rádio online: o `requestPlayAudio` fazia o firmware encerrar o Rumo (o último app de
+     * mídia) ao pôr o rádio como fonte. Nesse caso não pede o áudio: a ligação com o serviço do rádio já o põe para
+     * tocar (como ao abrir a tela de rádio).
+     */
+    private fun cameFromWeb(): Boolean {
+        val recent = webReleasedAt > 0 && SystemClock.elapsedRealtime() - webReleasedAt < CAME_FROM_WEB_MS
+        if (recent) radioLog("vindo do online: sem requestPlayAudio (só a ligação com o serviço)")
+        return recent
+    }
+
     private suspend fun waitWebReleased() {
         val since = SystemClock.elapsedRealtime() - webReleasedAt
         if (since < WEB_RELEASE_MS) delay(WEB_RELEASE_MS - since)
@@ -1921,6 +1939,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val CRASH_LOG_LINES = 40
         const val RADIO_SETTLE_MS = 1_500L
         const val WEB_RELEASE_MS = 1_500L
+        const val CAME_FROM_WEB_MS = 15_000L
         /** Ligado enquanto o Rumo está na tela: ainda ligado na abertura seguinte = o processo foi encerrado de fora. */
         const val PREF_SESSION_OPEN = "session_open"
         const val RADIO_LOG_FILE_MAX = 256 * 1024L
