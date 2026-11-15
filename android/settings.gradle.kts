@@ -14,3 +14,5 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Rumo"
 include(":launcher")
+// App do rádio online (só o player): à parte do launcher, ver android/webradio/build.gradle.kts
+include(":webradio")

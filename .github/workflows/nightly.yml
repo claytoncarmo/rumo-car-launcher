@@ -46,8 +46,10 @@ jobs:
         run: |
           bash .github/scripts/rumo-json.sh dist/rumo.apk "$VERSION" "$CODE" \
             "https://github.com/$GITHUB_REPOSITORY/releases/download/nightly/rumo.apk" dist/rumo.json release-notes/next.md
+          bash .github/scripts/rumo-json.sh dist/rumo-web-radio.apk "$VERSION" "$CODE" \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/nightly/rumo-web-radio.apk" dist/web-radio.json
           gh release delete nightly --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" || true
-          gh release create nightly dist/rumo.apk dist/rumo.json \
+          gh release create nightly dist/rumo.apk dist/rumo.json dist/rumo-web-radio.apk dist/web-radio.json \
             --repo "$GITHUB_REPOSITORY" \
             --prerelease \
             --target "$GITHUB_SHA" \

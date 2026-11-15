@@ -4,70 +4,94 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.net.Uri
+import android.content.pm.PackageManager
+import android.os.Binder
+import android.os.Handler
 import android.os.IBinder
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
-import androidx.media3.common.MimeTypes
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
+import android.os.Looper
+import android.os.Parcel
+import android.os.Process
+import androidx.core.content.pm.PackageInfoCompat
 import app.rumo.core.WebStation
 import app.rumo.core.WebStatus
+import app.rumo.shared.WebRadioProtocol as P
 
 /** O que o player do rádio online está fazendo: estação (id do catálogo), estado e o "tocando agora" do stream. */
 data class WebPlayback(val stationId: String?, val status: WebStatus, val title: String?)
 
 /**
- * Controle do [WebRadioService] pela tela do Rumo (thread principal; o player também vive nela). Liga no serviço na
- * primeira vez que precisa; comandos pedidos antes de ligar esperam a ligação. [onChange] recebe cada mudança.
+ * Controle do player do rádio online, que mora no app à parte `app.rumo.webradio` ([P]): quando outra fonte pega o
+ * som, o firmware encerra aquele app e não o Rumo. Thread principal. Liga no serviço na primeira vez que precisa;
+ * comandos pedidos antes de ligar esperam a ligação. [onChange] recebe cada mudança.
  */
 class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Unit) {
     private val ctx = context.applicationContext
-    private var player: ExoPlayer? = null
+    private val main = Handler(Looper.getMainLooper())
+    private var remote: IBinder? = null
     private var connection: ServiceConnection? = null
     /** A ligação atual cria o serviço ([connect] com create); a sem create só espera um serviço que já rode. */
     private var creates = false
-    private val pending = ArrayList<(ExoPlayer) -> Unit>()
+    private val pending = ArrayList<(IBinder) -> Unit>()
+    private var last = WebPlayback(null, WebStatus.OFF, null)
 
-    private val listener = object : Player.Listener {
-        override fun onEvents(p: Player, events: Player.Events) = publish()
+    /** Recebe os avisos do player; só aceita o app do rádio online (mesma assinatura do Rumo). */
+    private val events = object : Binder() {
+        override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
+            if (code != P.TX_EVENT) return super.onTransact(code, data, reply, flags)
+            if (ctx.packageManager.checkSignatures(Binder.getCallingUid(), Process.myUid()) != PackageManager.SIGNATURE_MATCH) {
+                throw SecurityException("aviso de um app desconhecido")
+            }
+            data.enforceInterface(P.EVENTS_DESCRIPTOR)
+            val id = data.readString().orEmpty().ifEmpty { null }
+            val status = when (data.readString()) {
+                P.STATUS_LIVE -> WebStatus.LIVE
+                P.STATUS_CONNECTING -> WebStatus.CONNECTING
+                P.STATUS_ERROR -> WebStatus.ERROR
+                else -> WebStatus.OFF
+            }
+            val title = data.readString().orEmpty().ifEmpty { null }
+            main.post { emit(WebPlayback(id, status, title)) }
+            return true
+        }
     }
 
-    /** Tocando ou tentando tocar (o motorista pediu e nada o parou). */
+    /** Tocando ou tentando tocar. */
     val active: Boolean
-        get() = player?.let { it.playWhenReady && it.mediaItemCount > 0 && it.playerError == null } == true
+        get() = last.status == WebStatus.CONNECTING || last.status == WebStatus.LIVE
 
     /** Liga no serviço; [create] falso só liga se ele já estiver rodando (tela recriada com o rádio tocando). */
     fun connect(create: Boolean = true) {
-        // Ligação só "se já estiver rodando" e sem player: para tocar, refaz criando o serviço (senão o pedido esperava
-        // um serviço que ninguém iniciava, e a primeira estação não tocava)
-        if (connection != null && create && !creates && player == null) {
-            connection?.let {
-                try {
-                    ctx.unbindService(it)
-                } catch (e: Exception) {
-                }
-            }
-            connection = null
-        }
+        // Ligação só "se já estiver rodando" e sem resposta: para tocar, refaz criando o serviço
+        if (connection != null && create && !creates && remote == null) unbind()
         if (connection != null) return
+        if (create && installedVersion(ctx) == null) {
+            pending.clear()
+            emit(WebPlayback(null, WebStatus.ERROR, null))
+            return
+        }
         val conn = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName, service: IBinder) {
-                val p = (service as WebRadioService.Local).service.player
-                player = p
-                p.addListener(listener)
-                pending.forEach { it(p) }
+                remote = service
+                send(service, P.TX_LISTEN) { writeStrongBinder(events) }
+                pending.forEach { it(service) }
                 pending.clear()
-                publish()
             }
 
+            // O app do rádio online foi encerrado (troca de fonte, por exemplo): parado
             override fun onServiceDisconnected(name: ComponentName) {
-                player = null
-                onChange(WebPlayback(null, WebStatus.OFF, null))
+                remote = null
+                emit(WebPlayback(last.stationId, WebStatus.OFF, null))
+            }
+
+            override fun onBindingDied(name: ComponentName) {
+                remote = null
+                unbind()
+                emit(WebPlayback(last.stationId, WebStatus.OFF, null))
             }
         }
+        val intent = Intent().setComponent(ComponentName(P.PACKAGE, P.SERVICE))
         val ok = try {
-            ctx.bindService(Intent(ctx, WebRadioService::class.java), conn, if (create) Context.BIND_AUTO_CREATE else 0)
+            ctx.bindService(intent, conn, if (create) Context.BIND_AUTO_CREATE else 0)
         } catch (e: Exception) {
             false
         }
@@ -80,40 +104,26 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
             } catch (e: Exception) {
             }
             pending.clear()
+            if (create) emit(WebPlayback(null, WebStatus.ERROR, null))
         }
     }
 
     fun release() {
-        player?.removeListener(listener)
-        player = null
-        connection?.let {
-            try {
-                ctx.unbindService(it)
-            } catch (e: Exception) {
-            }
-        }
-        connection = null
+        unbind()
         pending.clear()
     }
 
-    fun play(s: WebStation) = withPlayer { p ->
-        val item = MediaItem.Builder()
-            .setMediaId(s.id)
-            .setUri(Uri.parse(s.url))
-            .apply { if (s.hls) setMimeType(MimeTypes.APPLICATION_M3U8) }
-            // O nome da estação vai como artista: o título fica para o "tocando agora" que o stream manda (ICY)
-            .setMediaMetadata(MediaMetadata.Builder().setArtist(s.name).build())
-            .build()
-        p.setMediaItem(item)
-        p.prepare()
-        p.play()
+    fun play(s: WebStation) = withRemote { b ->
+        send(b, P.TX_PLAY) {
+            writeString(s.id)
+            writeString(s.url)
+            writeString(s.name)
+            writeInt(if (s.hls) 1 else 0)
+        }
     }
 
     fun stop() {
-        player?.run {
-            stop()
-            clearMediaItems()
-        }
+        remote?.let { send(it, P.TX_STOP) {} }
         pending.clear()
     }
 
@@ -123,28 +133,49 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
         release()
     }
 
-    private fun withPlayer(block: (ExoPlayer) -> Unit) {
-        val p = player
-        if (p != null) block(p) else {
+    private fun unbind() {
+        connection?.let {
+            try {
+                ctx.unbindService(it)
+            } catch (e: Exception) {
+            }
+        }
+        connection = null
+        remote = null
+    }
+
+    private fun withRemote(block: (IBinder) -> Unit) {
+        val b = remote
+        if (b != null) block(b) else {
             pending += block
             connect()
         }
     }
 
-    private fun publish() {
-        val p = player ?: return
-        val status = when {
-            p.mediaItemCount == 0 -> WebStatus.OFF
-            p.playerError != null -> WebStatus.ERROR
-            // Pausado: o motorista parou ou outro app (Android Auto) tomou o som
-            !p.playWhenReady -> WebStatus.OFF
-            // Pronto: tocando (ou calado um instante por outro som curto, como a voz do navegador)
-            p.playbackState == Player.STATE_READY -> WebStatus.LIVE
-            p.playbackState == Player.STATE_ENDED -> WebStatus.ERROR
-            p.playbackState == Player.STATE_IDLE -> WebStatus.OFF
-            else -> WebStatus.CONNECTING
+    private fun send(b: IBinder, code: Int, write: Parcel.() -> Unit) {
+        val data = Parcel.obtain()
+        try {
+            data.writeInterfaceToken(P.DESCRIPTOR)
+            data.write()
+            b.transact(code, data, null, IBinder.FLAG_ONEWAY)
+        } catch (e: Exception) {
+            // Morreu no meio: o onServiceDisconnected avisa
+        } finally {
+            data.recycle()
         }
-        val title = p.mediaMetadata.title?.toString()?.trim()?.takeIf { it.isNotEmpty() }
-        onChange(WebPlayback(p.currentMediaItem?.mediaId, status, title))
+    }
+
+    private fun emit(p: WebPlayback) {
+        last = p
+        onChange(p)
+    }
+
+    companion object {
+        /** versionCode do app do rádio online instalado, ou null se não estiver. */
+        fun installedVersion(context: Context): Long? = try {
+            PackageInfoCompat.getLongVersionCode(context.packageManager.getPackageInfo(P.PACKAGE, 0))
+        } catch (e: PackageManager.NameNotFoundException) {
+            null
+        }
     }
 }

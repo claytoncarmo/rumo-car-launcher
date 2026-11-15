@@ -12,6 +12,10 @@ object Endpoints {
     /** `rumo.json` da pré-release nightly, substituída a cada push na main. */
     const val NIGHTLY = "$BASE/download/nightly/rumo.json"
 
+    /** `web-radio.json`: o app do rádio online (`app.rumo.webradio`), publicado em cada release ao lado do Rumo. */
+    const val WEB_RADIO_STABLE = "$BASE/latest/download/web-radio.json"
+    const val WEB_RADIO_NIGHTLY = "$BASE/download/nightly/web-radio.json"
+
     /** `data.json` dos dados offline (mapa, vias, radares). */
     const val DATA = "$BASE/download/rumo-data/data.json"
 
@@ -19,9 +23,9 @@ object Endpoints {
     const val MAPARADAR = "$BASE/download/rumo-maparadar/maparadar.json"
 }
 
-enum class Channel(val label: String, val url: String) {
-    STABLE("Estável", Endpoints.STABLE),
-    NIGHTLY("Nightly", Endpoints.NIGHTLY),
+enum class Channel(val label: String, val url: String, val webRadioUrl: String) {
+    STABLE("Estável", Endpoints.STABLE, Endpoints.WEB_RADIO_STABLE),
+    NIGHTLY("Nightly", Endpoints.NIGHTLY, Endpoints.WEB_RADIO_NIGHTLY),
 }
 
 /** Uma versão publicada do app (`rumo.json`, gerado pelo CI ao lado do APK). */

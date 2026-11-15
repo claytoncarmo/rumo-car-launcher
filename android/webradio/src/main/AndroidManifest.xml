@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- O som continua com o Rumo fora da tela (serviço em primeiro plano) e o Wi-Fi não dorme -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Sem tela nem ícone na gaveta: quem mostra tudo é o Rumo. usesCleartextTraffic: boa parte das rádios online só
+         transmite por http -->
+    <application
+        android:allowBackup="false"
+        android:icon="@android:drawable/ic_media_play"
+        android:label="Rumo · rádio online"
+        android:usesCleartextTraffic="true">
+
+        <!-- Exportado para o Rumo ligar nele; o próprio serviço só aceita chamadas de um app com a mesma assinatura -->
+        <service
+            android:name=".WebRadioService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback" />
+    </application>
+</manifest>

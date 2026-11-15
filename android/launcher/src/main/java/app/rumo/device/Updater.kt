@@ -72,6 +72,15 @@ class Updater(private val prefs: SharedPreferences, private val http: Http = Htt
         }
     }
 
+    /** O app do rádio online publicado no canal (mesmo formato do `rumo.json`), ou null sem rede ou sem publicação. */
+    suspend fun fetchWebRadio(channel: Channel): AppRelease? = withContext(Dispatchers.IO) {
+        try {
+            parseAppRelease(http.getText(channel.webRadioUrl))
+        } catch (e: IOException) {
+            null
+        }
+    }
+
     /** Manifesto dos dados e o que falta baixar. Pode demorar na primeira vez (confere o hash de dados copiados à mão). */
     suspend fun fetchData(): DataInfo = withContext(Dispatchers.IO) {
         try {
@@ -144,9 +153,11 @@ class Updater(private val prefs: SharedPreferences, private val http: Http = Htt
         folder: File,
         onProgress: (Long) -> Unit,
         cancelled: () -> Boolean,
+        prefix: String = "rumo",
     ): File = withContext(Dispatchers.IO) {
+        folder.mkdirs()
         // O nome da versão vem da rede: só letras, números, ponto, hífen e sublinhado viram nome de arquivo
-        val name = "rumo-${release.versionName.replace(Regex("[^A-Za-z0-9._-]"), "_")}.apk"
+        val name = "$prefix-${release.versionName.replace(Regex("[^A-Za-z0-9._-]"), "_")}.apk"
         val apk = File(folder, name)
         // APKs de versões antigas não servem mais (o .part desta versão fica, para retomar)
         folder.listFiles()?.filter { it.name != name && it.name != "$name.part" }?.forEach { it.delete() }

@@ -157,6 +157,9 @@ class HomeState {
     var web by mutableStateOf(WebNow())
     var webFavorites by mutableStateOf<List<WebStation>>(emptyList())
     var webBrowse by mutableStateOf(WebBrowse())
+    /** App do rádio online (`app.rumo.webradio`): versão instalada (null: não instalado) e a publicada no canal. */
+    var webRadioInstalled by mutableStateOf<Long?>(null)
+    var webRadioLatest by mutableStateOf<AppRelease?>(null)
     /** Memórias do aparelho (kHz), para trazer para as favoritas. */
     var devicePresets by mutableStateOf<List<Int>>(emptyList())
     /** Registro dos comandos do rádio (teste): sai no relatório com toque longo no título da tela de rádio. */
@@ -226,6 +229,8 @@ interface HomeActions {
     fun openUpdate()
     /** Baixa a versão nova do aviso e abre o instalador do Android. */
     fun installUpdate()
+    /** Baixa e instala o app do rádio online (só parado). */
+    fun installWebRadio()
     /** Marca ou desmarca um estado na lista de dados do mapa (só muda a escolha; [applyData] baixa e remove). */
     fun toggleRegion(id: String)
     /** Baixa os estados marcados que faltam ou estão desatualizados e remove os desmarcados. */

@@ -217,6 +217,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var webLoading = false
     /** Quando o rádio online foi desligado por inteiro (o FM espera um pouco depois disso). */
     private var webReleasedAt = 0L
+    private var webRadioFetched = false
     private var loggedOwner: String? = null
     // Registro dos comandos do rádio em arquivo, gravado numa thread só (na ordem), e o da sessão anterior
     private val radioLogFile by lazy { File(filesDir, "radio-log.txt") }
@@ -243,7 +244,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
     }
 
     private val packagesChanged = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) = loadApps()
+        override fun onReceive(context: Context, intent: Intent) {
+            loadApps()
+            // Instalou ou atualizou o app do rádio online
+            refreshWebRadioApp(fetch = false)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -465,6 +470,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         super.onResume()
         hideSystemBars()
         detectSource()
+        refreshWebRadioApp(fetch = false)
     }
 
     override fun onDestroy() {
@@ -836,6 +842,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     /** Tela de rádio do Rumo: liga no serviço do rádio e lê as memórias do aparelho (para trazer às favoritas). */
     override fun openRadioScreen() {
         state.sheet = Sheet.RADIO
+        refreshWebRadioApp(fetch = state.radioBand == RadioBand.WEB)
         if (state.radioBand == RadioBand.WEB) {
             // Abrir a tela põe o rádio online para tocar, como o FM
             if (!webPlaying()) playWeb(null)
@@ -938,6 +945,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             }
             is RadioCmd.Band -> when {
                 cmd.web && state.radioBand != RadioBand.WEB -> {
+                    refreshWebRadioApp(fetch = true)
                     if (state.radioScan?.running == true) scanCancelled = true
                     playWeb(null)
                     loadWebCatalog()
@@ -988,6 +996,12 @@ class HomeActivity : ComponentActivity(), HomeActions {
             return
         }
         if (s.id != state.web.station?.id) prefs.edit().putString(PREF_WEB_LAST, WebRadio.encode(listOf(s))).apply()
+        // Sem o app do rádio online, não cala o FM: a tela mostra como instalar
+        state.webRadioInstalled = WebRadioPlayer.installedVersion(this)
+        if (state.webRadioInstalled == null) {
+            state.web = WebNow(s, WebStatus.OFF)
+            return
+        }
         if (state.source == Source.RADIO || radioControl.connected) {
             if (!state.radioMuted) setRadioMuted(true) else radioControl.disconnect()
         }
@@ -1587,18 +1601,24 @@ class HomeActivity : ComponentActivity(), HomeActions {
         startInstall(channel, info?.release ?: return)
     }
 
-    private fun startInstall(channel: Channel, release: AppRelease) {
+    private fun startInstall(
+        channel: Channel,
+        release: AppRelease,
+        key: String = channel.name,
+        label: String = "${channel.label} ${release.versionName}",
+        prefix: String = "rumo",
+        folder: File = Installer.folder(this),
+    ) {
         if (state.transfer != null) return
         transferCancelled = false
-        val key = channel.name
-        val label = "${channel.label} ${release.versionName}"
         state.transfer = Transfer(key, label, 0, release.size)
         lifecycleScope.launch {
             try {
                 val apk = updater.downloadApp(
-                    release, Installer.folder(this@HomeActivity),
+                    release, folder,
                     onProgress = throttled { done -> state.transfer = Transfer(key, label, done, release.size) },
                     cancelled = { transferCancelled },
+                    prefix = prefix,
                 )
                 state.transfer = null
                 state.toast = when (Installer.install(this@HomeActivity, apk)) {
@@ -1610,6 +1630,40 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 state.transfer = null
                 state.toast = transferError(e)
             }
+        }
+    }
+
+    // ---- app do rádio online (app.rumo.webradio) ----
+
+    /** Canal do app do rádio online: o mesmo do Rumo instalado (build local: nightly). */
+    private fun webRadioChannel() = noticeChannel(state.appVersion) ?: Channel.NIGHTLY
+
+    /** Versão instalada e a publicada no canal (uma consulta por sessão, com rede). */
+    private fun refreshWebRadioApp(fetch: Boolean) {
+        state.webRadioInstalled = WebRadioPlayer.installedVersion(this)
+        if (!fetch || webRadioFetched || !state.online) return
+        webRadioFetched = true
+        lifecycleScope.launch { state.webRadioLatest = updater.fetchWebRadio(webRadioChannel()) }
+    }
+
+    override fun installWebRadio() {
+        if ((state.gps.speedKmh ?: 0) >= PARKED_BELOW_KMH) {
+            state.toast = "Instalar só com o carro parado"
+            return
+        }
+        lifecycleScope.launch {
+            val release = state.webRadioLatest ?: updater.fetchWebRadio(webRadioChannel()).also { state.webRadioLatest = it }
+            if (release == null) {
+                state.toast = if (state.online) "Não achei o app do rádio online para baixar" else "Sem internet para baixar"
+                return@launch
+            }
+            startInstall(
+                webRadioChannel(), release,
+                key = TRANSFER_WEB_RADIO,
+                label = "Rádio online ${release.versionName}",
+                prefix = "rumo-web-radio",
+                folder = File(Installer.folder(this@HomeActivity), "web-radio"),
+            )
         }
     }
 
@@ -1939,6 +1993,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val CRASH_LOG_LINES = 40
         const val RADIO_SETTLE_MS = 1_500L
         const val WEB_RELEASE_MS = 1_500L
+        const val TRANSFER_WEB_RADIO = "WEB_RADIO"
         const val CAME_FROM_WEB_MS = 15_000L
         /** Ligado enquanto o Rumo está na tela: ainda ligado na abertura seguinte = o processo foi encerrado de fora. */
         const val PREF_SESSION_OPEN = "session_open"

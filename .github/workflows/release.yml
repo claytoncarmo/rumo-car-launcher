@@ -60,6 +60,8 @@ jobs:
           NOTES="release-notes/${VERSION}.md"
           bash .github/scripts/rumo-json.sh dist/rumo.apk "$VERSION" "$CODE" \
             "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/rumo.apk" dist/rumo.json "$NOTES"
+          bash .github/scripts/rumo-json.sh dist/rumo-web-radio.apk "$VERSION" "$CODE" \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/rumo-web-radio.apk" dist/web-radio.json
           # O texto da release no GitHub são as mesmas notas, em lista
           bash .github/scripts/release-notes.sh "$NOTES" required | sed 's/^/- /' > dist/notes.md
           case "$VERSION" in
@@ -67,6 +69,7 @@ jobs:
             *)   FLAG="--latest" ;;
           esac
           gh release create "$GITHUB_REF_NAME" dist/rumo.apk dist/rumo.json "dist/rumo-${VERSION}.apk" \
+            dist/rumo-web-radio.apk dist/web-radio.json \
             --repo "$GITHUB_REPOSITORY" \
             --title "Rumo $VERSION" \
             --notes-file dist/notes.md \

@@ -501,7 +501,34 @@ private fun WebPanel(s: HomeState, a: HomeActions, modifier: Modifier) {
             st?.let { Txt(listOf(it.place, WebRadio.quality(it)).filter(String::isNotBlank).joinToString(" · "), 18, color = p.text2) }
         }
         Spacer(Modifier.height(10.dp))
+        val installed = s.webRadioInstalled
+        val latest = s.webRadioLatest
+        val transfer = s.transfer?.takeIf { it.key == "WEB_RADIO" }
         when {
+            // O player mora num app à parte (o firmware encerra o app que tocou mídia na troca de fonte)
+            installed == null || (latest != null && latest.versionCode > installed) -> {
+                Txt(
+                    if (installed == null) "O rádio online toca num app à parte, que fica junto com o Rumo. Instale uma vez."
+                    else "Há uma versão nova do app do rádio online.",
+                    17, color = p.text2, maxLines = 2,
+                )
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    Modifier.height(56.dp).clip(RoundedCornerShape(18.dp)).background(p.accent)
+                        .clickable(enabled = transfer == null) { a.installWebRadio() }.padding(horizontal = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Ico(Icons.download, 24.dp, p.onAccent)
+                    val label = when {
+                        transfer != null && transfer.total > 0 -> "Baixando… ${(transfer.done * 100 / transfer.total).toInt()}%"
+                        transfer != null -> "Baixando…"
+                        installed == null -> "Instalar o rádio online"
+                        else -> "Atualizar o rádio online"
+                    }
+                    Txt(label, 17, color = p.onAccent, weight = FontWeight.SemiBold)
+                }
+            }
             !s.online -> Txt("Ligue o Wi-Fi do aparelho numa rede, como o roteador do celular.", 17, color = p.text2, maxLines = 2)
             st == null -> Txt("Escolha uma estação em Explorar.", 17, color = p.text2, maxLines = 2)
             w.status == WebStatus.LIVE && w.title != null -> Txt(w.title, 20, maxLines = 2)
