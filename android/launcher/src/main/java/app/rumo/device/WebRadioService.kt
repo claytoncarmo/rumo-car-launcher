@@ -23,7 +23,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
  * mídia e, a cada troca de fonte (o rádio ou o Android Auto pegando o som), encerra o pacote inteiro, levando a tela
  * inicial junto (ver docs/device-integration.md).
  *
- * Foco de áudio pelo player: quando o Android Auto (ou outro app) pede o som, o rádio online pausa e não volta sozinho.
+ * Sem foco de áudio (ver onCreate): quando o Android Auto pega o som, quem para o rádio online é o Rumo, pelo sourceinfo.
  * O serviço se encerra quando ninguém está ligado nele e o player está parado.
  */
 class WebRadioService : Service() {
@@ -47,9 +47,11 @@ class WebRadioService : Service() {
             .setReadTimeoutMs(READ_MS)
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(DefaultMediaSourceFactory(this).setDataSourceFactory(http))
+            // Sem pedir o foco de áudio: com ele o sourceinfo marca o Rumo como fonte e o firmware o encerra quando o rádio
+            // ou o Android Auto pegam a fonte. Quem para o online quando o ZLINK pega o som é o próprio Rumo (sourceinfo)
             .setAudioAttributes(
                 AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),
-                /* handleAudioFocus = */ true,
+                /* handleAudioFocus = */ false,
             )
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()
