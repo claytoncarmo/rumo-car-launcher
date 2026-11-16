@@ -248,8 +248,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private val packagesChanged = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             loadApps()
-            // Instalou ou atualizou o app do rádio online
+            // Instalou ou atualizou o app do rádio online: com o Rumo na tela, liga nele (os avisos passam a sair por ele)
             refreshWebRadioApp(fetch = false)
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) webPlayer.attach()
         }
     }
 
@@ -291,8 +292,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.web = WebNow(WebRadio.decode(prefs.getString(PREF_WEB_LAST, null)).firstOrNull())
         if (prefs.getString(PREF_RADIO_BAND, null) == RadioBand.WEB.name) {
             state.radioBand = RadioBand.WEB
-            // Pode estar tocando desde antes (a tela foi recriada): liga no serviço só se ele já estiver rodando
-            webPlayer.connect(create = false)
         }
         radioNames.load(prefs.getString(PREF_RADIO_NAMES, null))
         state.radioNames = radioNames.valid()
@@ -386,6 +385,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
     override fun onStart() {
         super.onStart()
         prefs.edit().putBoolean(PREF_SESSION_OPEN, true).commit()
+        // Ligado no app do rádio online enquanto na tela: os avisos saem por ele
+        webPlayer.attach()
         alertLog.add("tela: Rumo na tela (${state.appVersion}) ${alerts.audioState()}")
         gps.start()
         watchNetwork()
@@ -437,6 +438,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         gps.stop()
         unwatchNetwork()
         alarm(null)
+        webPlayerOrNull?.detach()
         state.radar = null
         loggedGps = null
         alertLog.add("tela: Rumo saiu da tela (sem GPS e sem alertas até voltar)")
@@ -1026,10 +1028,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
      */
     private fun leaveWeb() {
         stopWeb()
+        // Para o player, mas a ligação fica (os avisos de radar saem pelo app do online)
         webPlayerOrNull?.let {
-            it.shutdown()
+            it.stop()
             webReleasedAt = SystemClock.elapsedRealtime()
-            radioLog("online: serviço solto")
         }
         setRadioBand(RadioBand.FM)
         if (state.source == Source.WEB) state.source = Source.RADIO
@@ -1818,10 +1820,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var remoteAlarm = false
 
     /**
-     * Com o rádio online tocando, o som do aviso sai do app dele: tocado pelo Rumo, o Rumo viraria a fonte e o firmware
-     * encerraria o app do online (a música parava). Com o FM ou sem o online, sai do Rumo, como sempre.
+     * Com o app do rádio online instalado, todo aviso sai dele (o Rumo fica ligado nele enquanto está na tela): um som
+     * tocado pelo Rumo o faz virar a fonte, e o firmware o encerra na troca de fonte seguinte (para o online ou para o
+     * FM). Sem o app (ou sem a ligação ainda), sai do Rumo, como na 0.2.0.
      */
-    private fun remoteAlerts() = state.source == Source.WEB && webPlaying() && webPlayerOrNull != null
+    private fun remoteAlerts() = webPlayerOrNull?.connected == true
 
     private fun chime() {
         if (remoteAlerts() && webPlayer.chime()) {

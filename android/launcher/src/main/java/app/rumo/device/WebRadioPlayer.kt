@@ -59,6 +59,31 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
     val active: Boolean
         get() = last.status == WebStatus.CONNECTING || last.status == WebStatus.LIVE
 
+    /** Ligado no serviço agora (os avisos de radar podem sair por ele). */
+    val connected: Boolean get() = remote != null
+
+    /** Com o Rumo na tela: fica ligado no app do online e liga de novo se o firmware o encerrar. */
+    private var keep = false
+
+    /**
+     * Com o Rumo na tela, fica ligado no app do online (se instalado), tocando ou não: todo som do Rumo sai por ele
+     * ([chime], [alarm]). Um som tocado pelo Rumo o faz virar a fonte, e o firmware o encerra na troca seguinte.
+     */
+    fun attach() {
+        keep = true
+        if (installedVersion(ctx) != null) connect()
+    }
+
+    /** Fora da tela: solta a ligação (se estiver tocando, o serviço continua sozinho, em primeiro plano). */
+    fun detach() {
+        keep = false
+        release()
+    }
+
+    private fun reconnectLater() {
+        main.postDelayed({ if (keep && connection == null && installedVersion(ctx) != null) connect() }, RECONNECT_MS)
+    }
+
     /** Liga no serviço; [create] falso só liga se ele já estiver rodando (tela recriada com o rádio tocando). */
     fun connect(create: Boolean = true) {
         // Ligação só "se já estiver rodando" e sem resposta: para tocar, refaz criando o serviço
@@ -83,10 +108,12 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
                 emit(WebPlayback(last.stationId, WebStatus.OFF, null))
             }
 
+            // Encerrado à força (o firmware, na troca de fonte): a ligação não volta sozinha
             override fun onBindingDied(name: ComponentName) {
                 remote = null
                 unbind()
                 emit(WebPlayback(last.stationId, WebStatus.OFF, null))
+                reconnectLater()
             }
         }
         val intent = Intent().setComponent(ComponentName(P.PACKAGE, P.SERVICE))
@@ -177,6 +204,8 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
     }
 
     companion object {
+        private const val RECONNECT_MS = 1_500L
+
         /** versionCode do app do rádio online instalado, ou null se não estiver. */
         fun installedVersion(context: Context): Long? = try {
             PackageInfoCompat.getLongVersionCode(context.packageManager.getPackageInfo(P.PACKAGE, 0))
