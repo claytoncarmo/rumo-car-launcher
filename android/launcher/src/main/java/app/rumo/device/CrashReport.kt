@@ -119,14 +119,8 @@ object CrashReport {
     private fun writeAll(ctx: Context, text: String) {
         val dirs = listOf(File(Environment.getExternalStorageDirectory(), "Rumo")) +
             ctx.getExternalFilesDirs(null).drop(1).filterNotNull() + ctx.filesDir
-        for (dir in dirs) {
-            try {
-                dir.mkdirs()
-                File(dir, FILE).writeText(text)
-            } catch (e: Exception) {
-                // Pasta sem permissão ou pendrive fora: tenta as outras
-            }
-        }
+        // Pasta sem permissão ou pendrive fora: segue com as outras
+        for (dir in dirs) SavedFiles.write(ctx, File(dir, FILE), text)
     }
 
     private const val PREF_SEEN = "crash_seen_at"

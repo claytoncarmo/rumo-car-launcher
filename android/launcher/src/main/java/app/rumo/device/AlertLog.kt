@@ -1,5 +1,7 @@
 package app.rumo.device
 
+import android.content.Context
+import android.media.MediaScannerConnection
 import android.os.Environment
 import java.io.File
 import java.time.LocalDateTime
@@ -36,18 +38,18 @@ class AlertLog {
         }
     }
 
-    /** Copia o registro para a pasta do Rumo em cada pendrive/cartão (o que se leva do carro para o computador). */
-    fun copyTo(dirs: List<File>) {
+    /**
+     * Copia o registro para a pasta do Rumo em cada pendrive/cartão (o que se leva do carro para o computador), sem
+     * deixar cópia pela metade se o carro desligar no meio, e avisa o índice de mídia (o arquivo aparece na memória
+     * interna nos gerenciadores de arquivos).
+     */
+    fun copyTo(context: Context, dirs: List<File>) {
+        val app = context.applicationContext
         io.execute {
             val file = File(dir, FILE)
             if (!file.exists()) return@execute
-            for (d in dirs) {
-                try {
-                    d.mkdirs()
-                    file.copyTo(File(d, FILE), overwrite = true)
-                } catch (e: Exception) {
-                }
-            }
+            MediaScannerConnection.scanFile(app, arrayOf(file.path), null, null)
+            for (d in dirs) SavedFiles.copy(app, file, File(d, FILE))
         }
     }
 

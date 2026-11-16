@@ -12,6 +12,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.media.AudioManager
+import android.os.Build
 import android.net.ConnectivityManager
 import android.net.Network
 import android.os.Bundle
@@ -52,6 +53,7 @@ import app.rumo.core.fineStep
 import app.rumo.core.formatRadioFreq
 import app.rumo.device.RadioControl
 import app.rumo.device.CrashReport
+import app.rumo.device.SavedFiles
 import app.rumo.core.BrState
 import app.rumo.core.WebFilter
 import app.rumo.core.WebRadio
@@ -372,7 +374,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
             }
         }
 
-        val missing = listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.READ_EXTERNAL_STORAGE)
+        // Gravar na pasta Rumo (registros, relatórios, dados do mapa) pede a permissão de escrita até o Android 9; sem ela, só
+        // as cópias no pendrive saíam
+        val wanted = listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.READ_EXTERNAL_STORAGE) +
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) listOf(Manifest.permission.WRITE_EXTERNAL_STORAGE) else emptyList()
+        val missing = wanted
             .filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
         if (missing.isNotEmpty()) permissions.launch(missing.toTypedArray())
     }
@@ -434,7 +440,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.radar = null
         loggedGps = null
         alertLog.add("tela: Rumo saiu da tela (sem GPS e sem alertas até voltar)")
-        alertLog.copyTo(getExternalFilesDirs(null).drop(1).filterNotNull())
+        alertLog.copyTo(this, getExternalFilesDirs(null).drop(1).filterNotNull())
         super.onStop()
     }
 
@@ -676,14 +682,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         @Suppress("DEPRECATION")
         val targets = listOf(File(Environment.getExternalStorageDirectory(), "Rumo")) +
             getExternalFilesDirs(null).drop(1).filterNotNull()
-        return targets.mapNotNull { dir ->
-            try {
-                dir.mkdirs()
-                File(dir, file).also { it.writeText(text) }.path
-            } catch (e: Exception) {
-                null
-            }
-        }
+        return targets.mapNotNull { dir -> File(dir, file).takeIf { SavedFiles.write(this, it, text) }?.path }
     }
 
     /** Extras de um aviso, como texto. Qualquer app pode mandar o aviso: um extra que não abre vira só um marcador. */
