@@ -1023,16 +1023,14 @@ class HomeActivity : ComponentActivity(), HomeActions {
     }
 
     /**
-     * Volta para o FM: desliga o rádio online por inteiro (o serviço se encerra e solta a sessão de mídia) e a tela mostra
-     * o FM. O FM só é chamado depois de [WEB_RELEASE_MS] ([waitWebReleased]): com o FM virando a fonte e o Rumo ainda
-     * como app de mídia, o firmware encerrava o Rumo.
+     * Volta para o FM: desliga o rádio online (o app dele solta o player e se encerra) e a tela mostra o FM.
      */
     private fun leaveWeb() {
         stopWeb()
         webPlayerOrNull?.let {
             it.shutdown()
             webReleasedAt = SystemClock.elapsedRealtime()
-            radioLog("online: serviço solto, o FM espera ${WEB_RELEASE_MS} ms")
+            radioLog("online: serviço solto")
         }
         setRadioBand(RadioBand.FM)
         if (state.source == Source.WEB) state.source = Source.RADIO
@@ -1145,11 +1143,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
         return recent
     }
 
-    private suspend fun waitWebReleased() {
-        val since = SystemClock.elapsedRealtime() - webReleasedAt
-        if (since < WEB_RELEASE_MS) delay(WEB_RELEASE_MS - since)
-    }
-
     private suspend fun settleRadio() {
         val since = SystemClock.elapsedRealtime() - radioControl.connectedAt
         if (since < RADIO_SETTLE_MS) {
@@ -1176,7 +1169,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }
         lifecycleScope.launch {
             radioCommands.withLock {
-                waitWebReleased()
                 ensureRadio()
                 block()
             }
@@ -1273,7 +1265,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.radioMuted = on
         prefs.edit().putBoolean(PREF_RADIO_MUTED, on).apply()
         lifecycleScope.launch {
-            if (!on) waitWebReleased()
             radioLog(withContext(Dispatchers.IO) { radioControl.mute(on) })
             // O mudo do fmradio sozinho não calou o rádio no aparelho. O serviço do rádio só existe enquanto o Rumo
             // está ligado nele (ao atualizar o app ele morre e o rádio cala): soltar a ligação o encerra. Para voltar,
@@ -1992,7 +1983,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val RADIO_LOG_LINES = 300
         const val CRASH_LOG_LINES = 40
         const val RADIO_SETTLE_MS = 1_500L
-        const val WEB_RELEASE_MS = 1_500L
         const val TRANSFER_WEB_RADIO = "WEB_RADIO"
         const val CAME_FROM_WEB_MS = 15_000L
         /** Ligado enquanto o Rumo está na tela: ainda ligado na abertura seguinte = o processo foi encerrado de fora. */
