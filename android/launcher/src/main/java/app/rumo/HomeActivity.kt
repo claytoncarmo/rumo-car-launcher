@@ -88,7 +88,7 @@ import app.rumo.core.RoadMatch
 import app.rumo.core.RoadMatcher
 import app.rumo.device.Aidl
 import app.rumo.device.AlertLog
-import app.rumo.device.Alerts
+import app.rumo.shared.Alerts
 import app.rumo.device.BroadcastHunt
 import app.rumo.device.CarStatus
 import app.rumo.device.CarSourceProbe
@@ -436,7 +436,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         flushRadioNames(now = true)
         gps.stop()
         unwatchNetwork()
-        alerts.stop()
+        alarm(null)
         state.radar = null
         loggedGps = null
         alertLog.add("tela: Rumo saiu da tela (sem GPS e sem alertas até voltar)")
@@ -1358,14 +1358,15 @@ class HomeActivity : ComponentActivity(), HomeActions {
             try {
                 state.toast = "Teste do som: o aviso e os bipes, do longe ao perto"
                 alerts.lastError = null
-                alerts.chime()
+                // Pelo mesmo caminho dos avisos de verdade (com o online tocando, pelo app dele)
+                chime()
                 delay(1500)
                 for (i in 0..SOUND_TEST_STEPS) {
-                    alerts.alarm(i.toFloat() / SOUND_TEST_STEPS)
+                    alarm(i.toFloat() / SOUND_TEST_STEPS)
                     delay(SOUND_TEST_STEP_MS)
                 }
             } finally {
-                alerts.stop()
+                alarm(null)
                 soundTesting = false
             }
             delay(400)
@@ -1796,7 +1797,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             state.road = null
             state.radar = null
             state.over = false
-            alerts.stop()
+            alarm(null)
             return
         }
         if (!fix) return
@@ -1809,6 +1810,39 @@ class HomeActivity : ComponentActivity(), HomeActions {
             return
         }
         drive(info, lat, lon)
+    }
+
+    // ---- avisos de radar: pelo Rumo ou, com o rádio online tocando, pelo app dele ----
+
+    /** Os bipes estão tocando no app do rádio online (para calá-los lá ao voltar a tocar pelo Rumo). */
+    private var remoteAlarm = false
+
+    /**
+     * Com o rádio online tocando, o som do aviso sai do app dele: tocado pelo Rumo, o Rumo viraria a fonte e o firmware
+     * encerraria o app do online (a música parava). Com o FM ou sem o online, sai do Rumo, como sempre.
+     */
+    private fun remoteAlerts() = state.source == Source.WEB && webPlaying() && webPlayerOrNull != null
+
+    private fun chime() {
+        if (remoteAlerts() && webPlayer.chime()) {
+            alertLog.add("aviso: pelo app do rádio online")
+            return
+        }
+        alerts.chime()
+    }
+
+    private fun alarm(k: Float?) {
+        if (k != null && remoteAlerts() && webPlayer.alarm(k)) {
+            if (!remoteAlarm) alertLog.add("bipes: pelo app do rádio online")
+            remoteAlarm = true
+            alerts.stop()
+            return
+        }
+        if (remoteAlarm) {
+            webPlayerOrNull?.alarm(null)
+            remoteAlarm = false
+        }
+        alerts.alarm(k)
     }
 
     private fun drive(info: GpsInfo, lat: Double, lon: Double) {
@@ -1831,8 +1865,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
             logRadar(radar, entered, speed)
             // Durante o teste do som, a posição do GPS não pode calar os bipes de mentira
             if (!soundTesting) {
-                if (entered && radar?.radar?.chimes == true) alerts.chime()
-                alerts.alarm(radar?.takeIf { it.sound }?.closeness(radars.zoneM))
+                if (entered && radar?.radar?.chimes == true) chime()
+                alarm(radar?.takeIf { it.sound }?.closeness(radars.zoneM))
             }
             // Chegou uma posição enquanto esta era calculada: calcula a mais recente (se o GPS ainda estiver bom)
             val next = pendingFix

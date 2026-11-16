@@ -1,4 +1,4 @@
-package app.rumo.device
+package app.rumo.shared
 
 import android.content.Context
 import android.media.AudioAttributes

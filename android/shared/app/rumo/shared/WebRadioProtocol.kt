@@ -24,6 +24,12 @@ object WebRadioProtocol {
     /** id, endereço, nome da estação, hls (1/0). */
     const val TX_PLAY = 2
     const val TX_STOP = 3
+    /**
+     * Avisos de radar tocados por este app enquanto o online toca: tocados pelo Rumo, ele viraria a fonte e o firmware
+     * encerraria o app do online. Aviso de entrada: sem dados. Bipes: proximidade (float, 0 a 1; NaN = parar).
+     */
+    const val TX_CHIME = 4
+    const val TX_ALARM = 5
 
     // Aviso (ao ouvinte)
     /** id da estação (ou vazio), estado ([STATUS_OFF]…), título que o stream manda (ou vazio). */

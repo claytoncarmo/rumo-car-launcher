@@ -16,8 +16,9 @@ Launcher (tela inicial) próprio para o multimídia Android aftermarket de um Ho
 | `site/` | Página inicial do GitHub Pages (`site/index.html`, estática); o workflow `pages.yml` publica junto com o protótipo. Ao mudar o app de forma visível, atualize o protótipo e as funções listadas na página. A página tem português (texto-base no HTML), inglês e espanhol (dicionários em `site/i18n.js`, por chave `data-i18n`): abre no idioma do navegador, com seletor no topo. Ao mudar um texto, ajuste as três línguas; o protótipo continua só em português |
 
 Código do app (`android/launcher/src/main/java/app/rumo/`):
+- `android/shared/`: o que entra nos dois apps (protocolo do rádio online e os sons dos avisos, `Alerts`).
 - `core/`: lógica pura e testada (Geo, Roads, Radars, TripMeter, Formatting, Favorites, RadioNames, AudioOwner, WebRadio).
-- `device/`: acesso ao aparelho (Gps, Apps, MapData, Alerts, Aidl, CarStatus, RadioStation, RadioControl, WebRadioService/Player/Catalog) e os diagnósticos (BroadcastHunt, CarSourceProbe, NightSignal, RadioProbe).
+- `device/`: acesso ao aparelho (Gps, Apps, MapData, Aidl, CarStatus, RadioStation, RadioControl, WebRadioService/Player/Catalog) e os diagnósticos (BroadcastHunt, CarSourceProbe, NightSignal, RadioProbe).
 - `ui/`: telas em Compose (Home, RadioSheet, DriveMap, Theme, Icons).
 - `HomeActivity.kt`: liga tudo.
 

@@ -23,6 +23,7 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import app.rumo.shared.Alerts
 import app.rumo.shared.WebRadioProtocol as P
 
 /**
@@ -38,6 +39,8 @@ class WebRadioService : Service() {
     private val listeners = ArrayList<IBinder>()
     private var foreground = false
     private var bound = false
+    // Os mesmos sons do Rumo (android/shared): com foco curto, a música do player só abaixa enquanto tocam
+    private val alerts by lazy { Alerts(this) }
 
     /** Só aceita quem tem a mesma assinatura deste app (o Rumo). */
     private fun trusted(): Boolean =
@@ -45,7 +48,7 @@ class WebRadioService : Service() {
 
     private val control = object : Binder() {
         override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
-            if (code !in P.TX_LISTEN..P.TX_STOP) return super.onTransact(code, data, reply, flags)
+            if (code !in P.TX_LISTEN..P.TX_ALARM) return super.onTransact(code, data, reply, flags)
             if (!trusted()) throw SecurityException("só o Rumo comanda o rádio online")
             data.enforceInterface(P.DESCRIPTOR)
             when (code) {
@@ -58,6 +61,8 @@ class WebRadioService : Service() {
                     main.post { play(id, url, name, hls) }
                 }
                 P.TX_STOP -> main.post { stopPlayback() }
+                P.TX_CHIME -> alerts.chime()
+                P.TX_ALARM -> data.readFloat().let { k -> alerts.alarm(k.takeUnless { it.isNaN() }) }
             }
             return true
         }
@@ -95,6 +100,7 @@ class WebRadioService : Service() {
     override fun onUnbind(intent: Intent): Boolean {
         bound = false
         listeners.clear()
+        alerts.stop()
         if (!playing()) stopSelf()
         return false
     }
@@ -102,6 +108,7 @@ class WebRadioService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_NOT_STICKY
 
     override fun onDestroy() {
+        alerts.stop()
         player.release()
         super.onDestroy()
     }

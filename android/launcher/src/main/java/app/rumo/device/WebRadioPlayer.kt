@@ -122,6 +122,12 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
         }
     }
 
+    /** Aviso de radar pelo app do online (falso se não estiver ligado: o Rumo toca ele mesmo). */
+    fun chime(): Boolean = remote?.let { send(it, P.TX_CHIME) {}; true } ?: false
+
+    /** Bipes pelo app do online: proximidade 0 a 1, null para parar. */
+    fun alarm(k: Float?): Boolean = remote?.let { send(it, P.TX_ALARM) { writeFloat(k ?: Float.NaN) }; true } ?: false
+
     fun stop() {
         remote?.let { send(it, P.TX_STOP) {} }
         pending.clear()
