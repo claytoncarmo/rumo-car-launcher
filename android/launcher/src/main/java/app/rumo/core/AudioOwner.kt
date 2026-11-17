@@ -21,12 +21,15 @@ fun shouldResumeRadio(radioIsSource: Boolean, muted: Boolean, serviceConnected: 
 
 /**
  * Pacote (onSourceChanged) ou classe (MusicInfo.className) → fonte. Vazio quer dizer "sem novidade" (veio vazio
- * ao mexer no sintonizador, com o rádio ainda tocando): null, e a tela mantém a fonte de antes.
+ * ao mexer no sintonizador, com o rádio ainda tocando): null, e a tela mantém a fonte de antes. O próprio Rumo e o app
+ * do rádio online (`app.rumo…`, que também toca os avisos) também são null: quem decide essa fonte é o Rumo (o nome
+ * `app.rumo.webradio` passaria por rádio do aparelho).
  */
 fun audioOwnerOf(name: String?): AudioOwner? {
     val n = name?.trim()?.lowercase() ?: return null
     return when {
         n.isEmpty() -> null
+        n == "app.rumo" || n.startsWith("app.rumo.") -> null
         "zlink" in n -> AudioOwner.ZLINK
         "radio" in n -> AudioOwner.RADIO
         else -> AudioOwner.OTHER

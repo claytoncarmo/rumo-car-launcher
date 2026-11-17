@@ -14,6 +14,9 @@ class AudioOwnerTest {
         assertEquals(AudioOwner.RADIO, audioOwnerOf("com.hcn.autoradio"))
         assertEquals(AudioOwner.RADIO, audioOwnerOf(".RadioMain"))
         assertEquals(AudioOwner.OTHER, audioOwnerOf("com.hcn.btmusic"))
+        // O Rumo e o app do rádio online (que toca os avisos) não mudam a fonte
+        assertNull(audioOwnerOf("app.rumo"))
+        assertNull(audioOwnerOf("app.rumo.webradio"))
     }
 
     @Test

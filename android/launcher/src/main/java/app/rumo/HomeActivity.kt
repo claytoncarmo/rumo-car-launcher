@@ -185,7 +185,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var savedAt = 0L
     private val sourceInfo = SourceInfo { name ->
         runOnUiThread {
-            lastRawOwner = name
+            // Um som do Rumo ou do app do online (aviso) na frente: o rádio do aparelho não está tocando (o play do card
+            // deve ligá-lo, não calá-lo)
+            lastRawOwner = if (name == "app.rumo" || name.startsWith("app.rumo.")) "" else name
             // Só as mudanças (o ZLINK repete o aviso quase a cada segundo)
             if (name != loggedOwner) {
                 loggedOwner = name
@@ -1829,6 +1831,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private fun chime() {
         if (remoteAlerts() && webPlayer.chime()) {
             alertLog.add("aviso: pelo app do rádio online")
+            resumeFmAfterAlert(CHIME_RESUME_MS)
             return
         }
         alerts.chime()
@@ -1838,14 +1841,34 @@ class HomeActivity : ComponentActivity(), HomeActions {
         if (k != null && remoteAlerts() && webPlayer.alarm(k)) {
             if (!remoteAlarm) alertLog.add("bipes: pelo app do rádio online")
             remoteAlarm = true
+            resumeFmJob?.cancel()
             alerts.stop()
             return
         }
         if (remoteAlarm) {
             webPlayerOrNull?.alarm(null)
             remoteAlarm = false
+            resumeFmAfterAlert(ALARM_RESUME_MS)
         }
         alerts.alarm(k)
+    }
+
+    private var resumeFmJob: Job? = null
+
+    /**
+     * O aviso saiu pelo app do rádio online e o FM tocava: o aparelho trata aquele app como app de música e o rádio cede
+     * a vez sem voltar sozinho. Terminado o aviso (e sem bipes), o Rumo manda o FM tocar de novo, como o play do card.
+     */
+    private fun resumeFmAfterAlert(delayMs: Long) {
+        if (state.source != Source.RADIO || state.radioMuted || state.radioBand != RadioBand.FM) return
+        resumeFmJob?.cancel()
+        resumeFmJob = lifecycleScope.launch {
+            delay(delayMs)
+            if (remoteAlarm || !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@launch
+            if (state.source != Source.RADIO || state.radioMuted || state.radioBand != RadioBand.FM) return@launch
+            radioLog("aviso pelo app do online terminou: o FM volta")
+            radio(RadioCmd.Play)
+        }
     }
 
     private fun drive(info: GpsInfo, lat: Double, lon: Double) {
@@ -2021,6 +2044,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val RADIO_SETTLE_MS = 1_500L
         const val TRANSFER_WEB_RADIO = "WEB_RADIO"
         const val CAME_FROM_WEB_MS = 15_000L
+        /** Depois do aviso de entrada (~0,7 s) e dos bipes, quanto esperar para pôr o FM de volta. */
+        const val CHIME_RESUME_MS = 1_500L
+        const val ALARM_RESUME_MS = 600L
         /** Ligado enquanto o Rumo está na tela: ainda ligado na abertura seguinte = o processo foi encerrado de fora. */
         const val PREF_SESSION_OPEN = "session_open"
         const val RADIO_LOG_FILE_MAX = 256 * 1024L
