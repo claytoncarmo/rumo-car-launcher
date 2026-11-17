@@ -65,6 +65,20 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
     /** Com o Rumo na tela: fica ligado no app do online e liga de novo se o firmware o encerrar. */
     private var keep = false
 
+    /** Chamado a cada vez que a ligação abre (o Rumo toca o aviso que esperava por ela). */
+    var onConnected: () -> Unit = {}
+
+    /** O app do rádio online está instalado (então todo som do Rumo deve sair por ele). */
+    val installed: Boolean get() = installedVersion(ctx) != null
+
+    /** Liga de novo já, se a ligação caiu e o Rumo está na tela (um aviso espera por ela). */
+    fun reconnectNow() {
+        if (keep && remote == null) {
+            if (connection != null && !creates) unbind()
+            if (connection == null && installed) connect()
+        }
+    }
+
     /**
      * Com o Rumo na tela, fica ligado no app do online (se instalado), tocando ou não: todo som do Rumo sai por ele
      * ([chime], [alarm]). Um som tocado pelo Rumo o faz virar a fonte, e o firmware o encerra na troca seguinte.
@@ -100,6 +114,7 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
                 send(service, P.TX_LISTEN) { writeStrongBinder(events) }
                 pending.forEach { it(service) }
                 pending.clear()
+                onConnected()
             }
 
             // O app do rádio online foi encerrado (troca de fonte, por exemplo): parado
@@ -204,7 +219,7 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
     }
 
     companion object {
-        private const val RECONNECT_MS = 1_500L
+        private const val RECONNECT_MS = 300L
 
         /** versionCode do app do rádio online instalado, ou null se não estiver. */
         fun installedVersion(context: Context): Long? = try {

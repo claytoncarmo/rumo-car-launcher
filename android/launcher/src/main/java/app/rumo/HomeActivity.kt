@@ -213,7 +213,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
     // Rádio online: o player (no serviço de mídia, ligado na primeira vez que precisa), o catálogo e as listas dele
     private var webPlayerOrNull: WebRadioPlayer? = null
     private val webPlayer: WebRadioPlayer
-        get() = webPlayerOrNull ?: WebRadioPlayer(this, ::onWebPlayback).also { webPlayerOrNull = it }
+        get() = webPlayerOrNull ?: WebRadioPlayer(this, ::onWebPlayback).also {
+            it.onConnected = ::onCompanionConnected
+            webPlayerOrNull = it
+        }
     private val webCatalog by lazy { WebRadioCatalog(File(filesDir, "web-radio")) }
     private var webCountry: List<WebStation> = emptyList()
     private var webNear: List<WebStation> = emptyList()
@@ -1828,6 +1831,23 @@ class HomeActivity : ComponentActivity(), HomeActions {
      */
     private fun remoteAlerts() = webPlayerOrNull?.connected == true
 
+    /**
+     * O app do online está instalado mas a ligação caiu (o firmware o encerrou na troca de fonte): o aviso espera ela
+     * voltar em vez de sair pelo Rumo. Um som tocado pelo Rumo o marca como fonte, e a troca seguinte o encerra.
+     */
+    private fun waitsForCompanion() = state.webRadioInstalled != null && webPlayerOrNull?.connected != true
+
+    /** Aviso de entrada pedido com a ligação caída: toca quando ela voltar (se ainda for recente). */
+    private var pendingChimeAt = 0L
+
+    private fun onCompanionConnected() {
+        if (pendingChimeAt != 0L && SystemClock.elapsedRealtime() - pendingChimeAt < PENDING_CHIME_MS) {
+            pendingChimeAt = 0L
+            chime()
+        }
+        pendingChimeAt = 0L
+    }
+
     private fun chime() {
         if (remoteAlerts()) noteAlertStart()
         if (remoteAlerts() && webPlayer.chime()) {
@@ -1835,10 +1855,21 @@ class HomeActivity : ComponentActivity(), HomeActions {
             resumeFmAfterAlert(CHIME_RESUME_MS)
             return
         }
+        if (waitsForCompanion()) {
+            alertLog.add("aviso: espera a ligação com o app do rádio online")
+            pendingChimeAt = SystemClock.elapsedRealtime()
+            webPlayer.reconnectNow()
+            return
+        }
         alerts.chime()
     }
 
     private fun alarm(k: Float?) {
+        // Bipes pedidos com a ligação caída: o próximo pedido (a cada posição do GPS) já sai pelo app do online
+        if (k != null && waitsForCompanion()) {
+            webPlayer.reconnectNow()
+            return
+        }
         if (k != null && remoteAlerts() && !remoteAlarm) noteAlertStart()
         if (k != null && remoteAlerts() && webPlayer.alarm(k)) {
             if (!remoteAlarm) alertLog.add("bipes: pelo app do rádio online")
@@ -2068,6 +2099,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val CHIME_RESUME_MS = 1_500L
         const val ALARM_RESUME_MS = 600L
         const val ALERT_SOURCE_HOLD_MS = 4_000L
+        /** Aviso de entrada que esperou a ligação: depois disso já não faz sentido tocar. */
+        const val PENDING_CHIME_MS = 4_000L
         /** Ligado enquanto o Rumo está na tela: ainda ligado na abertura seguinte = o processo foi encerrado de fora. */
         const val PREF_SESSION_OPEN = "session_open"
         const val RADIO_LOG_FILE_MAX = 256 * 1024L
