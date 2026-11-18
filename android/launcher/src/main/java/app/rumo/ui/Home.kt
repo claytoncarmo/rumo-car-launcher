@@ -53,6 +53,8 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -201,6 +203,8 @@ class HomeState {
     /** Quando a última consulta do aviso deu certo (ms desde 1970; 0 = nunca), para a aba Atualizações mostrar. */
     var updateCheckedAt by mutableStateOf(0L)
     var transfer by mutableStateOf<Transfer?>(null)
+    /** Onde o card do mapa está na tela (px: esquerda, topo, direita, base), para abrir o Android Auto no lugar dele. */
+    var mapBounds: IntArray? = null
 }
 
 interface HomeActions {
@@ -245,6 +249,8 @@ interface HomeActions {
     fun keyTest(on: Boolean)
     /** Diagnóstico: procura ganchos de reinício do fabricante (reboot-test.txt). */
     fun probeReboot()
+    /** Teste: abre o Android Auto numa janela do tamanho e no lugar do card do mapa (se o aparelho tiver janelas livres). */
+    fun probeFloatingZlink()
     /** Toca o aviso de radar e os bipes (do longe ao perto) por uns segundos; se o som falhar, mostra o erro. */
     fun testSound()
     /** Distância (m) em que o aviso de radar começa; guardada nas preferências. */
@@ -593,7 +599,12 @@ private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, mapAllowed: Bo
     val mapFiles = s.mapFiles
     val hasMap = mapFiles.isNotEmpty()
     val road = s.road
-    Box(modifier.card(p, p.mapBlock)) {
+    Box(
+        modifier.card(p, p.mapBlock).onGloballyPositioned { c ->
+            val b = c.boundsInWindow()
+            s.mapBounds = intArrayOf(b.left.toInt(), b.top.toInt(), b.right.toInt(), b.bottom.toInt())
+        },
+    ) {
         s.fontsDir?.let { fonts -> if (hasMap && mapAllowed) DriveMap(mapFiles, fonts, s.radars, s.mineRadars, g, s.mapStart, night, active = s.sheet == Sheet.NONE) }
         val fade = p.surface.copy(alpha = 0.92f)
         Box(
