@@ -341,9 +341,6 @@ private fun DiagnosticsSection(s: HomeState, a: HomeActions) {
             PillButton("Teste do reinício", enabled = true, primary = false) { a.probeReboot() }
             PillButton("Teste dos botões", enabled = true, primary = false) { s.sheet = Sheet.KEYS }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            PillButton("Abrir o Android Auto no card", enabled = true, primary = false) { a.probeFloatingZlink() }
-        }
     }
 }
 
