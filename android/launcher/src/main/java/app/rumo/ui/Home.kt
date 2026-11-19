@@ -245,6 +245,8 @@ interface HomeActions {
     fun keyTest(on: Boolean)
     /** Diagnóstico: procura ganchos de reinício do fabricante (reboot-test.txt). */
     fun probeReboot()
+    /** Teste do Bluetooth: adaptador, procura e, com um scanner OBD2 à vista, pareamento e leitura (obd-bluetooth-test.txt). */
+    fun probeBluetooth()
     /** Toca o aviso de radar e os bipes (do longe ao perto) por uns segundos; se o som falhar, mostra o erro. */
     fun testSound()
     /** Distância (m) em que o aviso de radar começa; guardada nas preferências. */

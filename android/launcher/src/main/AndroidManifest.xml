@@ -17,6 +17,12 @@
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- Teste do Bluetooth: procurar, parear e conectar num scanner OBD2 (o menu de Bluetooth do aparelho é escondido) -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
     <!-- Serviço do app de rádio do aparelho (HCN), para mostrar a estação no card de mídia -->
     <uses-permission android:name="hcn.permission.FM_DATA_SERVICE" />
     <uses-permission android:name="hcn.permission.FM_PLUG_SERVICE" />

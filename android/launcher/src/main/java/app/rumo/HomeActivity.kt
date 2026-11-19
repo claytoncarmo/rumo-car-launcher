@@ -52,6 +52,7 @@ import app.rumo.core.RadioNames
 import app.rumo.core.fineStep
 import app.rumo.core.formatRadioFreq
 import app.rumo.device.RadioControl
+import app.rumo.device.BluetoothProbe
 import app.rumo.device.CrashReport
 import app.rumo.device.SavedFiles
 import app.rumo.core.BrState
@@ -1525,6 +1526,30 @@ class HomeActivity : ComponentActivity(), HomeActions {
             val report = withContext(Dispatchers.IO) { RebootProbe.run(this@HomeActivity) }
             state.toast = null
             showReport("Teste do reinício", "reboot-test.txt", report.summary, report.full)
+        }
+    }
+
+    override fun probeBluetooth() {
+        if (probeJob?.isActive == true) return
+        val needed = buildList {
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add(Manifest.permission.BLUETOOTH_SCAN)
+                add(Manifest.permission.BLUETOOTH_CONNECT)
+            }
+        }.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+        if (needed.isNotEmpty()) {
+            permissions.launch(needed.toTypedArray())
+            state.toast = "Permita o acesso e toque de novo"
+            return
+        }
+        probeJob = lifecycleScope.launch {
+            state.toast = "Teste do Bluetooth: com o scanner ligado no carro, até 2 minutos…"
+            val report = withContext(Dispatchers.IO) {
+                BluetoothProbe.run(this@HomeActivity) { msg -> runOnUiThread { state.toast = msg } }
+            }
+            state.toast = null
+            showReport("Teste do Bluetooth", "obd-bluetooth-test.txt", report.summary, report.full)
         }
     }
 
