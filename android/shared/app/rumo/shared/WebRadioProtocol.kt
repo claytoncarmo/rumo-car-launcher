@@ -34,6 +34,8 @@ object WebRadioProtocol {
     // Aviso (ao ouvinte)
     /** id da estação (ou vazio), estado ([STATUS_OFF]…), título que o stream manda (ou vazio). */
     const val TX_EVENT = 1
+    /** Uma linha do registro dos avisos de radar tocados pelo app do online (o Rumo a põe no alertas.log). */
+    const val TX_LOG = 2
 
     const val STATUS_OFF = "OFF"
     const val STATUS_CONNECTING = "CONNECTING"

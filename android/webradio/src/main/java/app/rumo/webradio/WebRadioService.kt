@@ -36,11 +36,12 @@ import app.rumo.shared.WebRadioProtocol as P
 class WebRadioService : Service() {
     private val main = Handler(Looper.getMainLooper())
     private lateinit var player: ExoPlayer
-    private val listeners = ArrayList<IBinder>()
+    private val listeners = java.util.concurrent.CopyOnWriteArrayList<IBinder>()
     private var foreground = false
     private var bound = false
     // Os mesmos sons do Rumo (android/shared): com foco curto, a música do player só abaixa enquanto tocam
-    private val alerts by lazy { Alerts(this) }
+    // As linhas do registro (foco, falhas de áudio…) vão para o Rumo, que as grava no alertas.log
+    private val alerts by lazy { Alerts(this) { line -> sendLog(line) } }
 
     /** Só aceita quem tem a mesma assinatura deste app (o Rumo). */
     private fun trusted(): Boolean =
@@ -149,6 +150,20 @@ class WebRadioService : Service() {
         player.playbackState == Player.STATE_ENDED -> P.STATUS_ERROR
         player.playbackState == Player.STATE_IDLE -> P.STATUS_OFF
         else -> P.STATUS_CONNECTING
+    }
+
+    private fun sendLog(line: String) {
+        for (b in listeners) {
+            val data = Parcel.obtain()
+            try {
+                data.writeInterfaceToken(P.EVENTS_DESCRIPTOR)
+                data.writeString(line)
+                b.transact(P.TX_LOG, data, null, IBinder.FLAG_ONEWAY)
+            } catch (e: Exception) {
+            } finally {
+                data.recycle()
+            }
+        }
     }
 
     /** Avisa os ouvintes (o Rumo); quem morreu sai da lista. */

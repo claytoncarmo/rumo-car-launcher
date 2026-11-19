@@ -37,11 +37,16 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
     /** Recebe os avisos do player; só aceita o app do rádio online (mesma assinatura do Rumo). */
     private val events = object : Binder() {
         override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
-            if (code != P.TX_EVENT) return super.onTransact(code, data, reply, flags)
+            if (code != P.TX_EVENT && code != P.TX_LOG) return super.onTransact(code, data, reply, flags)
             if (ctx.packageManager.checkSignatures(Binder.getCallingUid(), Process.myUid()) != PackageManager.SIGNATURE_MATCH) {
                 throw SecurityException("aviso de um app desconhecido")
             }
             data.enforceInterface(P.EVENTS_DESCRIPTOR)
+            if (code == P.TX_LOG) {
+                val line = data.readString().orEmpty()
+                main.post { onLog(line) }
+                return true
+            }
             val id = data.readString().orEmpty().ifEmpty { null }
             val status = when (data.readString()) {
                 P.STATUS_LIVE -> WebStatus.LIVE
@@ -64,6 +69,9 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
 
     /** Com o Rumo na tela: fica ligado no app do online e liga de novo se o firmware o encerrar. */
     private var keep = false
+
+    /** Linha do registro dos avisos de radar tocados pelo app do online. */
+    var onLog: (String) -> Unit = {}
 
     /** Chamado a cada vez que a ligação abre (o Rumo toca o aviso que esperava por ela). */
     var onConnected: () -> Unit = {}

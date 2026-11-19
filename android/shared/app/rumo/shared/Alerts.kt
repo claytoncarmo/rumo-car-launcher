@@ -94,6 +94,11 @@ class Alerts(context: Context, private val log: (String) -> Unit = {}) {
     fun stop() = alarm(null)
 
     private fun alarmLoop(mine: Int) {
+        // Thread de áudio: com prioridade normal, num app em segundo plano, a escrita dos bipes atrasa e a faixa seca
+        try {
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO)
+        } catch (e: Exception) {
+        }
         val track = streamTrack()
         loopTrack = track
         val got = am.requestAudioFocus(focus)
@@ -121,6 +126,12 @@ class Alerts(context: Context, private val log: (String) -> Unit = {}) {
             lastError = "bipes: $e"
             log("bipes: erro $e")
         } finally {
+            // Falhas de áudio (a faixa ficou sem dados): é o "picote" dos bipes
+            val underruns = try {
+                track.underrunCount
+            } catch (e: Exception) {
+                -1
+            }
             try {
                 track.stop()
             } catch (e: Exception) {
@@ -128,7 +139,7 @@ class Alerts(context: Context, private val log: (String) -> Unit = {}) {
             track.release()
             if (mine == generation) {
                 am.abandonAudioFocusRequest(focus)
-                log("bipes: desligados ($beeps bipes)")
+                log("bipes: desligados ($beeps bipes, $underruns falhas de áudio)")
             } else {
                 log("bipes: laço preso terminou depois de substituído ($beeps bipes)")
             }
@@ -136,6 +147,10 @@ class Alerts(context: Context, private val log: (String) -> Unit = {}) {
     }
 
     private fun playOnce(pcm: ShortArray) {
+        try {
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO)
+        } catch (e: Exception) {
+        }
         val got = am.requestAudioFocus(focus)
         val track = AudioTrack(attrs, format(), pcm.size * 2, AudioTrack.MODE_STATIC, AudioManager.AUDIO_SESSION_ID_GENERATE)
         try {
@@ -173,7 +188,8 @@ class Alerts(context: Context, private val log: (String) -> Unit = {}) {
 
     private fun streamTrack(): AudioTrack {
         val min = AudioTrack.getMinBufferSize(RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
-        return AudioTrack(attrs, format(), maxOf(min, RATE / 10 * 2), AudioTrack.MODE_STREAM, AudioManager.AUDIO_SESSION_ID_GENERATE)
+        // 0,3 s de folga (eram 0,1 s): aguenta o atraso de uma thread que o sistema atrasou; o ritmo dos bipes muda só 0,3 s depois
+        return AudioTrack(attrs, format(), maxOf(min, RATE * 3 / 10 * 2), AudioTrack.MODE_STREAM, AudioManager.AUDIO_SESSION_ID_GENERATE)
     }
 
     private fun format() = AudioFormat.Builder()

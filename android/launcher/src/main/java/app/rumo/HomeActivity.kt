@@ -216,6 +216,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private val webPlayer: WebRadioPlayer
         get() = webPlayerOrNull ?: WebRadioPlayer(this, ::onWebPlayback).also {
             it.onConnected = ::onCompanionConnected
+            it.onLog = { line -> alertLog.add("[app do online] $line") }
             webPlayerOrNull = it
         }
     private val webCatalog by lazy { WebRadioCatalog(File(filesDir, "web-radio")) }
@@ -2122,7 +2123,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val CAME_FROM_WEB_MS = 15_000L
         /** Depois do aviso de entrada (~0,7 s) e dos bipes, quanto esperar para pôr o FM de volta. */
         const val CHIME_RESUME_MS = 1_500L
-        const val ALARM_RESUME_MS = 600L
+        // Depois que os bipes param: espera antes de devolver o FM (acima do limite, os bipes ligam e desligam; cada troca
+        // do FM para o app do online e de volta é uma troca de fonte do aparelho, audível)
+        const val ALARM_RESUME_MS = 2_500L
         const val ALERT_SOURCE_HOLD_MS = 4_000L
         /** Aviso de entrada que esperou a ligação: depois disso já não faz sentido tocar. */
         const val PENDING_CHIME_MS = 4_000L
