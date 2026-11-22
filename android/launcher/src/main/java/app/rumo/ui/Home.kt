@@ -95,6 +95,9 @@ import app.rumo.device.ObdDevice
 import app.rumo.device.ObdSnapshot
 import app.rumo.device.ObdStatus
 import app.rumo.core.ObdPids
+import app.rumo.core.Maintenance
+import app.rumo.core.OilPlan
+import app.rumo.core.OilType
 import app.rumo.device.GpsStatus
 import app.rumo.device.Satellites
 import app.rumo.device.RadioNow
@@ -207,6 +210,9 @@ class HomeState {
     var obdFound by mutableStateOf<List<ObdDevice>>(emptyList())
     var obdSearching by mutableStateOf(false)
     var obdFuelFactor by mutableStateOf(1.0)
+    /** Troca de óleo (null: ainda não configurada) e o km do painel estimado pelo contador do carro (null: desconhecido). */
+    var oilPlan by mutableStateOf<OilPlan?>(null)
+    var odometerKm by mutableStateOf<Double?>(null)
     /** Teste: com o FM (o rádio online parado), os avisos de radar saem pelo próprio Rumo, como na 0.2.0. */
     var alertsViaRumo by mutableStateOf(false)
     /** Página do cartão inteligente: 0 = Viagem, 1 = Carro. */
@@ -269,6 +275,15 @@ interface HomeActions {
     /** Muda o ajuste do consumo em [percent] pontos (positivo ou negativo). */
     fun carFuelFactor(percent: Int)
     fun carResetTrip()
+    /**
+     * Configura a troca de óleo: tipo, intervalo, a última troca (data e km) e, se informado, o km atual do painel
+     * (ponto de partida do contador do carro).
+     */
+    fun maintSave(type: OilType, intervalKm: Int, intervalMonths: Int, lastDate: java.time.LocalDate, lastKm: Int, currentKm: Int?)
+    /** Registra a troca de óleo hoje, no km atual. */
+    fun maintDone()
+    /** Apaga a configuração da troca de óleo. */
+    fun maintForget()
     /** Teste dos avisos com o FM pelo Rumo (ligado/desligado; fica guardado). */
     fun setAlertsViaRumo(on: Boolean)
     /** Página do cartão inteligente (0 = Viagem, 1 = Carro); fica guardada. */
@@ -925,17 +940,24 @@ private fun TripCard(s: HomeState, a: HomeActions, modifier: Modifier) {
     Column(modifier.card(p).padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
         Row(Modifier.height(48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             CardTab("Viagem", s.cardPage == 0) { a.cardPage(0) }
-            CardTab("Carro", s.cardPage == 1) { a.cardPage(1) }
+            // Ponto no "Carro" quando a troca de óleo venceu ou está perto
+            val oil = s.oilPlan?.let { Maintenance.status(it, s.odometerKm, java.time.LocalDate.now()) }
+            CardTab("Carro", s.cardPage == 1, dot = oil != null && (oil.due || oil.soon)) { a.cardPage(1) }
         }
         if (s.cardPage == 1) CarPage(s, a) else TripPage(s.gps, s.over)
     }
 }
 
 @Composable
-private fun CardTab(label: String, on: Boolean, onClick: () -> Unit) {
+private fun CardTab(label: String, on: Boolean, dot: Boolean = false, onClick: () -> Unit) {
     val p = LocalPalette.current
-    Box(Modifier.height(48.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick), contentAlignment = Alignment.CenterStart) {
+    Row(
+        Modifier.height(48.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         Txt(label, 15, color = if (on) p.accentInk else p.text3, weight = FontWeight.SemiBold, caps = true)
+        if (dot) Box(Modifier.size(9.dp).clip(CircleShape).background(p.accent))
     }
 }
 

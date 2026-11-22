@@ -252,6 +252,8 @@ class ObdLink(context: Context, private val detail: () -> Boolean, private val o
             for (pid in listOf(0x0C, 0x0D, 0x10, 0x5E)) if (pid in supported) wanted += pid
             if (cycle % 3 == 0 && 0x05 in supported) wanted += 0x05
             if (cycle % 10 == 0 && 0x2F in supported) wanted += 0x2F
+            // Distância que o carro conta (PID 31): o km do painel para a manutenção. Na primeira rodada e a cada ~30 s
+            if (cycle % 30 == 0 && 0x31 in supported) wanted += 0x31
             val inDetail = detail()
             if (inDetail) {
                 val rest = ObdPids.DEFS.map { it.pid }.filter { it in supported && it !in wanted && it !in listOf(0x0C, 0x0D, 0x10, 0x5E) }

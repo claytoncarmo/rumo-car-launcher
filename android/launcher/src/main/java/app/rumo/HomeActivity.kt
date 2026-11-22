@@ -55,6 +55,10 @@ import app.rumo.device.RadioControl
 import app.rumo.device.BluetoothProbe
 import app.rumo.device.CrashReport
 import app.rumo.device.ObdDevice
+import app.rumo.core.Maintenance
+import app.rumo.core.Odometer
+import app.rumo.core.OilPlan
+import app.rumo.core.OilType
 import app.rumo.device.ObdLink
 import app.rumo.device.ObdScan
 import app.rumo.device.SavedFiles
@@ -236,7 +240,15 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private val logWriter = Executors.newSingleThreadExecutor()
     @Volatile private var previousRadioLog: List<String> = emptyList()
     // Scanner OBD2 (Bluetooth): a ligação com o carro. A leitura completa só roda com a folha do carro aberta.
-    private val obd by lazy { ObdLink(this, detail = { state.sheet == Sheet.CAR }, onSnapshot = { state.obd = it }) }
+    private val obd by lazy {
+        ObdLink(this, detail = { state.sheet == Sheet.CAR }, onSnapshot = { snap ->
+            state.obd = snap
+            onObdSnapshot(snap)
+        })
+    }
+    // Km do painel pelo contador do carro (PID 31); o km só vale depois de o dono informar o do painel
+    private lateinit var odometer: Odometer
+    private var odometerKnown = false
     private var cancelObdSearch: (() -> Unit)? = null
     @Volatile private var scanCancelled = false
     /** Outro comando pediu o rádio durante a procura: ela para sem voltar à estação de antes. */
@@ -306,6 +318,13 @@ class HomeActivity : ComponentActivity(), HomeActions {
         obd.fuelFactor = state.obdFuelFactor
         state.cardPage = prefs.getInt(PREF_CARD_PAGE, 0).coerceIn(0, 1)
         state.alertsViaRumo = prefs.getBoolean(PREF_ALERTS_VIA_RUMO, false)
+        state.oilPlan = loadOilPlan()
+        odometerKnown = prefs.contains(PREF_ODO_KM)
+        odometer = Odometer(
+            prefs.getString(PREF_ODO_KM, null)?.toDoubleOrNull() ?: 0.0,
+            prefs.getInt(PREF_ODO_COUNTER, -1).takeIf { it >= 0 },
+        )
+        state.odometerKm = if (odometerKnown) odometer.km else null
         state.webFavorites = WebRadio.decode(prefs.getString(PREF_WEB_FAVORITES, null))
         state.web = WebNow(WebRadio.decode(prefs.getString(PREF_WEB_LAST, null)).firstOrNull())
         if (prefs.getString(PREF_RADIO_BAND, null) == RadioBand.WEB.name) {
@@ -406,6 +425,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         // Ligado no app do rádio online enquanto na tela: os avisos saem por ele
         webPlayer.attach()
         startObd()
+        maintNotice()
         alertLog.add("tela: Rumo na tela (${state.appVersion}) ${alerts.audioState()}")
         gps.start()
         watchNetwork()
@@ -1653,6 +1673,88 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.toast = if (on) "Teste ligado: com o FM, os avisos saem pelo Rumo" else "Teste desligado: os avisos saem pelo app do rádio online"
     }
 
+    // ---- manutenção (troca de óleo) ----
+
+    private fun loadOilPlan(): OilPlan? {
+        val type = prefs.getString(PREF_OIL_TYPE, null)?.let { t -> OilType.entries.find { it.name == t } } ?: return null
+        val date = prefs.getString(PREF_OIL_LAST_DATE, null)?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() } ?: return null
+        return OilPlan(
+            type,
+            prefs.getInt(PREF_OIL_INTERVAL_KM, type.intervalKm),
+            prefs.getInt(PREF_OIL_INTERVAL_MONTHS, type.intervalMonths),
+            date,
+            prefs.getInt(PREF_OIL_LAST_KM, 0),
+        )
+    }
+
+    private fun saveOilPlan(plan: OilPlan?) {
+        state.oilPlan = plan
+        val e = prefs.edit()
+        if (plan == null) {
+            e.remove(PREF_OIL_TYPE).remove(PREF_OIL_INTERVAL_KM).remove(PREF_OIL_INTERVAL_MONTHS).remove(PREF_OIL_LAST_DATE).remove(PREF_OIL_LAST_KM)
+        } else {
+            e.putString(PREF_OIL_TYPE, plan.type.name)
+                .putInt(PREF_OIL_INTERVAL_KM, plan.intervalKm)
+                .putInt(PREF_OIL_INTERVAL_MONTHS, plan.intervalMonths)
+                .putString(PREF_OIL_LAST_DATE, plan.lastDate.toString())
+                .putInt(PREF_OIL_LAST_KM, plan.lastKm)
+        }
+        e.apply()
+    }
+
+    /** Cada leitura do contador do carro anda o km do painel (e grava quando muda). */
+    private fun onObdSnapshot(snap: app.rumo.device.ObdSnapshot) {
+        val counter = snap.number(0x31)?.toInt() ?: return
+        if (counter == odometer.lastCounter) return
+        val moved = odometer.onCounter(counter)
+        val e = prefs.edit().putInt(PREF_ODO_COUNTER, counter)
+        if (odometerKnown && moved) {
+            e.putString(PREF_ODO_KM, odometer.km.toString())
+            state.odometerKm = odometer.km
+        }
+        e.apply()
+    }
+
+    private fun setOdometer(km: Int) {
+        odometer.set(km.toDouble())
+        odometerKnown = true
+        state.odometerKm = odometer.km
+        prefs.edit().putString(PREF_ODO_KM, odometer.km.toString()).apply()
+    }
+
+    /** Ao abrir o Rumo, uma vez por dia: avisa se a troca de óleo venceu ou está perto. */
+    private fun maintNotice() {
+        val plan = state.oilPlan ?: return
+        val today = java.time.LocalDate.now()
+        val st = Maintenance.status(plan, state.odometerKm, today)
+        if (!st.due && !st.soon) return
+        if (prefs.getLong(PREF_MAINT_NOTICE_DAY, -1) == today.toEpochDay()) return
+        prefs.edit().putLong(PREF_MAINT_NOTICE_DAY, today.toEpochDay()).apply()
+        state.toast = "Troca de óleo: ${Maintenance.text(st).replaceFirstChar { it.lowercase() }}"
+    }
+
+    override fun maintSave(type: OilType, intervalKm: Int, intervalMonths: Int, lastDate: java.time.LocalDate, lastKm: Int, currentKm: Int?) {
+        currentKm?.let { setOdometer(it) }
+        saveOilPlan(OilPlan(type, intervalKm.coerceIn(1_000, 30_000), intervalMonths.coerceIn(1, 24), lastDate, lastKm))
+        state.toast = "Troca de óleo configurada"
+    }
+
+    override fun maintDone() {
+        val plan = state.oilPlan ?: return
+        val km = state.odometerKm
+        if (km == null) {
+            state.toast = "Informe o km do painel em Editar"
+            return
+        }
+        saveOilPlan(plan.copy(lastDate = java.time.LocalDate.now(), lastKm = Math.round(km).toInt()))
+        state.toast = "Troca de óleo registrada"
+    }
+
+    override fun maintForget() {
+        saveOilPlan(null)
+        state.toast = "Troca de óleo apagada"
+    }
+
     override fun cardPage(page: Int) {
         state.cardPage = page
         prefs.edit().putInt(PREF_CARD_PAGE, page).apply()
@@ -2262,6 +2364,14 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_OBD_FUEL = "obd_fuel_factor"
         const val PREF_CARD_PAGE = "card_page"
         const val PREF_ALERTS_VIA_RUMO = "alerts_via_rumo_fm"
+        const val PREF_OIL_TYPE = "oil_type"
+        const val PREF_OIL_INTERVAL_KM = "oil_interval_km"
+        const val PREF_OIL_INTERVAL_MONTHS = "oil_interval_months"
+        const val PREF_OIL_LAST_DATE = "oil_last_date"
+        const val PREF_OIL_LAST_KM = "oil_last_km"
+        const val PREF_ODO_KM = "odometer_km"
+        const val PREF_ODO_COUNTER = "odometer_counter"
+        const val PREF_MAINT_NOTICE_DAY = "maint_notice_day"
         const val OBD_SEARCH_MS = 15_000L
         const val PREF_RADIO_BAND = "radio_band"
         const val PREF_WEB_FAVORITES = "web_favorites"
