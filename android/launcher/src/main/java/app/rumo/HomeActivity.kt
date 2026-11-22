@@ -54,6 +54,9 @@ import app.rumo.core.formatRadioFreq
 import app.rumo.device.RadioControl
 import app.rumo.device.BluetoothProbe
 import app.rumo.device.CrashReport
+import app.rumo.device.ObdDevice
+import app.rumo.device.ObdLink
+import app.rumo.device.ObdScan
 import app.rumo.device.SavedFiles
 import app.rumo.core.BrState
 import app.rumo.core.WebFilter
@@ -232,6 +235,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private val radioLogFile by lazy { File(filesDir, "radio-log.txt") }
     private val logWriter = Executors.newSingleThreadExecutor()
     @Volatile private var previousRadioLog: List<String> = emptyList()
+    // Scanner OBD2 (Bluetooth): a ligação com o carro. A leitura completa só roda com a folha do carro aberta.
+    private val obd by lazy { ObdLink(this, detail = { state.sheet == Sheet.CAR }, onSnapshot = { state.obd = it }) }
+    private var cancelObdSearch: (() -> Unit)? = null
     @Volatile private var scanCancelled = false
     /** Outro comando pediu o rádio durante a procura: ela para sem voltar à estação de antes. */
     @Volatile private var scanInterrupted = false
@@ -295,6 +301,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
         radars.zoneM = state.radarZoneM
         radars.marginKmh = state.radarMarginKmh
         state.radioMuted = prefs.getBoolean(PREF_RADIO_MUTED, false)
+        prefs.getString(PREF_OBD_ADDRESS, null)?.let { state.obdScanner = ObdDevice(prefs.getString(PREF_OBD_NAME, null), it) }
+        state.obdFuelFactor = prefs.getFloat(PREF_OBD_FUEL, 1f).toDouble().coerceIn(0.5, 2.0)
+        obd.fuelFactor = state.obdFuelFactor
+        state.cardPage = prefs.getInt(PREF_CARD_PAGE, 0).coerceIn(0, 1)
         state.webFavorites = WebRadio.decode(prefs.getString(PREF_WEB_FAVORITES, null))
         state.web = WebNow(WebRadio.decode(prefs.getString(PREF_WEB_LAST, null)).firstOrNull())
         if (prefs.getString(PREF_RADIO_BAND, null) == RadioBand.WEB.name) {
@@ -394,6 +404,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         prefs.edit().putBoolean(PREF_SESSION_OPEN, true).commit()
         // Ligado no app do rádio online enquanto na tela: os avisos saem por ele
         webPlayer.attach()
+        startObd()
         alertLog.add("tela: Rumo na tela (${state.appVersion}) ${alerts.audioState()}")
         gps.start()
         watchNetwork()
@@ -446,6 +457,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
         unwatchNetwork()
         alarm(null)
         webPlayerOrNull?.detach()
+        // Fora da tela, o Rumo larga o scanner (nada em segundo plano); a viagem do consumo fica na memória
+        obd.stop()
+        cancelObdSearch?.invoke()
         state.radar = null
         loggedGps = null
         alertLog.add("tela: Rumo saiu da tela (sem GPS e sem alertas até voltar)")
@@ -1554,6 +1568,88 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }
     }
 
+    // ---- carro (scanner OBD2 pelo Bluetooth) ----
+
+    /** Liga no scanner escolhido (se houver e se o Bluetooth for permitido). */
+    private fun startObd() {
+        val scanner = state.obdScanner ?: return
+        if (obd.running) return
+        obd.start(scanner.address)
+    }
+
+    override fun openCar() {
+        state.sheet = Sheet.CAR
+        startObd()
+    }
+
+    override fun carSearch() {
+        if ((state.gps.speedKmh ?: 0) >= PARKED_BELOW_KMH) {
+            state.toast = "Procurar o scanner só com o carro parado"
+            return
+        }
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissions.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
+            state.toast = "Permita a localização (o Android a exige para procurar) e toque de novo"
+            return
+        }
+        cancelObdSearch?.invoke()
+        state.obdFound = ObdScan.bonded()
+        state.obdSearching = true
+        // A procura e a conexão com o scanner brigam pelo rádio Bluetooth: para a conexão enquanto procura
+        obd.stop()
+        cancelObdSearch = ObdScan.start(
+            this, OBD_SEARCH_MS,
+            onFound = { d -> if (state.obdFound.none { it.address == d.address }) state.obdFound = state.obdFound + d },
+            onDone = {
+                state.obdSearching = false
+                cancelObdSearch = null
+                if (state.obdFound.isEmpty()) state.toast = "Nenhum dispositivo achado: o scanner está ligado?"
+                startObd()
+            },
+        )
+    }
+
+    override fun carChoose(device: ObdDevice) {
+        cancelObdSearch?.invoke()
+        state.obdScanner = device
+        state.obdFound = emptyList()
+        prefs.edit().putString(PREF_OBD_ADDRESS, device.address).putString(PREF_OBD_NAME, device.name).apply()
+        state.toast = "Scanner ${device.name ?: ""} escolhido"
+        obd.stop()
+        startObd()
+    }
+
+    override fun carForget() {
+        cancelObdSearch?.invoke()
+        obd.stop()
+        state.obdScanner = null
+        state.obdFound = emptyList()
+        prefs.edit().remove(PREF_OBD_ADDRESS).remove(PREF_OBD_NAME).apply()
+    }
+
+    override fun carReconnect() {
+        obd.stop()
+        startObd()
+    }
+
+    override fun carFuelFactor(percent: Int) {
+        val f = (Math.round((state.obdFuelFactor + percent / 100.0) * 100) / 100.0).coerceIn(0.5, 2.0)
+        state.obdFuelFactor = f
+        obd.fuelFactor = f
+        prefs.edit().putFloat(PREF_OBD_FUEL, f.toFloat()).apply()
+    }
+
+    override fun carResetTrip() {
+        obd.resetTrip()
+        state.obd = state.obd.let { s -> app.rumo.device.ObdSnapshot(s.status, s.message, s.voltage, s.values, s.supported, s.milOn, s.dtcCount, s.dtcs, s.litersPerHour, s.kmPerLiter, null, 0.0, 0.0) }
+        state.toast = "Viagem do consumo zerada"
+    }
+
+    override fun cardPage(page: Int) {
+        state.cardPage = page
+        prefs.edit().putInt(PREF_CARD_PAGE, page).apply()
+    }
+
     override fun checkUpdates() {
         if (state.settings.checking || state.transfer != null) return
         state.settings = state.settings.copy(checking = true)
@@ -2133,6 +2229,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_SESSION_OPEN = "session_open"
         const val RADIO_LOG_FILE_MAX = 256 * 1024L
         const val REPORT_LOGCAT_LINES = 1_500
+        const val PREF_OBD_ADDRESS = "obd_address"
+        const val PREF_OBD_NAME = "obd_name"
+        const val PREF_OBD_FUEL = "obd_fuel_factor"
+        const val PREF_CARD_PAGE = "card_page"
+        const val OBD_SEARCH_MS = 15_000L
         const val PREF_RADIO_BAND = "radio_band"
         const val PREF_WEB_FAVORITES = "web_favorites"
         const val PREF_WEB_LAST = "web_last"

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -90,6 +91,10 @@ import app.rumo.core.formatRadioFreq
 import app.rumo.device.AppEntry
 import app.rumo.device.Apps
 import app.rumo.device.GpsInfo
+import app.rumo.device.ObdDevice
+import app.rumo.device.ObdSnapshot
+import app.rumo.device.ObdStatus
+import app.rumo.core.ObdPids
 import app.rumo.device.GpsStatus
 import app.rumo.device.Satellites
 import app.rumo.device.RadioNow
@@ -100,7 +105,7 @@ import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-enum class Sheet { NONE, APPS, AUDIO, PHONE, RADIO, SETTINGS, KEYS, MARK }
+enum class Sheet { NONE, APPS, AUDIO, PHONE, RADIO, SETTINGS, KEYS, MARK, CAR }
 
 /**
  * De onde vem o som: pelo serviço sourceinfo do multimídia (avisa a cada troca de fonte, inclusive pelo volante)
@@ -196,6 +201,14 @@ class HomeState {
      * Versão mais nova que a instalada, no canal da instalada (estável só avisa estável; nightly, nightly): acende o
      * ícone ao lado do tema. [updateOpen]: o popup com as novidades está aberto.
      */
+    /** Scanner OBD2 (Bluetooth): o escolhido, o que o carro informa agora, a procura e o ajuste do consumo (1,0 = estimativa pura). */
+    var obdScanner by mutableStateOf<ObdDevice?>(null)
+    var obd by mutableStateOf(ObdSnapshot())
+    var obdFound by mutableStateOf<List<ObdDevice>>(emptyList())
+    var obdSearching by mutableStateOf(false)
+    var obdFuelFactor by mutableStateOf(1.0)
+    /** Página do cartão inteligente: 0 = Viagem, 1 = Carro. */
+    var cardPage by mutableIntStateOf(0)
     var update by mutableStateOf<AppRelease?>(null)
     var updateOpen by mutableStateOf(false)
     /** Quando a última consulta do aviso deu certo (ms desde 1970; 0 = nunca), para a aba Atualizações mostrar. */
@@ -245,6 +258,17 @@ interface HomeActions {
     fun keyTest(on: Boolean)
     /** Diagnóstico: procura ganchos de reinício do fabricante (reboot-test.txt). */
     fun probeReboot()
+    /** Página Carro: abre a folha com tudo o que o scanner OBD2 lê. */
+    fun openCar()
+    fun carSearch()
+    fun carChoose(device: ObdDevice)
+    fun carForget()
+    fun carReconnect()
+    /** Muda o ajuste do consumo em [percent] pontos (positivo ou negativo). */
+    fun carFuelFactor(percent: Int)
+    fun carResetTrip()
+    /** Página do cartão inteligente (0 = Viagem, 1 = Carro); fica guardada. */
+    fun cardPage(page: Int)
     /** Teste do Bluetooth: adaptador, procura e, com um scanner OBD2 à vista, pareamento e leitura (obd-bluetooth-test.txt). */
     fun probeBluetooth()
     /** Toca o aviso de radar e os bipes (do longe ao perto) por uns segundos; se o som falhar, mostra o erro. */
@@ -331,6 +355,7 @@ fun HomeScreen(s: HomeState, a: HomeActions) {
                             Sheet.SETTINGS -> SettingsSheet(s, a)
                             Sheet.KEYS -> KeyTestSheet(s, a)
                             Sheet.MARK -> MarkSheet(s, a)
+                            Sheet.CAR -> CarSheet(s, a)
                             else -> AppSheet(s, a)
                         }
                         s.probe?.let { ProbeSheet(s.probeTitle, it) { s.probe = null } }
@@ -578,7 +603,7 @@ private fun HomeCards(s: HomeState, a: HomeActions, night: Boolean, mapAllowed: 
             // Linha de baixo no rádio: texto da emissora ou, se for favorita, o nome dela ("Favorito N"); "Rádio parado" no mudo
             val radioLine = if (s.radioMuted) "Rádio parado" else Favorites.line(s.favorites, s.radio?.khz, s.radio?.text)
             MediaCard(s.source, s.radio, radioLine, s.web, s.usageAccess || s.sourceLive, a, Modifier.weight(1.12f).fillMaxWidth())
-            TripCard(s.gps, s.over, Modifier.weight(1f).fillMaxWidth())
+            TripCard(s, a, Modifier.weight(1f).fillMaxWidth())
         }
     }
 }
@@ -891,29 +916,93 @@ private fun MediaButton(icon: ImageVector, enabled: Boolean, modifier: Modifier,
 
 /** Página "Viagem" do cartão inteligente; as outras páginas (sugestões, clima, favoritos) vêm depois. */
 @Composable
-private fun TripCard(g: GpsInfo, over: Boolean, modifier: Modifier) {
+private fun TripCard(s: HomeState, a: HomeActions, modifier: Modifier) {
     val p = LocalPalette.current
     Column(modifier.card(p).padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
-        Box(Modifier.height(48.dp), contentAlignment = Alignment.CenterStart) {
-            Txt("Viagem", 15, color = p.text2, weight = FontWeight.SemiBold, caps = true)
+        Row(Modifier.height(48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            CardTab("Viagem", s.cardPage == 0) { a.cardPage(0) }
+            CardTab("Carro", s.cardPage == 1) { a.cardPage(1) }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        if (s.cardPage == 1) CarPage(s, a) else TripPage(s.gps, s.over)
+    }
+}
+
+@Composable
+private fun CardTab(label: String, on: Boolean, onClick: () -> Unit) {
+    val p = LocalPalette.current
+    Box(Modifier.height(48.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick), contentAlignment = Alignment.CenterStart) {
+        Txt(label, 15, color = if (on) p.accentInk else p.text3, weight = FontWeight.SemiBold, caps = true)
+    }
+}
+
+/** Página "Viagem" do cartão: velocidade do GPS, rumo e a conta da viagem. */
+@Composable
+private fun ColumnScope.TripPage(g: GpsInfo, over: Boolean) {
+    val p = LocalPalette.current
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Txt(
+                g.speedKmh?.toString() ?: "--", 96, color = if (over) p.danger else p.text,
+                weight = FontWeight.SemiBold, numeric = true, lineHeight = 1f,
+            )
+            Txt("km/h", 20, color = p.text2, modifier = Modifier.padding(bottom = 14.dp))
+        }
+        Box(Modifier.size(72.dp).border(3.dp, p.surface3, CircleShape), contentAlignment = Alignment.Center) {
+            Txt(g.bearing?.let { compassOf(it) } ?: "--", 24, weight = FontWeight.Bold)
+        }
+    }
+    Spacer(Modifier.weight(1f))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Stat(formatKm(g.tripMeters), "distância", Modifier.weight(1f))
+        Stat(formatDuration(g.tripMovingMs), "em movimento", Modifier.weight(1f))
+        Stat(g.tripAverageKmh?.let { "$it km/h" } ?: "--", "média", Modifier.weight(1f))
+    }
+}
+
+/**
+ * Página "Carro" do cartão: o consumo agora em grande e quatro números do carro (rotação, temperatura do motor,
+ * bateria, tanque), lidos pelo scanner OBD2. Tocar abre a folha com tudo o que o carro informa.
+ */
+@Composable
+private fun ColumnScope.CarPage(s: HomeState, a: HomeActions) {
+    val p = LocalPalette.current
+    val o = s.obd
+    Column(Modifier.weight(1f).fillMaxWidth().clickable { a.openCar() }) {
+        if (o.status != ObdStatus.LIVE) {
+            Spacer(Modifier.weight(1f))
+            Txt(
+                when {
+                    s.obdScanner == null -> "Nenhum scanner OBD2 escolhido"
+                    o.status == ObdStatus.CAR_OFF -> "Scanner conectado: ligue a ignição"
+                    o.status == ObdStatus.CONNECTING -> "Conectando no scanner…"
+                    o.status == ObdStatus.ERROR -> "Sem conexão com o scanner"
+                    else -> "Scanner parado"
+                },
+                26, weight = FontWeight.SemiBold, maxLines = 2,
+            )
+            Txt(
+                if (s.obdScanner == null) "Toque para escolher o scanner e ver os dados do carro." else o.message ?: "Toque para ver os detalhes.",
+                17, color = p.text2, maxLines = 3,
+            )
+            Spacer(Modifier.weight(1f))
+            return@Column
+        }
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Txt(
-                    g.speedKmh?.toString() ?: "--", 96, color = if (over) p.danger else p.text,
-                    weight = FontWeight.SemiBold, numeric = true, lineHeight = 1f,
-                )
-                Txt("km/h", 20, color = p.text2, modifier = Modifier.padding(bottom = 14.dp))
+                val big = o.kmPerLiter?.let { String.format(PT_BR, "%.1f", it) } ?: o.litersPerHour?.let { String.format(PT_BR, "%.1f", it) } ?: "--"
+                Txt(big, 72, weight = FontWeight.SemiBold, numeric = true, lineHeight = 1f)
+                Txt(if (o.kmPerLiter != null) "km/L" else "L/h", 20, color = p.text2, modifier = Modifier.padding(bottom = 10.dp))
             }
-            Box(Modifier.size(72.dp).border(3.dp, p.surface3, CircleShape), contentAlignment = Alignment.Center) {
-                Txt(g.bearing?.let { compassOf(it) } ?: "--", 24, weight = FontWeight.Bold)
-            }
+            Txt(
+                o.tripKmPerLiter?.let { String.format(PT_BR, "média %.1f km/L", it) } ?: "",
+                17, color = p.text2, maxLines = 1,
+            )
         }
-        Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Stat(formatKm(g.tripMeters), "distância", Modifier.weight(1f))
-            Stat(formatDuration(g.tripMovingMs), "em movimento", Modifier.weight(1f))
-            Stat(g.tripAverageKmh?.let { "$it km/h" } ?: "--", "média", Modifier.weight(1f))
+            Stat(o.values[0x0C]?.let { ObdPids.value(0x0C, it) }?.let { String.format(PT_BR, "%,d", Math.round(it)) } ?: "--", "rpm", Modifier.weight(1f))
+            Stat(o.number(0x05)?.let { "${Math.round(it)} °C" } ?: "--", "motor", Modifier.weight(1f))
+            Stat(o.voltage?.let { String.format(PT_BR, "%.1f V", it) } ?: "--", "bateria", Modifier.weight(1f))
+            Stat(o.number(0x2F)?.let { "${Math.round(it)} %" } ?: "--", "tanque", Modifier.weight(1f))
         }
     }
 }

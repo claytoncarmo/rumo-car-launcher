@@ -113,6 +113,16 @@ Registrado em todos os grupos, o único tráfego observado foram eventos `onEven
 - Qualquer som tocado por um app silencia a música enquanto toca, em todos os canais e com ou sem foco de áudio. Não é regra do app.
 - A barra do sistema esconde com o modo imersivo, e o Rumo continua como tela inicial depois de reiniciar.
 
+### Scanner OBD2 pelo Bluetooth (ELM327)
+
+O aparelho esconde o menu de Bluetooth, mas o Android oferece o adaptador ("Car BT") a apps comuns: dá para procurar, listar pareados e abrir a porta serial (SPP) com as permissões `BLUETOOTH`, `BLUETOOTH_ADMIN` e localização (o Android 9 exige a localização para procurar). Resultados no carro (nightly 91/92, scanner "OBDII", ELM327 v1.5):
+
+- **Sem parear e sem PIN:** `createInsecureRfcommSocketToServiceRecord(SPP)` conecta direto; a tentativa "segura" falha (precisa do pareamento). O Rumo guarda só o endereço e conecta sempre assim.
+- **Procura:** uma procura de ~20 s acha o scanner (com o carro ligado e o scanner na tomada). A procura pesa no Bluetooth do aparelho, que também faz as chamadas: só com o carro parado e nunca em laço.
+- **Protocolo do carro (Honda):** detectado sozinho (`ATDPN` = `A7`). PIDs do modo 01 que este carro informa: 01 03 04 05 06 0B 0C 0D 0E 0F 10 11 13 15 1F 21 2E 2F 30 31 33 34 42 43 44 45 47 49 4A 4C (e blocos 20/40). Não informa taxa de combustível (5E), temperatura do óleo (5C) nem ambiente (46).
+- **Consumo:** só pelo fluxo de ar (MAF, PID 10): litros/hora = MAF × 3600 / (13,2 × 750); erra uns 10 % e o "ajuste do consumo" corrige.
+- **Só leitura:** o Rumo nunca apaga falhas (modo 04) nem manda comandos que alterem o carro. Ignição desligada: o scanner responde, o carro não (`UNABLE TO CONNECT`/`NO DATA`); o Rumo espera.
+
 ## Diagnósticos embutidos no launcher
 
 Para investigar outro aparelho (ou outra versão de firmware) o Rumo traz ferramentas que gravam relatórios em texto:

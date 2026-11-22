@@ -17,8 +17,8 @@ Launcher (tela inicial) próprio para o multimídia Android aftermarket de um Ho
 
 Código do app (`android/launcher/src/main/java/app/rumo/`):
 - `android/shared/`: o que entra nos dois apps (protocolo do rádio online e os sons dos avisos, `Alerts`).
-- `core/`: lógica pura e testada (Geo, Roads, Radars, TripMeter, Formatting, Favorites, RadioNames, AudioOwner, WebRadio).
-- `device/`: acesso ao aparelho (Gps, Apps, MapData, Aidl, CarStatus, RadioStation, RadioControl, WebRadioService/Player/Catalog) e os diagnósticos (BroadcastHunt, CarSourceProbe, NightSignal, RadioProbe).
+- `core/`: lógica pura e testada (Geo, Roads, Radars, TripMeter, Formatting, Favorites, RadioNames, AudioOwner, WebRadio, Elm327, ObdPids).
+- `device/`: acesso ao aparelho (Gps, Apps, MapData, Aidl, CarStatus, RadioStation, RadioControl, WebRadioService/Player/Catalog, ObdLink/ObdScan) e os diagnósticos (BroadcastHunt, CarSourceProbe, NightSignal, RadioProbe).
 - `ui/`: telas em Compose (Home, RadioSheet, DriveMap, Theme, Icons).
 - `HomeActivity.kt`: liga tudo.
 
@@ -33,6 +33,7 @@ Código do app (`android/launcher/src/main/java/app/rumo/`):
 - **Dados:** limites pelo OpenStreetMap offline + padrões do CTB quando faltar (marcados "estimado"); radares: OSM junto com a base do MapaRadar (`data/maparadar.csv`, CC BY-NC-ND 4.0, uso pessoal; o Clayton atualiza o arquivo à mão). **A licença proíbe distribuir alterações:** o projeto publica só a cópia ORIGINAL do CSV (release `rumo-maparadar`, workflow `maparadar.yml`) e o app a processa no aparelho (recorte pelos contornos dos estados, sentido pela via, junção com o OSM, cache em `radars.bin`); nada derivado dele vai para o `roads.db` nem para as Releases. Outras fontes possíveis: ANTT, dados abertos de prefeituras.
 - **Rádio:** tela própria e favoritas próprias (lista do Rumo, em ordem de frequência, com nome dado pelo dono; só com o carro parado). A procura de estações repete a busca do rádio; **nunca usar o "AS" (auto store)** e não gravar nas memórias do aparelho sem o dono pedir. Abrir a tela de rádio já põe o rádio para tocar (sem botão "Ouvir rádio").
 - **Rádio online:** aba Online na tela de rádio, só com rede (Wi-Fi do aparelho ou roteador do celular). Catálogo aberto Radio Browser; favoritas online próprias; Explorar com Perto de você, Notícias, Esportes, Música e Todas. O player mora num **app à parte** (`app.rumo.webradio`, instalado pela própria aba Online): o firmware encerra o pacote que tocou mídia quando outra fonte pega o som, e assim não leva a tela inicial. Toca em primeiro plano (com a notificação do Android) para continuar fora do Rumo, como o FM; o Android Auto tem prioridade (o player pausa quando ele pega o som). Tocar o online cala o FM e vice-versa. Se o Wi-Fi cai, para e oferece a mesma emissora no FM quando a frequência está no nome e tem sinal aqui.
+- **Carro (OBD2):** página "Carro" no cartão inteligente (abas Viagem | Carro) e folha com tudo o que o scanner lê (Bluetooth ELM327, conexão sem parear, só leitura: nunca apaga falhas). Liga no scanner escolhido só com o Rumo na tela; procurar scanner só parado. Consumo estimado pelo MAF, com ajuste de calibração do dono. A velocidade do GPS continua a do cartão Viagem (a do carro só aparece na folha, até o Clayton comparar com o painel).
 - **Fonte e estação:** a fonte de áudio vem do serviço `sourceinfo` e a estação do `fmradio` (ver `docs/device-integration.md`); o tema automático segue o farol (`carstatus`).
 - **O carro não tem controles de som no volante:** tudo é pela tela. Roteiros de teste não devem citar volante.
 
@@ -58,6 +59,7 @@ A lista viva de tarefas (incluindo suporte a outros aparelhos) está em `TODO.md
 - Validar o play do card de mídia no rádio como "parar": o mudo do `fmradio` sozinho não calou o rádio; o Rumo agora também solta a ligação com o serviço do rádio (que só existe enquanto alguém está ligado nele) e liga de novo ao tocar.
 - **Rádio online em app à parte (15/nov/2026):** o firmware encerrava o Rumo a cada troca de fonte depois de ele tocar o online (com ou sem sessão de mídia, foco de áudio ou tipo do som). O player foi para `app.rumo.webradio`; a validar no carro: instalar pela aba Online, FM → Online → FM e Online → Android Auto sem o Rumo fechar (quem pode cair é o app do rádio online).
 - **Rádio online a validar no carro:** se o som sai junto com o FM calado (sem os dois ao mesmo tempo), o que o `sourceinfo` informa com ele tocando (o Rumo mantém a fonte "Rádio online" com qualquer valor que não seja o ZLINK), o volume, a notificação de mídia no firmware e se o catálogo abre (TLS do aparelho).
+- **Página Carro a validar no carro:** conexão automática ao ligar, o que o scanner lê (rotação, temperatura, tanque, consumo agora e média), se a leitura atrapalha o Bluetooth do telefone e o desempenho com a folha aberta.
 - Testar andando: rua e limite em cruzamentos e ruas paralelas, avisos de radar, desempenho do mapa e a velocidade do GPS contra o painel do carro.
 - Completar os radares além do OSM (ANTT, dados abertos de prefeituras).
 - Fonte Barlow ainda não adicionada; o cartão inteligente só tem a página Viagem; telefone/Bluetooth não integrados.
