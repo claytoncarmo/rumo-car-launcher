@@ -30,10 +30,9 @@ class Alerts(context: Context, private val log: (String) -> Unit = {}) {
         .build()
     private val chimePcm by lazy { render(listOf(Seg(0.0, 988.0, 0.32, false, 0.5), Seg(0.2, 1319.0, 0.5, false, 0.5))) }
 
-    // Bipes prontos, um por degrau de proximidade (21 degraus: a diferença de tom e ritmo entre eles não se ouve), e
-    // um silêncio só, do tamanho do maior intervalo: até 7 bipes por segundo sem montar e jogar fora buffers a cada um
+    // Bipes prontos, um por degrau de proximidade (21 degraus: a diferença de tom e ritmo entre eles não se ouve):
+    // até 7 bipes por segundo sem montar o som de novo a cada um
     private val beeps = arrayOfNulls<ShortArray>(STEPS + 1)
-    private val silence by lazy { ShortArray((0.95 * RATE).toInt()) }
 
     private fun beep(step: Int): ShortArray = beeps[step] ?: run {
         val k = step.toDouble() / STEPS
@@ -63,9 +62,9 @@ class Alerts(context: Context, private val log: (String) -> Unit = {}) {
     }
 
     /**
-     * Liga, ajusta ou desliga ([k] null) os bipes de "acima do limite do radar". Se o laço dos bipes está preso numa
-     * escrita que o áudio do aparelho não consome (a troca de fonte do ZLINK pode deixar a saída parada), ele nunca
-     * mais voltaria a tocar: passado [STALL_MS] sem avançar, solta a faixa presa e começa outro.
+     * Liga, ajusta ou desliga ([k] null) os bipes de "acima do limite do radar". Se o laço dos bipes ficar preso (no
+     * áudio do aparelho, numa troca de fonte do ZLINK), ele nunca mais voltaria a tocar: passado [STALL_MS] sem
+     * avançar, solta o bipe preso e começa outro laço.
      */
     fun alarm(k: Float?) {
         closeness = k
@@ -93,19 +92,22 @@ class Alerts(context: Context, private val log: (String) -> Unit = {}) {
 
     fun stop() = alarm(null)
 
+    /**
+     * Os bipes, cada um como um som curto separado (como o aviso de entrada), sem faixa tocando entre eles. Com uma faixa
+     * contínua (bipe + silêncio escrito), o aparelho tratava os bipes como troca de fonte: o FM parava e não voltava, e
+     * havia picote; um som curto ele só abaixa o FM por baixo.
+     */
     private fun alarmLoop(mine: Int) {
-        // Thread de áudio: com prioridade normal, num app em segundo plano, a escrita dos bipes atrasa e a faixa seca
+        // Thread de áudio: com prioridade normal, num app em segundo plano, os bipes atrasam
         try {
             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO)
         } catch (e: Exception) {
         }
-        val track = streamTrack()
-        loopTrack = track
         val got = am.requestAudioFocus(focus)
-        log("bipes: ligados, foco=${focusName(got)}, faixa ${trackState(track)} ${audioState()}")
+        log("bipes: ligados (curtos), foco=${focusName(got)} ${audioState()}")
         var beeps = 0
+        var played: AudioTrack? = null
         try {
-            track.play()
             // Espera o aviso de entrada terminar antes do primeiro bipe
             while (System.currentTimeMillis() < chimeUntil && closeness != null) {
                 progressAt = SystemClock.elapsedRealtime()
@@ -114,32 +116,45 @@ class Alerts(context: Context, private val log: (String) -> Unit = {}) {
             while (mine == generation) {
                 val k = closeness ?: break
                 val step = (k.coerceIn(0f, 1f) * STEPS).roundToInt()
-                val beep = beep(step)
-                val rest = ((gapOf(step.toDouble() / STEPS) * RATE).toInt() - beep.size).coerceIn(0, silence.size)
-                track.write(beep, 0, beep.size)
-                track.write(silence, 0, rest)
-                beeps++
+                val pcm = beep(step)
+                val track = AudioTrack(attrs, format(), pcm.size * 2, AudioTrack.MODE_STATIC, AudioManager.AUDIO_SESSION_ID_GENERATE)
+                loopTrack = track
+                try {
+                    track.write(pcm, 0, pcm.size)
+                    track.play()
+                    beeps++
+                } catch (e: Exception) {
+                    lastError = "bipes: $e"
+                }
+                // O bipe anterior acabou faz tempo (o intervalo é maior que ele): solta
+                played?.release()
+                played = track
                 progressAt = SystemClock.elapsedRealtime()
+                // Até o próximo bipe, acordando cedo se os bipes pararem ou forem substituídos
+                val gapMs = (gapOf(step.toDouble() / STEPS) * 1000).toLong()
+                val until = SystemClock.elapsedRealtime() + gapMs
+                while (mine == generation && closeness != null && SystemClock.elapsedRealtime() < until) {
+                    Thread.sleep(minOf(40L, until - SystemClock.elapsedRealtime()).coerceAtLeast(1L))
+                }
             }
         } catch (e: Exception) {
             // som não é essencial: sem bipe, o aviso visual continua
             lastError = "bipes: $e"
             log("bipes: erro $e")
         } finally {
-            // Falhas de áudio (a faixa ficou sem dados): é o "picote" dos bipes
-            val underruns = try {
-                track.underrunCount
+            // Deixa o último bipe terminar antes de soltar
+            try {
+                Thread.sleep(120)
             } catch (e: Exception) {
-                -1
             }
             try {
-                track.stop()
+                played?.stop()
             } catch (e: Exception) {
             }
-            track.release()
+            played?.release()
             if (mine == generation) {
                 am.abandonAudioFocusRequest(focus)
-                log("bipes: desligados ($beeps bipes, $underruns falhas de áudio)")
+                log("bipes: desligados ($beeps bipes)")
             } else {
                 log("bipes: laço preso terminou depois de substituído ($beeps bipes)")
             }
@@ -184,12 +199,6 @@ class Alerts(context: Context, private val log: (String) -> Unit = {}) {
         "[volume=${am.getStreamVolume(music)}/${am.getStreamMaxVolume(music)} mudo=${am.isStreamMute(music)} música=${am.isMusicActive} modo=${am.mode}]"
     } catch (e: Exception) {
         "[áudio ilegível: $e]"
-    }
-
-    private fun streamTrack(): AudioTrack {
-        val min = AudioTrack.getMinBufferSize(RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
-        // 0,3 s de folga (eram 0,1 s): aguenta o atraso de uma thread que o sistema atrasou; o ritmo dos bipes muda só 0,3 s depois
-        return AudioTrack(attrs, format(), maxOf(min, RATE * 3 / 10 * 2), AudioTrack.MODE_STREAM, AudioManager.AUDIO_SESSION_ID_GENERATE)
     }
 
     private fun format() = AudioFormat.Builder()
