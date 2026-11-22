@@ -382,6 +382,18 @@ private fun RadarSection(s: HomeState, a: HomeActions) {
             PillButton("Testar o som (7 s)", enabled = true, primary = false) { a.testSound() }
         }
         Txt("Padrão: ${RadarSettings.ZONE_DEFAULT} m e ${RadarSettings.MARGIN_DEFAULT} km/h de margem.", 14, color = p.text3)
+        // Teste: com o FM, o aviso pelo app do rádio online cala o FM; pelo Rumo (como na 0.2.0), o FM só abaixava
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f)) {
+                Txt("Teste: avisos com o FM pelo Rumo", 18, weight = FontWeight.SemiBold)
+                Txt(
+                    "Como na 0.2.0: o FM abaixa e toca junto com o aviso. Risco conhecido: tocar o rádio online logo depois de um " +
+                        "aviso pode fechar o Rumo. Com o rádio online tocando, o aviso continua saindo pelo app dele.",
+                    14, color = p.text2, maxLines = 4,
+                )
+            }
+            PillButton(if (s.alertsViaRumo) "Ligado" else "Desligado", enabled = true, primary = s.alertsViaRumo) { a.setAlertsViaRumo(!s.alertsViaRumo) }
+        }
     }
 }
 

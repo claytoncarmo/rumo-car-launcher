@@ -207,6 +207,8 @@ class HomeState {
     var obdFound by mutableStateOf<List<ObdDevice>>(emptyList())
     var obdSearching by mutableStateOf(false)
     var obdFuelFactor by mutableStateOf(1.0)
+    /** Teste: com o FM (o rádio online parado), os avisos de radar saem pelo próprio Rumo, como na 0.2.0. */
+    var alertsViaRumo by mutableStateOf(false)
     /** Página do cartão inteligente: 0 = Viagem, 1 = Carro. */
     var cardPage by mutableIntStateOf(0)
     var update by mutableStateOf<AppRelease?>(null)
@@ -267,6 +269,8 @@ interface HomeActions {
     /** Muda o ajuste do consumo em [percent] pontos (positivo ou negativo). */
     fun carFuelFactor(percent: Int)
     fun carResetTrip()
+    /** Teste dos avisos com o FM pelo Rumo (ligado/desligado; fica guardado). */
+    fun setAlertsViaRumo(on: Boolean)
     /** Página do cartão inteligente (0 = Viagem, 1 = Carro); fica guardada. */
     fun cardPage(page: Int)
     /** Teste do Bluetooth: adaptador, procura e, com um scanner OBD2 à vista, pareamento e leitura (obd-bluetooth-test.txt). */
