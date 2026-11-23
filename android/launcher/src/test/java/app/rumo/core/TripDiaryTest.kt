@@ -82,6 +82,23 @@ class TripDiaryTest {
     }
 
     @Test
+    fun rangeAverageUsesAtLeastTenKmRead() {
+        fun trip(km: Double, l: Double) = Trip(0, 0, 0, null, null, 0, km, l, 0, null, null)
+        val older = trip(30.0, 3.0)      // 10 km/L
+        val previous = trip(7.0, 0.5)    // 14 km/L
+        // Viagem atual com 1 km lido: soma a anterior (7) e a de antes (30) até passar de 10 km
+        assertEquals((1.0 + 7 + 30) / (0.2 + 0.5 + 3), TripDiary.rangeKmPerLiter(listOf(older, previous, trip(1.0, 0.2)))!!, 1e-9)
+        // Atual com 3 km: 3 + 7 = 10, já basta
+        assertEquals(10.0 / 0.8, TripDiary.rangeKmPerLiter(listOf(older, previous, trip(3.0, 0.3)))!!, 1e-9)
+        // Atual com 25 km: só ela, inteira
+        assertEquals(25.0 / 2.0, TripDiary.rangeKmPerLiter(listOf(older, previous, trip(25.0, 2.0)))!!, 1e-9)
+        // Diário curto: usa o que tem; sem combustível lido, nada
+        assertEquals(2.0 / 0.2, TripDiary.rangeKmPerLiter(listOf(trip(2.0, 0.2)))!!, 1e-9)
+        assertNull(TripDiary.rangeKmPerLiter(listOf(trip(0.1, 0.01))))
+        assertNull(TripDiary.rangeKmPerLiter(emptyList()))
+    }
+
+    @Test
     fun summaryAndFile() {
         val zone = ZoneId.of("America/Sao_Paulo")
         val today = LocalDate.of(2026, 11, 25) // quarta-feira

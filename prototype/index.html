@@ -1616,12 +1616,14 @@ function updateTrip() {
   $('#tvTimeL').textContent = o ? 'tempo' : 'em movimento';
   const box = $('#tvRangeBox');
   if (o) {
-    // Autonomia: o que sobra no tanque pela média da viagem atual (no começo dela, com pouco lido, a da semana);
-    // o sensor do tanque é grosso: arredonda a 10 km
-    const kml = car.dL >= 0.2 ? car.dKm / car.dL : wk;
+    // Autonomia: o que sobra no tanque pela média de pelo menos os últimos 10 km lidos (a viagem atual, completada
+    // pelas anteriores enquanto ela é curta); o sensor do tanque é grosso: arredonda a 10 km
+    let km = car.dKm, l = car.dL;
+    for (const t of car.trips) { if (km >= 10) break; km += t.km; l += t.l; }
+    const kml = l > 0.05 ? km / l : null;
     const left = o.tank / 100 * (+settings.tankL || 45), range = kml != null ? Math.round(left * kml / 10) * 10 : null;
-    $('#tvRange').textContent = range != null ? `≈ ${NF0.format(range)} km` : '--';
-    $('#tvRangeL').textContent = o.tank < 12 ? 'autonomia · reserva' : 'autonomia';
+    $('#tvRange').textContent = range != null ? `${NF0.format(range)} km` : '--';
+    $('#tvRangeL').textContent = o.tank < 12 ? 'reserva' : 'autonomia';
     box.classList.toggle('low', o.tank < 12);
   } else {
     $('#tvRange').textContent = `${secs > 5 ? Math.round(km / secs * 3600) : 0} km/h`;

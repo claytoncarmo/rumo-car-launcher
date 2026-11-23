@@ -225,6 +225,8 @@ class HomeState {
     /** Jeito de dirigir: nota de 0 (econômico) a 100 (agressivo) e o rótulo. */
     var drivingScore by mutableStateOf(0.0)
     var drivingLabel by mutableStateOf(DrivingLabel.ECONOMIC)
+    /** Nível do tanque suavizado (%), lido pelo scanner; null sem leitura. */
+    var tankPct by mutableStateOf<Double?>(null)
     /** Diário de viagens, da mais antiga à mais nova (a última pode estar em andamento). */
     var trips by mutableStateOf<List<app.rumo.core.Trip>>(emptyList())
     /** Backup das configurações: os achados (memória interna e pendrive), o resultado da última ação e se há uma em curso. */
@@ -1031,14 +1033,14 @@ private fun ColumnScope.TripPage(s: HomeState, a: HomeActions) {
             if (live) {
                 Stat(trip?.let { formatKm(it.km * 1000) } ?: "--", "distância", Modifier.weight(1f))
                 Stat(trip?.let { formatDuration(it.engineSeconds * 1000L) } ?: "--", "tempo", Modifier.weight(1f))
-                // Autonomia: o que resta no tanque pela média da viagem atual (no começo dela, com pouco lido, a da
-                // semana). O sensor do tanque é grosso: arredonda a 10 km
-                val tank = o.number(0x2F)
-                val kml = trip?.takeIf { it.liters >= MIN_TRIP_LITERS }?.kmPerLiter ?: week
+                // Autonomia: o que resta no tanque (suavizado) pela média de pelo menos os últimos 10 km lidos (a viagem
+                // atual, completada pelas anteriores enquanto ela é curta). O sensor do tanque é grosso: arredonda a 10 km
+                val tank = s.tankPct
+                val kml = remember(s.trips) { TripDiary.rangeKmPerLiter(s.trips) }
                 val range = if (tank != null && kml != null) Math.round(tank / 100 * s.tankLiters * kml / 10) * 10 else null
                 val low = tank != null && tank < LOW_TANK_PCT
                 Stat(
-                    range?.let { String.format(PT_BR, "≈ %,d km", it) } ?: "--", if (low) "autonomia · reserva" else "autonomia",
+                    range?.let { String.format(PT_BR, "%,d km", it) } ?: "--", if (low) "reserva" else "autonomia",
                     Modifier.weight(1f), valueColor = if (low) p.danger else p.text,
                 )
             } else {
@@ -1052,8 +1054,6 @@ private fun ColumnScope.TripPage(s: HomeState, a: HomeActions) {
 
 /** A última viagem do diário ainda está em andamento se teve leitura há menos que isto. */
 private const val LIVE_TRIP_MS = 120_000L
-/** Com menos combustível lido que isto na viagem, a autonomia usa a média da semana. */
-private const val MIN_TRIP_LITERS = 0.2
 private const val LOW_TANK_PCT = 12.0
 /** Mostradores: velocidade até 160 km/h; rotação até 8.000, com a faixa vermelha a partir de 6.250. */
 private const val GAUGE_MAX_KMH = 160f

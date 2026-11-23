@@ -142,6 +142,25 @@ class TripDiary(trips: List<Trip> = emptyList()) {
 
         private fun maxOfNullable(a: Int?, b: Int?): Int? = if (a == null) b else if (b == null) a else maxOf(a, b)
 
+        /**
+         * Média de consumo para a autonomia: a viagem atual inteira (a última da lista) se ela já leu [minKm]; senão soma
+         * as anteriores, da mais nova para trás, até juntar [minKm] lidos. Assim o começo de uma viagem não faz a conta
+         * pular, e uma viagem longa (estrada ou cidade) vale por ela mesma. Null sem combustível lido suficiente.
+         */
+        fun rangeKmPerLiter(trips: List<Trip>, minKm: Double = RANGE_MIN_KM): Double? {
+            var km = 0.0
+            var liters = 0.0
+            for (t in trips.asReversed()) {
+                km += t.seenKm
+                liters += t.liters
+                if (km >= minKm) break
+            }
+            return if (liters < 0.05) null else km / liters
+        }
+
+        /** Mínimo de km lidos para a média da autonomia. */
+        const val RANGE_MIN_KM = 10.0
+
         /** Totais das viagens que começaram entre [from] (inclusive) e [until] (exclusive). */
         fun summary(trips: List<Trip>, from: Long, until: Long): TripSummary {
             val sel = trips.filter { it.start in from until until }

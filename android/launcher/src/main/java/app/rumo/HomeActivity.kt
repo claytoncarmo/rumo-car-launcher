@@ -61,6 +61,7 @@ import app.rumo.core.OilPlan
 import app.rumo.core.OilType
 import app.rumo.core.TripDiary
 import app.rumo.core.DrivingStyle
+import app.rumo.core.FuelLevel
 import app.rumo.core.TripReading
 import app.rumo.device.ObdLink
 import app.rumo.device.ObdScan
@@ -1768,6 +1769,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var carSpeedAt = 0L
     private val drivingStyle = DrivingStyle()
     private var drivingAt = 0L
+    private val fuelLevel = FuelLevel()
 
     /** A velocidade do carro, se o scanner a leu há pouco; senão null (vale a do GPS). */
     private fun carSpeedFresh(): Int? = carSpeed?.takeIf { SystemClock.elapsedRealtime() - carSpeedAt < CAR_SPEED_FRESH_MS }
@@ -1789,6 +1791,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
         drivingStyle.update(dt, v, snap.number(0x0C), snap.number(0x11))
         state.drivingScore = drivingStyle.score
         state.drivingLabel = drivingStyle.label
+        // Nível do tanque suavizado (a boia balança), para a autonomia
+        snap.number(0x2F)?.let { fuelLevel.update(it, dt) }
+        state.tankPct = fuelLevel.percent
     }
 
     private fun onObdSnapshot(snap: app.rumo.device.ObdSnapshot) {
