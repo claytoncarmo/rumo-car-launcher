@@ -89,6 +89,7 @@ class BackupTest {
     fun backupNames() {
         assertTrue(Backup.isBackupName("rumo-backup.txt"))
         assertTrue(Backup.isBackupName("rumo-backup-anterior.txt"))
+        assertTrue(Backup.isBackupName("rumo-backup-previous.txt"))
         assertTrue(Backup.isBackupName("rumo-backup (1).txt"))
         assertFalse(Backup.isBackupName("rumo-backup.txt.tmp"))
         assertFalse(Backup.isBackupName("alertas.log"))

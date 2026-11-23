@@ -16,7 +16,7 @@ package app.rumo.core
  */
 object Backup {
     const val FILE = "rumo-backup.txt"
-    const val FILE_PREVIOUS = "rumo-backup-anterior.txt"
+    const val FILE_PREVIOUS = "rumo-backup-previous.txt"
     private const val MAGIC = "rumo-backup"
     private const val FORMAT = 1
     private const val LIST_SEPARATOR = '\u001f'
@@ -36,7 +36,7 @@ object Backup {
     /** Arquivos do dono que entram (pontos marcados e diário de viagens). */
     val FILES: Set<String> = setOf(UserPoints.FILE, "trips.csv")
 
-    /** `rumo-backup.txt`, `rumo-backup-anterior.txt` ou uma cópia renomeada (`rumo-backup (1).txt`). */
+    /** `rumo-backup.txt`, `rumo-backup-previous.txt`, o antigo `rumo-backup-anterior.txt` ou uma cópia renomeada (`rumo-backup (1).txt`). */
     fun isBackupName(name: String): Boolean = name.startsWith("rumo-backup") && name.endsWith(".txt")
 
     /** O conteúdo lido de um backup. */

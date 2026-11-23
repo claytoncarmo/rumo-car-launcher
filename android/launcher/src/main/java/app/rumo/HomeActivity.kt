@@ -61,6 +61,7 @@ import app.rumo.core.OilPlan
 import app.rumo.core.OilType
 import app.rumo.core.TripDiary
 import app.rumo.core.DrivingStyle
+import app.rumo.core.DrivingLabel
 import app.rumo.core.FuelLevel
 import app.rumo.core.TripReading
 import app.rumo.device.ObdLink
@@ -164,8 +165,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private lateinit var gps: Gps
     private lateinit var alerts: Alerts
     private val alertLog = AlertLog()
-    // Registro do scanner com a chave desligada (Rumo/obd-ignicao.log): quando o carro e o scanner deixam de responder
-    private val obdLog = AlertLog("obd-ignicao.log", "obd-ignicao-anterior.log")
+    // Registro do scanner com a chave desligada (Rumo/obd-ignition.log): quando o carro e o scanner deixam de responder
+    private val obdLog = AlertLog("obd-ignition.log", "obd-ignition-previous.log")
+    // Registro do jeito de dirigir (Rumo/driving.log): o que somou pontos e um resumo por minuto, para calibrar
+    private val drivingLog = AlertLog("driving.log", "driving-previous.log")
     private var obdLogStatus: app.rumo.device.ObdStatus? = null
     private var obdLogBeatAt = 0L
     private var obdLogCopyAt = 0L
@@ -508,6 +511,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         obd.stop()
         saveDiary()
         obdLog.copyTo(this, getExternalFilesDirs(null).drop(1).filterNotNull())
+        drivingLog.copyTo(this, getExternalFilesDirs(null).drop(1).filterNotNull())
         cancelObdSearch?.invoke()
         state.radar = null
         loggedGps = null
@@ -1769,6 +1773,15 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var carSpeedAt = 0L
     private val drivingStyle = DrivingStyle()
     private var drivingAt = 0L
+    // Resumo do minuto no registro do jeito de dirigir
+    private var drivingMinuteAt = 0L
+    private var drivingReads = 0
+    private var drivingDtSum = 0.0
+    private var drivingMaxAccel = 0.0
+    private var drivingMaxBrake = 0.0
+    private var drivingMaxRpm = 0.0
+    private var drivingMaxThrottle = 0.0
+    private var drivingCopyAt = 0L
     private val fuelLevel = FuelLevel()
 
     /** A velocidade do carro, se o scanner a leu há pouco; senão null (vale a do GPS). */
@@ -1788,12 +1801,59 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }
         val dt = if (drivingAt == 0L) 0.0 else (now - drivingAt) / 1000.0
         drivingAt = now
-        drivingStyle.update(dt, v, snap.number(0x0C), snap.number(0x11))
+        val rpm = snap.number(0x0C)
+        val throttle = snap.number(0x11)
+        val before = drivingStyle.label
+        drivingStyle.update(dt, v, rpm, throttle)
         state.drivingScore = drivingStyle.score
         state.drivingLabel = drivingStyle.label
+        logDriving(now, dt, v, rpm, throttle, before)
         // Nível do tanque suavizado (a boia balança), para a autonomia
         snap.number(0x2F)?.let { fuelLevel.update(it, dt) }
         state.tankPct = fuelLevel.percent
+    }
+
+    /** Registro do jeito de dirigir: cada leitura que somou pontos, a troca de rótulo e um resumo por minuto. */
+    private fun logDriving(now: Long, dt: Double, speed: Double, rpm: Double?, throttle: Double?, before: DrivingLabel) {
+        val d = drivingStyle
+        if (dt > 0 && dt <= DrivingStyle.MAX_STEP_S) {
+            drivingReads++
+            drivingDtSum += dt
+            drivingMaxAccel = maxOf(drivingMaxAccel, d.lastAccel)
+            drivingMaxBrake = minOf(drivingMaxBrake, d.lastAccel)
+            rpm?.let { drivingMaxRpm = maxOf(drivingMaxRpm, it) }
+            throttle?.let { drivingMaxThrottle = maxOf(drivingMaxThrottle, it) }
+        }
+        if (d.lastRate > 0) {
+            drivingLog.add(
+                String.format(
+                    PT_BR, "pontos: %.0f km/h, aceleração %+.1f m/s², %s rpm, acelerador %s, intervalo %.1f s → +%.0f/s, nota %.0f",
+                    speed, d.lastAccel, rpm?.let { "%.0f".format(it) } ?: "--", throttle?.let { "%.0f %%".format(it) } ?: "--", dt, d.lastRate, d.score,
+                ),
+            )
+        }
+        if (d.label != before) drivingLog.add(String.format(PT_BR, "rótulo: %s (nota %.0f)", d.label.text, d.score))
+        if (drivingMinuteAt == 0L) drivingMinuteAt = now
+        if (now - drivingMinuteAt >= 60_000L) {
+            drivingLog.add(
+                String.format(
+                    PT_BR, "minuto: nota %.0f (%s), %d leituras, intervalo médio %.1f s, maior aceleração %+.1f e freada %.1f m/s², giro até %.0f, acelerador até %.0f %%",
+                    d.score, d.label.text, drivingReads, if (drivingReads > 0) drivingDtSum / drivingReads else 0.0,
+                    drivingMaxAccel, drivingMaxBrake, drivingMaxRpm, drivingMaxThrottle,
+                ),
+            )
+            drivingMinuteAt = now
+            drivingReads = 0
+            drivingDtSum = 0.0
+            drivingMaxAccel = 0.0
+            drivingMaxBrake = 0.0
+            drivingMaxRpm = 0.0
+            drivingMaxThrottle = 0.0
+        }
+        if (now - drivingCopyAt > OBD_COPY_MS) {
+            drivingCopyAt = now
+            drivingLog.copyTo(this, getExternalFilesDirs(null).drop(1).filterNotNull())
+        }
     }
 
     private fun onObdSnapshot(snap: app.rumo.device.ObdSnapshot) {
