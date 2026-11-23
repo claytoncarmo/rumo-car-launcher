@@ -121,6 +121,9 @@ enum class Source { NONE, ZLINK, RADIO, WEB, OTHER }
 enum class MapStatus { LOADING, NO_PERMISSION, MISSING, READY }
 
 /** Estado da tela inicial: o HomeActivity alimenta; a interface lê e troca a folha aberta. */
+/** Um backup achado: [label] (data e hora), [detail] (onde está, versão e o que tem). */
+class BackupFound(val path: String, val label: String, val detail: String)
+
 class HomeState {
     var now by mutableStateOf(LocalDateTime.now())
     var gps by mutableStateOf(GpsInfo())
@@ -215,6 +218,10 @@ class HomeState {
     var odometerKm by mutableStateOf<Double?>(null)
     /** Diário de viagens, da mais antiga à mais nova (a última pode estar em andamento). */
     var trips by mutableStateOf<List<app.rumo.core.Trip>>(emptyList())
+    /** Backup das configurações: os achados (memória interna e pendrive), o resultado da última ação e se há uma em curso. */
+    var backupFound by mutableStateOf<List<BackupFound>>(emptyList())
+    var backupNote by mutableStateOf<String?>(null)
+    var backupBusy by mutableStateOf(false)
     /** Teste: com o FM (o rádio online parado), os avisos de radar saem pelo próprio Rumo, como na 0.2.0. */
     var alertsViaRumo by mutableStateOf(false)
     /** Página do cartão inteligente: 0 = Viagem, 1 = Carro. */
@@ -288,6 +295,12 @@ interface HomeActions {
     fun maintForget()
     /** Apaga o diário de viagens. */
     fun diaryClear()
+    /** Grava o backup das configurações na pasta Rumo (memória interna e pendrive). */
+    fun backupSave()
+    /** Procura backups na memória interna e no pendrive. */
+    fun backupScan()
+    /** Restaura o backup do arquivo [path] (um dos achados) e reinicia a tela inicial. */
+    fun backupRestore(path: String)
     /** Teste dos avisos com o FM pelo Rumo (ligado/desligado; fica guardado). */
     fun setAlertsViaRumo(on: Boolean)
     /** Página do cartão inteligente (0 = Viagem, 1 = Carro); fica guardada. */

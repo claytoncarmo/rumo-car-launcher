@@ -94,6 +94,8 @@ import app.rumo.core.radioPlayStarts
 import app.rumo.core.shouldResumeRadio
 import app.rumo.core.UserPoint
 import app.rumo.core.UserPoints
+import app.rumo.core.Backup
+import app.rumo.ui.BackupFound
 import app.rumo.core.RoadMatch
 import app.rumo.core.RoadMatcher
 import app.rumo.device.Aidl
@@ -145,6 +147,8 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.Executors
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -258,6 +262,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
     // Diário de viagens (arquivo interno, uma viagem por linha)
     private val diaryFile by lazy { File(filesDir, "trips.csv") }
     private lateinit var diary: TripDiary
+    // Restauração de backup em curso: a tela é recriada e a nova aplica o backup antes de ler qualquer coisa
+    @Volatile private var restoring = false
+    private val restorePending by lazy { File(filesDir, "restore-pending.txt") }
     private var diarySavedAt = 0L
     private var odometerKnown = false
     private var cancelObdSearch: (() -> Unit)? = null
@@ -292,6 +299,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Backup escolhido na tela anterior: aplica antes de ler as configurações abaixo
+        val restoreNote = applyPendingRestore()
         // Fechou com erro: o relatório vai para a pasta Rumo e o pendrive, com os últimos comandos do rádio
         CrashReport.install(this)
         // Sessão anterior que não passou pelo onStop: o processo foi encerrado com o Rumo na tela
@@ -376,6 +385,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             }
             if (crashed) state.toast = "O Rumo foi fechado da última vez: relatório em Rumo/${CrashReport.FILE}"
         }
+        restoreNote?.let { state.toast = it }
         hideSystemBars()
         setContent { HomeScreen(state, this) }
 
@@ -1770,10 +1780,123 @@ class HomeActivity : ComponentActivity(), HomeActions {
 
     /** Grava o diário fora da thread principal (a última viagem vai junto, mesmo em andamento). */
     private fun saveDiary() {
-        if (!::diary.isInitialized) return
+        // Restaurando um backup: o diário do backup é que vale, não o da memória
+        if (!::diary.isInitialized || restoring) return
         diarySavedAt = System.currentTimeMillis()
         val text = TripDiary.encode(diary.trips)
         logWriter.execute { SavedFiles.write(null, diaryFile, text) }
+    }
+
+    // ---- backup das configurações (pasta Rumo da memória interna e pendrive) ----
+
+    /** Onde o backup mora: a pasta Rumo da memória interna (sobrevive a desinstalar o app) e a do app em cada pendrive. */
+    private fun backupDirs(): List<File> {
+        @Suppress("DEPRECATION")
+        val internal = File(Environment.getExternalStorageDirectory(), MapData.FOLDER)
+        return listOf(internal) + getExternalFilesDirs(null).drop(1).filterNotNull()
+    }
+
+    /** Os backups achados, do mais novo ao mais velho; o mesmo backup em dois lugares aparece uma vez. */
+    private fun findBackups(): List<BackupFound> {
+        class Hit(val path: String, val at: String, val version: String, val where: String, val settings: Int, val files: Int)
+        val hits = ArrayList<Hit>()
+        backupDirs().forEachIndexed { i, dir ->
+            dir.listFiles()?.filter { it.isFile && Backup.isBackupName(it.name) }?.forEach { f ->
+                val c = runCatching { Backup.decode(f.readText()) }.getOrNull() ?: return@forEach
+                hits += Hit(f.path, c.at, c.appVersion, if (i == 0) "memória interna" else "pendrive", c.prefs.size, c.files.size)
+            }
+        }
+        val shown = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+        return hits.groupBy { it.at + it.version }.values
+            .sortedByDescending { it.first().at }
+            .take(4)
+            .map { same ->
+                val h = same.first()
+                val label = runCatching { LocalDateTime.parse(h.at).format(shown) }.getOrDefault(h.at)
+                val where = same.map { it.where }.distinct().joinToString(" e ")
+                BackupFound(h.path, label, "$where · ${h.version} · ${h.settings} configurações e ${h.files} arquivos")
+            }
+    }
+
+    override fun backupScan() {
+        lifecycleScope.launch { state.backupFound = withContext(Dispatchers.IO) { findBackups() } }
+    }
+
+    override fun backupSave() {
+        if (state.backupBusy) return
+        state.backupBusy = true
+        // O que está na memória é lido aqui, na thread principal (a gravação é fora dela)
+        val allPrefs = prefs.all.filterKeys { it in Backup.PREF_KEYS }
+        val trips = state.trips
+        val version = state.appVersion
+        lifecycleScope.launch {
+            val note = withContext(Dispatchers.IO) {
+                val files = LinkedHashMap<String, String>()
+                pointsStore.load().takeIf { it.isNotEmpty() }?.let { files[UserPoints.FILE] = UserPoints.encode(it) }
+                if (trips.isNotEmpty()) files[diaryFile.name] = TripDiary.encode(trips)
+                val text = Backup.encode(version, LocalDateTime.now().withNano(0).toString(), allPrefs, files)
+                val dirs = backupDirs()
+                val saved = dirs.mapIndexedNotNull { i, dir ->
+                    // O backup anterior fica de lado: um backup feito sem querer (com tudo no padrão) não apaga o bom
+                    val target = File(dir, Backup.FILE)
+                    if (target.isFile) SavedFiles.copy(this@HomeActivity, target, File(dir, Backup.FILE_PREVIOUS))
+                    if (SavedFiles.write(this@HomeActivity, target, text)) i else null
+                }
+                when {
+                    saved.isEmpty() -> "Não consegui gravar o backup."
+                    saved.size > 1 -> "Backup gravado na memória interna e no pendrive: ${allPrefs.size} configurações e ${files.size} arquivos."
+                    saved.first() == 0 -> "Backup gravado só na memória interna (sem pendrive): ${allPrefs.size} configurações e ${files.size} arquivos."
+                    else -> "Backup gravado só no pendrive: ${allPrefs.size} configurações e ${files.size} arquivos."
+                }
+            }
+            state.backupNote = note
+            state.backupFound = withContext(Dispatchers.IO) { findBackups() }
+            state.backupBusy = false
+        }
+    }
+
+    override fun backupRestore(path: String) {
+        if (state.backupBusy || state.backupFound.none { it.path == path }) return
+        state.backupBusy = true
+        lifecycleScope.launch {
+            val text = withContext(Dispatchers.IO) {
+                val raw = runCatching { File(path).readText() }.getOrNull()
+                // Só segue com um arquivo que é mesmo um backup; o texto vai para um arquivo à espera da tela nova
+                raw?.takeIf { Backup.decode(it) != null }?.takeIf { SavedFiles.write(null, restorePending, it) }
+            }
+            if (text == null) {
+                state.backupNote = "Não consegui ler esse backup."
+                state.backupBusy = false
+                return@launch
+            }
+            // A tela recriada aplica o backup antes de ler as configurações: a atual não grava nada por cima
+            restoring = true
+            recreate()
+        }
+    }
+
+    /** Aplica o backup à espera (se houver) nas preferências e nos arquivos; devolve o aviso para a tela. */
+    private fun applyPendingRestore(): String? {
+        if (!restorePending.isFile) return null
+        val text = runCatching { restorePending.readText() }.getOrNull()
+        // Apaga antes de aplicar: se algo der errado, não tenta de novo a cada abertura
+        restorePending.delete()
+        val c = text?.let { Backup.decode(it) } ?: return "Backup ilegível: nada foi restaurado"
+        val e = prefs.edit()
+        for ((key, value) in c.prefs) {
+            when (value) {
+                is String -> e.putString(key, value)
+                is Int -> e.putInt(key, value)
+                is Long -> e.putLong(key, value)
+                is Float -> e.putFloat(key, value)
+                is Boolean -> e.putBoolean(key, value)
+                is Set<*> -> e.putStringSet(key, value.filterIsInstance<String>().toSet())
+            }
+        }
+        e.commit()
+        c.files[UserPoints.FILE]?.let { pointsStore.save(UserPoints.decode(it)) }
+        c.files[diaryFile.name]?.let { SavedFiles.write(null, diaryFile, it) }
+        return "Configurações restauradas: ${c.prefs.size} configurações e ${c.files.size} arquivos"
     }
 
     override fun diaryClear() {

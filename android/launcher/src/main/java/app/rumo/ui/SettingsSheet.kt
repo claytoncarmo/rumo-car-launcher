@@ -135,7 +135,16 @@ fun SettingsSheet(s: HomeState, a: HomeActions) {
             horizontalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             TabColumn { if (tab == SettingsTab.SETTINGS) RadarSection(s, a) else if (tab == SettingsTab.UPDATES) AppSection(s, a) else DiagnosticsSection(s, a) }
-            TabColumn { if (tab == SettingsTab.SETTINGS) SystemSection(a) else if (tab == SettingsTab.UPDATES) DataSection(s, a) else VersionSection(s) }
+            TabColumn {
+                if (tab == SettingsTab.SETTINGS) {
+                    SystemSection(a)
+                    BackupSection(s, a)
+                } else if (tab == SettingsTab.UPDATES) {
+                    DataSection(s, a)
+                } else {
+                    VersionSection(s)
+                }
+            }
         }
     }
 }
@@ -438,6 +447,58 @@ private fun VersionSection(s: HomeState) {
         Txt("Rumo ${s.appVersion}", 22, weight = FontWeight.SemiBold)
         Txt("Canal ${installedChannelLabel(s.appVersion)} · código ${s.appCode}", 16, color = p.text2)
         Txt("Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) · ${Build.MODEL}", 16, color = p.text2, maxLines = 2)
+    }
+}
+
+/**
+ * Backup das configurações no pendrive: grava o que o dono configurou (e os pontos e o diário dele) num arquivo de texto
+ * e restaura de um dos backups achados. Restaurar pede um segundo toque e reinicia a tela inicial.
+ */
+@Composable
+private fun BackupSection(s: HomeState, a: HomeActions) {
+    val p = LocalPalette.current
+    var armed by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) { a.backupScan() }
+    LaunchedEffect(armed) {
+        if (armed != null) {
+            delay(CONFIRM_MS)
+            armed = null
+        }
+    }
+    SectionCard("Backup das configurações") {
+        Txt(
+            "Guarda avisos de radar, tema, favoritas do rádio, scanner, troca de óleo, pontos marcados e diário de viagens " +
+                "na pasta Rumo da memória interna e no pendrive. Os mapas não entram.",
+            16, color = p.text2, maxLines = 5,
+        )
+        Row { PillButton(if (s.backupBusy) "Aguarde…" else "Fazer backup agora", enabled = !s.backupBusy, primary = true) { a.backupSave() } }
+        s.backupNote?.let { Txt(it, 15, color = p.text2, maxLines = 4) }
+        if (s.backupFound.isEmpty()) {
+            Txt("Nenhum backup encontrado na memória interna nem no pendrive.", 15, color = p.text3, maxLines = 2)
+        } else {
+            Txt("Backups encontrados", 15, color = p.text2, weight = FontWeight.SemiBold)
+            s.backupFound.forEach { b ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Txt(b.label, 19, weight = FontWeight.SemiBold)
+                        Txt(b.detail, 14, color = p.text3, maxLines = 2)
+                    }
+                    PillButton(if (armed == b.path) "Toque de novo" else "Restaurar", enabled = !s.backupBusy, primary = armed == b.path) {
+                        if (armed == b.path) {
+                            armed = null
+                            a.backupRestore(b.path)
+                        } else {
+                            armed = b.path
+                        }
+                    }
+                }
+            }
+        }
+        Txt(
+            "Restaurar troca as configurações de agora pelas do backup e reinicia a tela inicial. Depois de reinstalar o " +
+                "Rumo, o backup da memória interna continua lá.",
+            14, color = p.text3, maxLines = 4,
+        )
     }
 }
 

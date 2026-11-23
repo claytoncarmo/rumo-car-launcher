@@ -2,7 +2,6 @@
 
 - Rádio online pelo Wi-Fi, num app à parte instalado pela tela de rádio
 - Relatório no pendrive quando o Rumo fecha com erro
-- Página Carro: rotação, temperatura, tanque e consumo pelo scanner OBD2
-- Lembrete de troca de óleo pelo tipo do óleo e pelos km do carro
-- Diário de viagens: distância, tempo e consumo de cada viagem
+- Página Carro: consumo, troca de óleo e diário de viagens
+- Backup e restauração das configurações pelo pendrive
 - Correções de erros

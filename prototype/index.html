@@ -662,6 +662,13 @@ body.embed .app{padding-block:8px;gap:8px}
 
 /* Configurações da home */
 .st-cols{display:flex;gap:20px;padding:0 28px 22px;flex:1;min-height:0}
+.st-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px;overflow:auto;scrollbar-width:none}
+.st-col::-webkit-scrollbar{display:none}
+.st-col .scard{flex:none}
+.bk-row{display:flex;align-items:center;gap:12px}
+.bk-row > div:first-child{flex:1;min-width:0}
+.bk-row b{display:block;font-size:19px;font-weight:600}
+.bk-row small{display:block;font-size:14px;color:var(--text-3)}
 .scard{flex:1;min-width:0;background:var(--surface-2);border-radius:24px;padding:20px;display:flex;flex-direction:column;gap:16px;overflow:auto;scrollbar-width:none}
 .scard::-webkit-scrollbar{display:none}
 .scard h3{margin:0;font-size:15px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-2)}
@@ -2394,11 +2401,35 @@ function settingsMain() {
       <div><button class="btn-pill press" data-act="radar-default" ${isDef ? 'disabled' : ''}>Restaurar o padrão</button></div>
       <p class="note">Padrão: ${ZONE.def} m e ${MARGIN.def} km/h de margem.</p>
     </div>
-    <div class="scard"><h3>Sistema</h3>
+    <div class="st-col"><div class="scard"><h3>Sistema</h3>
       <div class="srow"><div><b>Reiniciar o Android</b><small>Reinicia o Android do aparelho (como desligar e ligar). Funciona só com o carro parado.</small></div>
         <button class="btn-pill press ${state.armed === 'reboot' ? 'primary' : ''}" data-act="reboot">${state.armed === 'reboot' ? 'Toque de novo' : 'Reiniciar'}</button></div>
       <div class="srow"><div><b>Tema</b><small>Automático segue o farol do carro; o botão ao lado do relógio alterna entre automático, escuro e claro.</small></div></div>
-    </div></div>`;
+    </div>
+    ${backupCardHTML()}</div></div>`;
+}
+
+/* Backup das configurações: no app grava um arquivo de texto na pasta Rumo (memória interna e pendrive) */
+const backup = { note: null, list: null };
+const bkStamp = d => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+function backupList() {
+  if (!backup.list) {
+    const d = new Date(Date.now() - 2 * 86400000);
+    backup.list = [{ at: bkStamp(d), where: 'memória interna e pendrive', version: 'Rumo ' + APP_VERSION, n: 23, f: 2 }];
+  }
+  return backup.list;
+}
+function backupCardHTML() {
+  const list = backupList();
+  return `<div class="scard"><h3>Backup das configurações</h3>
+    <p class="note">Guarda avisos de radar, tema, favoritas do rádio, scanner, troca de óleo, pontos marcados e diário de viagens na pasta Rumo da memória interna e no pendrive. Os mapas não entram.</p>
+    <div><button class="btn-pill primary press" data-act="bk-save">Fazer backup agora</button></div>
+    ${backup.note ? `<p class="note">${backup.note}</p>` : ''}
+    <p class="note"><b>Backups encontrados</b></p>
+    ${list.map((b, i) => `<div class="bk-row"><div><b>${b.at}</b><small>${b.where} · ${b.version} · ${b.n} configurações e ${b.f} arquivos</small></div>
+      <button class="btn-pill press ${state.armed === 'bk' + i ? 'primary' : ''}" data-act="bk-restore" data-i="${i}">${state.armed === 'bk' + i ? 'Toque de novo' : 'Restaurar'}</button></div>`).join('')}
+    <p class="note">Restaurar troca as configurações de agora pelas do backup e reinicia a tela inicial. Depois de reinstalar o Rumo, o backup da memória interna continua lá.</p>
+  </div>`;
 }
 function settingsUpdates() {
   return `<div class="st-cols">
@@ -2544,6 +2575,18 @@ const ACT = {
   'margin-dec': () => { settings.radarMargin = Math.max(MARGIN.min, settings.radarMargin - 1); applySettings(); renderSheet(); },
   'margin-inc': () => { settings.radarMargin = Math.min(MARGIN.max, settings.radarMargin + 1); applySettings(); renderSheet(); },
   'radar-default': () => { settings.radarDist = ZONE.def; settings.radarMargin = MARGIN.def; applySettings(); renderSheet(); },
+  'bk-save': () => {
+    const list = backupList();
+    list.unshift({ at: bkStamp(new Date()), where: 'memória interna e pendrive', version: 'Rumo ' + APP_VERSION, n: 23, f: 2 });
+    list.splice(4);
+    backup.note = 'Backup gravado na memória interna e no pendrive: 23 configurações e 2 arquivos.';
+    renderSheet();
+  },
+  'bk-restore': el => {
+    const k = 'bk' + el.dataset.i;
+    if (state.armed === k) { state.armed = null; backup.note = 'Configurações restauradas.'; toast('Configurações restauradas', 'check'); renderSheet(); }
+    else { state.armed = k; renderSheet(); }
+  },
   reboot: () => { if (state.armed === 'reboot') { state.armed = null; toast('No carro, o Android reinicia agora', 'power'); renderSheet(); } else { state.armed = 'reboot'; renderSheet(); } },
   'fake-install': () => toast('No aparelho: baixa pelo Wi-Fi, confere o SHA-256 e instala', 'external'),
   'del-point': el => { const u = +el.dataset.u; if (state.armed === 'del' + u) removePoint(u); else { state.armed = 'del' + u; renderSheet(); } },
