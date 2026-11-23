@@ -54,4 +54,47 @@ class Elm327Test {
         assertEquals(14.0, Elm327.voltage("14V")!!, 1e-9)
         assertNull(Elm327.voltage("?"))
     }
+
+    @Test
+    fun buildsGroupedRequests() {
+        assertEquals("010C0D", Elm327.request(listOf(0x0C, 0x0D), oneReply = false))
+        assertEquals("010C0D1", Elm327.request(listOf(0x0C, 0x0D), oneReply = true))
+        assertEquals("010D1", Elm327.request(listOf(0x0D), oneReply = true))
+    }
+
+    @Test
+    fun groupsFitInOneCanFrame() {
+        // Rotação (2) + velocidade (1) = 41 0C xx xx 0D xx (6 bytes); ar (2) + pedal (1) = 6; carga, temperatura e tanque = 7
+        assertEquals(
+            listOf(listOf(0x0C, 0x0D), listOf(0x10, 0x49), listOf(0x04, 0x05, 0x2F)),
+            Elm327.singleFrameGroups(listOf(0x0C, 0x0D, 0x10, 0x49, 0x04, 0x05, 0x2F)),
+        )
+        // PID de tamanho desconhecido fica de fora (vai sozinho)
+        assertEquals(listOf(listOf(0x0D)), Elm327.singleFrameGroups(listOf(0x0D, 0xA6)))
+        assertEquals(emptyList<List<Int>>(), Elm327.singleFrameGroups(emptyList()))
+    }
+
+    @Test
+    fun readsSeveralPidsInOneAnswer() {
+        // Quadro único (até 7 bytes): rotação 0B1A (710 rpm) e velocidade 32 (50 km/h)
+        val one = Elm327.multiPayload("410C0B1A0D32\r\r>")
+        assertEquals(listOf(0x0B, 0x1A), one[0x0C])
+        assertEquals(listOf(0x32), one[0x0D])
+        // Em quadros (CAN, mais de 7 bytes), com espaços e o enchimento depois do tamanho
+        val multi = Elm327.multiPayload("00E\r0: 41 0C 0B 1A 0D 32\r1: 10 01 F4 49 25 04\r2: 33 AA AA AA AA AA\r\r>")
+        assertEquals(listOf(0x01, 0xF4), multi[0x10])
+        assertEquals(listOf(0x25), multi[0x49])
+        assertEquals(listOf(0x33), multi[0x04])
+        assertEquals(5, multi.size)
+        // Duas centrais respondem: vale a primeira de cada PID, e o que só a segunda tem também entra
+        val two = Elm327.multiPayload("410D32\r410C0B1A0D33\r>")
+        assertEquals(listOf(0x32), two[0x0D])
+        assertEquals(listOf(0x0B, 0x1A), two[0x0C])
+        // Sem dados, erro ou PID de tamanho desconhecido
+        assertTrue(Elm327.multiPayload("NO DATA\r>").isEmpty())
+        assertTrue(Elm327.multiPayload("?\r>").isEmpty())
+        assertEquals(setOf(0x0D), Elm327.multiPayload("410D32A1FFFF\r>").keys)
+        // Resposta cortada no meio de um PID: fica o que veio inteiro
+        assertEquals(setOf(0x0D), Elm327.multiPayload("410D320C0B\r>").keys)
+    }
 }

@@ -257,7 +257,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     @Volatile private var previousRadioLog: List<String> = emptyList()
     // Scanner OBD2 (Bluetooth): a ligação com o carro. A leitura completa só roda com a folha do carro aberta.
     private val obd by lazy {
-        ObdLink(this, detail = { state.sheet == Sheet.CAR }, onEvent = { obdLog.add(it) }, onSnapshot = { snap ->
+        ObdLink(this, detail = { state.sheet == Sheet.CAR }, fast = { state.cardPage == 1 && state.sheet == Sheet.NONE }, onEvent = { obdLog.add(it) }, onSnapshot = { snap ->
             state.obd = snap
             onObdSnapshot(snap)
         })
@@ -1780,7 +1780,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var drivingMaxAccel = 0.0
     private var drivingMaxBrake = 0.0
     private var drivingMaxRpm = 0.0
-    private var drivingMaxThrottle = 0.0
+    private var drivingMaxPedal = 0.0
+    private var drivingMaxLoad = 0.0
     private var drivingCopyAt = 0L
     private val fuelLevel = FuelLevel()
 
@@ -1802,19 +1803,21 @@ class HomeActivity : ComponentActivity(), HomeActions {
         val dt = if (drivingAt == 0L) 0.0 else (now - drivingAt) / 1000.0
         drivingAt = now
         val rpm = snap.number(0x0C)
-        val throttle = snap.number(0x11)
+        // O pedal do acelerador (o pé do motorista); sem ele, a borboleta
+        val pedal = snap.number(0x49) ?: snap.number(0x11)
+        val load = snap.number(0x04)
         val before = drivingStyle.label
-        drivingStyle.update(dt, v, rpm, throttle)
+        drivingStyle.update(dt, v, rpm, pedal, load)
         state.drivingScore = drivingStyle.score
         state.drivingLabel = drivingStyle.label
-        logDriving(now, dt, v, rpm, throttle, before)
+        logDriving(now, dt, v, rpm, pedal, load, before)
         // Nível do tanque suavizado (a boia balança), para a autonomia
         snap.number(0x2F)?.let { fuelLevel.update(it, dt) }
         state.tankPct = fuelLevel.percent
     }
 
     /** Registro do jeito de dirigir: cada leitura que somou pontos, a troca de rótulo e um resumo por minuto. */
-    private fun logDriving(now: Long, dt: Double, speed: Double, rpm: Double?, throttle: Double?, before: DrivingLabel) {
+    private fun logDriving(now: Long, dt: Double, speed: Double, rpm: Double?, pedal: Double?, load: Double?, before: DrivingLabel) {
         val d = drivingStyle
         if (dt > 0 && dt <= DrivingStyle.MAX_STEP_S) {
             drivingReads++
@@ -1822,13 +1825,15 @@ class HomeActivity : ComponentActivity(), HomeActions {
             drivingMaxAccel = maxOf(drivingMaxAccel, d.lastAccel)
             drivingMaxBrake = minOf(drivingMaxBrake, d.lastAccel)
             rpm?.let { drivingMaxRpm = maxOf(drivingMaxRpm, it) }
-            throttle?.let { drivingMaxThrottle = maxOf(drivingMaxThrottle, it) }
+            pedal?.let { drivingMaxPedal = maxOf(drivingMaxPedal, it) }
+            load?.let { drivingMaxLoad = maxOf(drivingMaxLoad, it) }
         }
         if (d.lastRate > 0) {
             drivingLog.add(
                 String.format(
-                    PT_BR, "pontos: %.0f km/h, aceleração %+.1f m/s², %s rpm, acelerador %s, intervalo %.1f s → +%.0f/s, nota %.0f",
-                    speed, d.lastAccel, rpm?.let { "%.0f".format(it) } ?: "--", throttle?.let { "%.0f %%".format(it) } ?: "--", dt, d.lastRate, d.score,
+                    PT_BR, "pontos: %.0f km/h, aceleração %+.1f m/s², %s rpm, pedal %s (curso %s), carga %s, intervalo %.2f s → +%.0f/s, nota %.0f",
+                    speed, d.lastAccel, rpm?.let { "%.0f".format(it) } ?: "--", pedal?.let { "%.0f %%".format(it) } ?: "--",
+                    d.lastTravel?.let { "%.0f %%".format(it) } ?: "--", load?.let { "%.0f %%".format(it) } ?: "--", dt, d.lastRate, d.score,
                 ),
             )
         }
@@ -1837,9 +1842,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
         if (now - drivingMinuteAt >= 60_000L) {
             drivingLog.add(
                 String.format(
-                    PT_BR, "minuto: nota %.0f (%s), %d leituras, intervalo médio %.1f s, maior aceleração %+.1f e freada %.1f m/s², giro até %.0f, acelerador até %.0f %%",
+                    PT_BR, "minuto: nota %.0f (%s), %d leituras, intervalo médio %.2f s, maior aceleração %+.1f e freada %.1f m/s², giro até %.0f, pedal até %.0f %% (solto %s, fundo %s), carga até %.0f %%",
                     d.score, d.label.text, drivingReads, if (drivingReads > 0) drivingDtSum / drivingReads else 0.0,
-                    drivingMaxAccel, drivingMaxBrake, drivingMaxRpm, drivingMaxThrottle,
+                    drivingMaxAccel, drivingMaxBrake, drivingMaxRpm, drivingMaxPedal,
+                    d.pedalMin?.let { "%.0f %%".format(it) } ?: "--", d.pedalMax?.let { "%.0f %%".format(it) } ?: "--", drivingMaxLoad,
                 ),
             )
             drivingMinuteAt = now
@@ -1848,7 +1854,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
             drivingMaxAccel = 0.0
             drivingMaxBrake = 0.0
             drivingMaxRpm = 0.0
-            drivingMaxThrottle = 0.0
+            drivingMaxPedal = 0.0
+            drivingMaxLoad = 0.0
         }
         if (now - drivingCopyAt > OBD_COPY_MS) {
             drivingCopyAt = now

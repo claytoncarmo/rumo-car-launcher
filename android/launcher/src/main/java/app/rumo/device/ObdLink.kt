@@ -14,8 +14,11 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
 
-/** PIDs lidos em toda rodada: rotação, velocidade, fluxo de ar, acelerador e taxa de combustível. */
-private val EVERY_CYCLE = listOf(0x0C, 0x0D, 0x10, 0x11, 0x5E)
+/**
+ * PIDs lidos em toda rodada: rotação, velocidade, fluxo de ar e taxa de combustível (consumo), pedal do acelerador e
+ * carga do motor (jeito de dirigir). Sem o pedal, a borboleta (PID 11) no lugar.
+ */
+private val EVERY_CYCLE = listOf(0x0C, 0x0D, 0x10, 0x5E, 0x49, 0x04)
 
 /** Scanner OBD2 Bluetooth: nome (como o scanner se anuncia) e endereço. */
 data class ObdDevice(val name: String?, val address: String)
@@ -64,6 +67,8 @@ class ObdSnapshot(
 class ObdLink(
     context: Context,
     private val detail: () -> Boolean,
+    /** Aba Motor na tela: rodadas seguidas (até ~5 por segundo), para os mostradores andarem junto com o carro. */
+    private val fast: () -> Boolean = { false },
     private val onSnapshot: (ObdSnapshot) -> Unit,
     /** Eventos da ligação (conectou, caiu, carro parou de responder…) para o registro; chega em qualquer thread. */
     private val onEvent: (String) -> Unit = {},
@@ -207,10 +212,20 @@ class ObdLink(
         var lastVoltageAt = System.currentTimeMillis()
         var lastDtcAt = 0L
         var lastTick = System.currentTimeMillis()
-        var cycle = 0
         var rotate = 0
         var dead = 0
         var carSilent = false
+        // Truques do ELM327, testados uma vez por conexão: "1" no fim do pedido (responde na primeira resposta, sem
+        // esperar o prazo) e vários PIDs num pedido só (CAN; em grupos cuja resposta cabe num quadro). Falhando seguido,
+        // desliga e segue do jeito simples.
+        var probed = false
+        var oneReply = false
+        var grouped = false
+        var oneReplyMiss = 0
+        var groupedMiss = 0
+        var lastCoolantAt = 0L
+        var lastTankAt = 0L
+        var lastSlowAt = 0L
 
         fun publish(status: ObdStatus, message: String?) {
             val mafPid = values[0x10]?.let { ObdPids.value(0x10, it) }
@@ -273,34 +288,87 @@ class ObdLink(
                 }
             }
 
-            // Uma rodada: o essencial toda vez; o resto, em rodízio, só com a folha do carro aberta
+            if (!probed) {
+                probed = true
+                oneReply = Elm327.payload(send(input, output, Elm327.request(listOf(0x0D), true), 2_000), 1, 0x0D) != null
+                val pair = listOf(0x0C, 0x0D).filter { it in supported }
+                grouped = pair.size == 2 &&
+                    Elm327.multiPayload(send(input, output, Elm327.request(pair, oneReply), 2_000)).keys.containsAll(pair)
+                onEvent("scanner: resposta na primeira ${if (oneReply) "sim" else "não"}, vários PIDs num pedido ${if (grouped) "sim" else "não"}")
+            }
+            val roundAt = System.currentTimeMillis()
+
+            // Uma rodada: o essencial toda vez; o resto pelo tempo, ou em rodízio com a folha do carro aberta
             val wanted = LinkedHashSet<Int>()
-            // Rotação, velocidade, ar (consumo) e acelerador (jeito de dirigir) toda rodada
             for (pid in EVERY_CYCLE) if (pid in supported) wanted += pid
-            if (cycle % 3 == 0 && 0x05 in supported) wanted += 0x05
-            if (cycle % 10 == 0 && 0x2F in supported) wanted += 0x2F
-            // Distância que o carro conta (PID 31): o km do painel para a manutenção. Na primeira rodada e a cada ~30 s
-            if (cycle % 30 == 0 && 0x31 in supported) wanted += 0x31
-            // Tempo desde a partida (PID 1F): diz ao diário de viagens quando o motor ligou
-            if (cycle % 30 == 0 && 0x1F in supported) wanted += 0x1F
+            if (0x49 !in supported && 0x11 in supported) wanted += 0x11
+            if (roundAt - lastCoolantAt > 3_000 && 0x05 in supported) {
+                wanted += 0x05
+                lastCoolantAt = roundAt
+            }
+            if (roundAt - lastTankAt > 10_000 && 0x2F in supported) {
+                wanted += 0x2F
+                lastTankAt = roundAt
+            }
+            // A cada ~30 s (e na primeira rodada): a distância que o carro conta (PID 31, o km do painel para a
+            // manutenção) e o tempo desde a partida (PID 1F, diz ao diário quando o motor ligou)
+            if (roundAt - lastSlowAt > 30_000) {
+                if (0x31 in supported) wanted += 0x31
+                if (0x1F in supported) wanted += 0x1F
+                lastSlowAt = roundAt
+            }
             val inDetail = detail()
             if (inDetail) {
                 val rest = ObdPids.DEFS.map { it.pid }.filter { it in supported && it !in wanted && it !in EVERY_CYCLE }
                 if (rest.isNotEmpty()) repeat(minOf(3, rest.size)) { wanted += rest[(rotate++) % rest.size] }
             }
             var silent = false
-            for (pid in wanted) {
-                if (!alive(me)) return
-                val r = send(input, output, "01%02X".format(pid), 3_000)
-                val p = Elm327.payload(r, 1, pid)
-                if (p != null) {
-                    values[pid] = p
-                    dead = 0
-                } else if (Elm327.carSilent(r)) {
-                    silent = true
-                    break
-                } else if (r.isBlank() && ++dead >= 3) {
-                    return
+            val alone = ArrayList<Int>()
+            if (grouped) {
+                for (chunk in Elm327.singleFrameGroups(wanted.toList())) {
+                    if (!alive(me)) return
+                    val r = send(input, output, Elm327.request(chunk, oneReply), 3_000)
+                    val got = Elm327.multiPayload(r)
+                    if (got.isEmpty()) {
+                        if (Elm327.carSilent(r)) {
+                            silent = true
+                            break
+                        }
+                        if (r.isBlank() && ++dead >= 3) return
+                        if (++groupedMiss >= 3) {
+                            grouped = false
+                            onEvent("scanner: vários PIDs num pedido falhou 3 vezes seguidas, desligado")
+                        }
+                    } else {
+                        dead = 0
+                        groupedMiss = 0
+                        values.putAll(got)
+                    }
+                    // O que não veio no grupo vai sozinho
+                    alone += chunk.filter { it !in got }
+                }
+                alone += wanted.filter { it !in Elm327.DATA_BYTES }
+            } else {
+                alone += wanted
+            }
+            if (!silent) {
+                for (pid in alone) {
+                    if (!alive(me)) return
+                    val r = send(input, output, Elm327.request(listOf(pid), oneReply), 3_000)
+                    val p = Elm327.payload(r, 1, pid)
+                    if (p != null) {
+                        values[pid] = p
+                        dead = 0
+                        oneReplyMiss = 0
+                    } else if (Elm327.carSilent(r)) {
+                        silent = true
+                        break
+                    } else if (r.isBlank() && ++dead >= 3) {
+                        return
+                    } else if (oneReply && ++oneReplyMiss >= 5) {
+                        oneReply = false
+                        onEvent("scanner: resposta na primeira falhou 5 vezes seguidas, desligada")
+                    }
                 }
             }
             if (silent) {
@@ -334,9 +402,14 @@ class ObdLink(
             if (lph != null && speed != null) synchronized(trip) { trip.add(dt, lph, speed) }
 
             publish(ObdStatus.LIVE, null)
-            cycle++
-            // Sem a folha aberta, uma rodada por segundo basta
-            if (!inDetail && !nap(700, me)) return
+            // Aba Motor na tela: rodadas seguidas, no máximo uma a cada 200 ms (os mostradores e o jeito de dirigir
+            // andam junto com o carro). Com a folha aberta, seguidas também. No resto, uma rodada por segundo basta
+            val pause = when {
+                inDetail -> 0L
+                fast() -> FAST_ROUND_MS - (System.currentTimeMillis() - roundAt)
+                else -> 700L
+            }
+            if (pause > 0 && !nap(pause, me)) return
         }
     }
 
@@ -405,6 +478,8 @@ class ObdLink(
     }
 
     private companion object {
+        /** Rodada mais curta no modo rápido (aba Motor). */
+        const val FAST_ROUND_MS = 200L
         val SPP: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
         const val CONNECT_MS = 12_000L
     }

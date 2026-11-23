@@ -1006,9 +1006,8 @@ private fun ColumnScope.TripPage(s: HomeState, a: HomeActions) {
     val o = s.obd
     val live = o.status == ObdStatus.LIVE
     val trip = if (live) s.trips.lastOrNull()?.takeIf { System.currentTimeMillis() - it.end < LIVE_TRIP_MS } else null
-    val week = remember(s.trips) {
-        TripDiary.summary(s.trips, TripDiary.weekStart(java.time.LocalDate.now(), java.time.ZoneId.systemDefault()), Long.MAX_VALUE).kmPerLiter
-    }
+    // Média de consumo de pelo menos os últimos 10 km lidos (a mesma da autonomia)
+    val average = remember(s.trips) { TripDiary.rangeKmPerLiter(s.trips) }
     Column(Modifier.weight(1f).fillMaxWidth().clickable { a.openCar(1) }) {
         Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1019,13 +1018,13 @@ private fun ColumnScope.TripPage(s: HomeState, a: HomeActions) {
                 Txt("km/h", 20, color = p.text2, modifier = Modifier.padding(bottom = 14.dp))
             }
             if (live) {
-                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Média de consumo e, embaixo, o jeito de dirigir
+                Column(Modifier.width(DRIVING_WIDTH), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        val now = o.kmPerLiter ?: o.litersPerHour
-                        Txt(now?.let { String.format(PT_BR, "%.1f", it) } ?: "--", 34, weight = FontWeight.SemiBold, numeric = true, lineHeight = 1f)
-                        Txt(if (o.kmPerLiter != null || now == null) "km/L" else "L/h", 17, color = p.text2, modifier = Modifier.padding(bottom = 3.dp))
+                        Txt(average?.let { String.format(PT_BR, "%.1f", it) } ?: "--", 34, weight = FontWeight.SemiBold, numeric = true, lineHeight = 1f)
+                        Txt("km/L", 17, color = p.text2, modifier = Modifier.padding(bottom = 3.dp))
                     }
-                    Txt(week?.let { String.format(PT_BR, "agora · semana %.1f", it) } ?: "agora", 15, color = p.text2)
+                    DrivingBar(s.drivingScore, s.drivingLabel)
                 }
             }
         }
@@ -1036,7 +1035,7 @@ private fun ColumnScope.TripPage(s: HomeState, a: HomeActions) {
                 // Autonomia: o que resta no tanque (suavizado) pela média de pelo menos os últimos 10 km lidos (a viagem
                 // atual, completada pelas anteriores enquanto ela é curta). O sensor do tanque é grosso: arredonda a 10 km
                 val tank = s.tankPct
-                val kml = remember(s.trips) { TripDiary.rangeKmPerLiter(s.trips) }
+                val kml = average
                 val range = if (tank != null && kml != null) Math.round(tank / 100 * s.tankLiters * kml / 10) * 10 else null
                 val low = tank != null && tank < LOW_TANK_PCT
                 Stat(
@@ -1099,9 +1098,14 @@ private fun ColumnScope.MotorPage(s: HomeState, a: HomeActions) {
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Stat(o.number(0x05)?.let { "${Math.round(it)} °C" } ?: "--", "motor", Modifier)
-            Stat(o.voltage?.let { String.format(PT_BR, "%.1f V", it) } ?: "--", "bateria", Modifier)
-            DrivingBox(s.drivingScore, s.drivingLabel, Modifier.weight(1f))
+            Stat(o.number(0x05)?.let { "${Math.round(it)} °C" } ?: "--", "motor", Modifier.weight(1f))
+            Stat(o.voltage?.let { String.format(PT_BR, "%.1f V", it) } ?: "--", "bateria", Modifier.weight(1f))
+            // Consumo agora: km/L andando, L/h parado
+            val now = o.kmPerLiter ?: o.litersPerHour
+            Stat(
+                now?.let { String.format(PT_BR, "%.1f", it) + if (o.kmPerLiter != null) " km/L" else " L/h" } ?: "--",
+                "consumo agora", Modifier.weight(1.3f),
+            )
         }
     }
 }
@@ -1131,14 +1135,14 @@ private fun Gauge(fraction: Float, value: String, unit: String, hot: Boolean, re
     }
 }
 
-/** Jeito de dirigir: barra verde, amarela e vermelha com o marcador na nota, e o rótulo. */
+/** Largura da média de consumo com o jeito de dirigir, na aba Viagem. */
+private val DRIVING_WIDTH = 150.dp
+
+/** Jeito de dirigir: barra verde, amarela e vermelha com o marcador na nota, e o rótulo embaixo. */
 @Composable
-private fun DrivingBox(score: Double, label: DrivingLabel, modifier: Modifier) {
+private fun DrivingBar(score: Double, label: DrivingLabel) {
     val p = LocalPalette.current
-    Column(
-        modifier.clip(RoundedCornerShape(16.dp)).background(p.surface2).padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(7.dp),
-    ) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Box(Modifier.fillMaxWidth().height(18.dp), contentAlignment = Alignment.CenterStart) {
             Canvas(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp))) {
                 val w = size.width
