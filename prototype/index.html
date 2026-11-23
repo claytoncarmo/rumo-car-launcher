@@ -246,8 +246,6 @@ body.kiosk .frame{border-radius:0;box-shadow:none}
 
 /* Cartão inteligente (stack) */
 .stk-head{position:absolute;left:0;right:0;top:0;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 16px 0 8px}
-.stk-label{height:48px;padding:0 12px;border-radius:14px;display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-2)}
-.stk-label .ic{width:18px;height:18px}
 .dots{display:flex;gap:2px}
 .dots button{width:24px;height:44px;display:grid;place-items:center}
 .dots i{width:8px;height:8px;border-radius:4px;background:var(--surface-3);transition:width .2s ease, background-color .2s ease}
@@ -534,7 +532,6 @@ body.embed .app{padding-block:8px;gap:8px}
 .cb.pl i{width:108px;height:76px;border-radius:38px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center}
 .cb:active{background:var(--surface-2)}
 .trip-cmp span, .cmp i{display:none}
-.stack-card .stk-label{cursor:default}
 .map-plus{position:absolute;right:14px;top:80px;width:52px;height:52px;border-radius:50%;background:var(--surface-2);opacity:.85;
   display:grid;place-items:center;color:var(--text-2)}
 .map-plus .ic{width:26px;height:26px}
@@ -710,13 +707,107 @@ body.embed .app{padding-block:8px;gap:8px}
 .mk-k .dot{width:56px;height:56px;font-size:22px}
 .mk-k span{font-size:16px;font-weight:600;text-align:center;line-height:1.1}
 .mk-note{font-size:15px;color:var(--text-3);margin:0}
+
+/* Cartão inteligente: abas Viagem | Carro (o ponto no Carro = troca de óleo vencida ou perto) */
+.stk-head{padding-left:12px}
+.stk-tabs{display:flex;gap:2px}
+.stk-tab{height:48px;padding:0 8px;border-radius:12px;display:flex;align-items:center;gap:6px;font-size:15px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}
+.stk-tab.on{color:var(--accent-ink)}
+.stk-tab i{width:9px;height:9px;border-radius:50%;background:var(--accent)}
+/* Página Carro do cartão: consumo em grande e quatro números do carro; tocar abre a folha */
+.carp{height:100%;display:flex;flex-direction:column;padding:0 6px;cursor:pointer}
+.carp-top{flex:1;min-height:0;display:flex;align-items:center;gap:12px}
+.carp-big{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px}
+.carp-big b{font:600 72px/.9 var(--font-num);font-variant-numeric:tabular-nums}
+.carp-big span{font-size:20px;color:var(--text-2)}
+.carp-avg{font-size:17px;color:var(--text-2);white-space:nowrap}
+.carp-stats{display:flex;gap:8px}
+.carp-stats .stat{min-width:0}
+.carp-stats .stat b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.carp-off{flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.carp-off b{font-size:26px;font-weight:600;line-height:1.15}
+.carp-off small{font-size:17px;color:var(--text-2);line-height:1.3}
+@container (max-width: 380px){ .carp-stats{display:grid;grid-template-columns:1fr 1fr} }
+
+/* Folha Carro: Agora (scanner, óleo, consumo e leituras) | Diário (viagens) */
+.vsw{display:flex;gap:4px;padding:5px;border-radius:20px;background:var(--surface-2);flex:none}
+.vsw button{height:54px;padding:0 22px;border-radius:16px;font-size:18px;font-weight:600;color:var(--text)}
+.vsw button.on{background:var(--accent);color:var(--on-accent)}
+.car-cols{flex:1;min-height:0;display:flex;gap:20px;padding:0 28px 22px}
+.car-l{flex:.9;min-width:0;overflow:auto;display:flex;flex-direction:column;gap:14px;scrollbar-width:none}
+.car-r{flex:1.3;min-width:0;overflow:auto;scrollbar-width:none}
+.car-l::-webkit-scrollbar,.car-r::-webkit-scrollbar{display:none}
+.csec{flex:none;background:var(--surface-2);border-radius:24px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.csec h3{margin:0;font-size:15px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-2)}
+.csec p{margin:0;font-size:17px;line-height:1.3;color:var(--text-2)}
+.csec p.t2{font-size:16px}
+.csec p.t3{font-size:15px;color:var(--text-3)}
+.csec p.t4{font-size:14px;color:var(--text-3)}
+.csec p.c-sub{font-size:16px;font-weight:600}
+.c-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.c-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.c-factor{width:96px;font:600 24px/1 var(--font-num);font-variant-numeric:tabular-nums}
+.pbtn{height:56px;padding:0 22px;border-radius:28px;background:var(--surface-3);font-size:18px;font-weight:600;color:var(--text);white-space:nowrap}
+.pbtn.primary{background:var(--accent);color:var(--on-accent)}
+.pbtn[disabled]{opacity:.4;cursor:default}
+.fst{min-width:0;background:var(--surface-3);border-radius:16px;padding:10px 12px}
+.fst b{display:block;font:600 22px/1.15 var(--font-num);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fst small{display:block;font-size:14px;color:var(--text-2)}
+.csec p.oil-big{font-size:24px;font-weight:600;line-height:1.2;color:var(--text)}
+.csec p.oil-big.soon{color:var(--accent-ink)}
+.csec p.oil-big.due{color:var(--danger)}
+.devs{display:flex;flex-direction:column;gap:8px}
+.dev{display:flex;align-items:center;gap:10px;width:100%;height:60px;padding:0 16px;border-radius:16px;background:var(--surface-3);text-align:left}
+.dev.likely{background:var(--accent-soft)}
+.dev b{flex:1;min-width:0;font-size:18px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dev small{font-size:14px;color:var(--accent-ink)}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;padding-bottom:16px}
+.rg-h{grid-column:1 / -1;padding-top:6px;font-size:15px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-2)}
+.rdg{min-width:0;background:var(--surface-2);border-radius:16px;padding:10px 14px}
+.rdg b{display:block;font:600 24px/1.15 var(--font-num);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rdg small{display:block;font-size:14px;line-height:1.25;color:var(--text-2)}
+.rdg.wide{grid-column:1 / -1;padding:14px}
+.rdg.wide small{order:-1}
+.rdg.wide b{font:600 20px/1.2 var(--font-ui)}
+.car-empty{margin:0;font-size:18px;color:var(--text-2)}
+.trips{display:flex;flex-direction:column;gap:10px;padding-bottom:12px}
+.trow{background:var(--surface-2);border-radius:16px;padding:12px 16px;display:flex;flex-direction:column;gap:4px}
+.trow-h{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600;color:var(--text-2)}
+.trow-h span{flex:1;min-width:0}
+.trow-h em{font-style:normal;font-size:14px;color:var(--accent-ink)}
+.trow-n{display:flex;align-items:baseline;gap:22px;font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.trow-n b{font-size:26px;font-weight:600}
+.trow-n span{font-size:20px}
+.trow small{font-size:14px;line-height:1.3;color:var(--text-3)}
+/* Diálogo da troca de óleo (sobre a folha) */
+.odlg{position:absolute;inset:0;z-index:30;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:16px 0;overflow:auto;scrollbar-width:none}
+.odlg-box{width:min(820px,94%);background:var(--surface);border-radius:26px;padding:24px;display:flex;flex-direction:column;gap:14px}
+.odlg-box h3{margin:0;font-size:26px;font-weight:600}
+.odlg-box .lb{font-size:16px;color:var(--text-2)}
+.ochips{display:flex;gap:10px}
+.ochips.v{gap:8px}
+.ochip{flex:1;min-width:0;height:56px;padding:0 10px;border-radius:18px;background:var(--surface-2);font-size:18px;font-weight:600;text-align:center;white-space:nowrap}
+.ochip.on{background:var(--accent);color:var(--on-accent)}
+.osteps{display:flex;gap:24px}
+.ostep{flex:1;min-width:0;display:flex;align-items:center;gap:10px}
+.ostep > span{font-size:18px;color:var(--text-2)}
+.ostep output{flex:1;text-align:center;font:600 22px/1 var(--font-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ofields{display:flex;gap:16px}
+.ofield{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.ofield.short{flex:none;width:260px}
+.ofield span{font-size:15px;color:var(--text-2)}
+.ofield input{height:56px;width:100%;border:0;border-radius:16px;background:var(--surface-2);padding:0 14px;font-size:22px}
+.ofield input:focus{outline:2px solid var(--accent);outline-offset:0}
+.ofield input::placeholder{color:var(--text-3)}
+.oprob{margin:0;font-size:15px;color:var(--text-3)}
+.oprob.bad{color:var(--danger)}
 </style>
 </head>
 <body>
 <div class="app" id="app">
   <header class="page-head">
     <h1>Rumo</h1>
-    <p>Protótipo interativo da tela inicial · dados de exemplo · reflete o app 0.1.1: mapa com rua e limite, radares, mídia, rádio, viagem e pontos marcados; a navegação fica no Android Auto</p>
+    <p>Protótipo interativo da tela inicial · dados de exemplo · reflete o app 0.1.1: mapa com rua e limite, radares, mídia, rádio, viagem, carro pelo OBD2 e pontos marcados; a navegação fica no Android Auto</p>
   </header>
   <main class="viewport" id="viewport">
     <div class="frame" id="frame">
@@ -768,8 +859,8 @@ body.embed .app{padding-block:8px;gap:8px}
               </div>
             </section>
             <section class="card stack-card" id="stackCard" aria-label="Viagem">
-              <div class="stk-head"><span class="stk-label">Viagem</span></div>
-              <div class="stk-body"><div class="stk-page">
+              <div class="stk-head"><div class="stk-tabs" id="stkTabs" role="tablist" aria-label="Páginas do cartão"></div></div>
+              <div class="stk-body"><div class="stk-page" id="pgTrip">
                 <div class="trip">
                   <div class="trip-speed"><b class="num" id="tvSpeed">0</b><span>km/h</span></div>
                   <div class="trip-cmp"><div class="cmp"><i></i><b id="tvCmp">N</b></div></div>
@@ -779,7 +870,7 @@ body.embed .app{padding-block:8px;gap:8px}
                     <div class="stat"><b id="tvAvg">0 km/h</b><small>média</small></div>
                   </div>
                 </div>
-              </div></div>
+              </div><div class="stk-page" id="pgCar" hidden></div></div>
             </section>
           </div>
           <div class="sheet" id="sheet" hidden></div>
@@ -836,7 +927,7 @@ body.embed .app{padding-block:8px;gap:8px}
       <button class="dbtn" data-demo="full"><svg><use href="#i-expand"/></svg>Tela cheia</button>
     </div>
   </div>
-  <p class="hint">Toque em Dirigir para começar (o som dos alertas só toca depois de um toque na página). Toque no mapa para abrir o Android Auto; o + marca um radar que falta. Arraste o dedo no menu da esquerda para a direita: volume. Toque longo numa favorita do rádio: dar nome ou remover. No rádio, a aba Online toca rádios pela internet (teste o botão Wi-Fi). O ícone de download no topo é o aviso de versão nova. Teclado: D dirigir · A acima do limite · F farol · Esc fecha.</p>
+  <p class="hint">Toque em Dirigir para começar (o som dos alertas só toca depois de um toque na página). Toque no mapa para abrir o Android Auto; o + marca um radar que falta. Arraste o dedo no menu da esquerda para a direita: volume. Toque longo numa favorita do rádio: dar nome ou remover. No rádio, a aba Online toca rádios pela internet (teste o botão Wi-Fi). No cartão, a aba Carro mostra o scanner OBD2; toque para ver tudo, a troca de óleo e o diário de viagens. O ícone de download no topo é o aviso de versão nova. Teclado: D dirigir · A acima do limite · F farol · Esc fecha.</p>
   <p class="rotate-hint">Gire o celular para ver a tela maior.</p>
 </div>
 <script>
@@ -1074,6 +1165,7 @@ const state = {
   webFavs: store.get('webFavs', ['w1', 'w4', 'w9']), webTab: 'fav', webFilter: 'near',
   mine: store.get('mine', []), spot: null, markLim: 60, markBoth: false, markList: false,
   sheet: null, settingsTab: 'config', armed: null,
+  cardPage: clamp(+store.get('cardPage', 0) || 0, 0, 1),
   vol: clamp(+store.get('vol', 14) || 14, 0, 30), volOpen: false, volTick: 0, gmenu: false
 };
 if (!Array.isArray(state.favs)) state.favs = DEFAULT_FAVS.slice();
@@ -1321,7 +1413,7 @@ function simulate(dt) {
   const mps = state.speed / 3.6;
   const ds = mps * dt * SPEEDUP;
   state.s = mod(state.s + ds / MPP, L);
-  if (state.speed > 0.5) { state.trip.m += ds; state.trip.t += dt * SPEEDUP; }
+  if (state.speed > 0.5) { state.trip.m += ds; state.trip.t += dt * SPEEDUP; carTick(ds, dt); }
 }
 function lerpAngle(a, b, t) { let d = mod(b - a + Math.PI, Math.PI * 2) - Math.PI; return a + d * t; }
 
@@ -1758,6 +1850,444 @@ function sheetRadio() {
 }
 
 /* ================================================================
+   Carro (scanner OBD2 Bluetooth): página do cartão, folha com as leituras, troca de óleo e diário de viagens.
+   No app, os números vêm de um ELM327 barato (só leitura, nunca apaga falhas); aqui saem da simulação de condução.
+   ================================================================ */
+const DAY_MS = 864e5;
+const NF0 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
+const NF2 = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const NF3 = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+const kmText = km => `${NF0.format(km)} km`;
+const monthsText = m => m === 1 ? '1 mês' : `${m} meses`;
+const today0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+/* Como o plusMonths do app: 31/01 + 1 mês = 28 ou 29/02 */
+const addMonths = (d, n) => {
+  const r = new Date(d), day = r.getDate();
+  r.setDate(1); r.setMonth(r.getMonth() + n);
+  r.setDate(Math.min(day, new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate()));
+  return r;
+};
+const fmtDate = d => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+const isoDate = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const fromIso = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; };
+function parseDate(t) {
+  const m = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})\s*$/.exec(t || ''); if (!m) return null;
+  const y = +m[3] < 100 ? 2000 + +m[3] : +m[3], d = new Date(y, +m[2] - 1, +m[1]);
+  return d.getDate() === +m[1] && d.getMonth() === +m[2] - 1 ? d : null;
+}
+const parseKm = t => { const d = String(t || '').replace(/\D/g, ''); return d ? +d : null; };
+/* "5w30", "5W 30" → "5W-30"; "40" → "SAE 40" */
+function parseVisc(t) {
+  const m = /^\s*(?:sae\s*)?(\d{1,2})\s*w\s*-?\s*(\d{2})\s*$/i.exec(t || '');
+  if (m) return `${+m[1]}W-${m[2]}`;
+  const n = /^\s*(?:sae\s*)?(\d{2})\s*$/i.exec(t || '');
+  return n ? `SAE ${n[1]}` : null;
+}
+/* "8,4 km" abaixo de 10 km; "123 km" acima. "35 min", "1 h 05 min". */
+const tripKm = km => km < 10 ? `${fmt1.format(km)} km` : `${NF0.format(km)} km`;
+const durText = s => { const m = Math.floor(s / 60); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${pad2(m % 60)} min`; };
+
+/* Tipos de óleo e o intervalo mais comum de cada um (o que vier primeiro); o dono ajusta */
+const OIL_TYPES = { mineral: { label: 'Mineral', km: 5000, months: 6 }, semi: { label: 'Semissintético', km: 7500, months: 6 }, synthetic: { label: 'Sintético', km: 10000, months: 12 } };
+const VISCOSITIES = ['0W-20', '5W-30', '5W-40', '10W-30', '10W-40', '15W-40', '20W-50'];
+const SOON_KM = 500, SOON_DAYS = 15;
+/* Exemplo: semissintético trocado há uns 3 meses com 40.000 km; o painel marca 44.000 km */
+const DEFAULT_OIL = { type: 'semi', km: 7500, months: 6, date: isoDate(addDays(today0(), -84)), lastKm: 40000, visc: '5W-30' };
+function loadOil() {
+  const o = store.get('oil', DEFAULT_OIL);
+  if (o === null) return null;
+  if (!o || !OIL_TYPES[o.type] || !fromIso(o.date) || !(o.lastKm >= 0)) return Object.assign({}, DEFAULT_OIL);
+  return o;
+}
+
+/* Diário: cada partida do motor vira uma viagem. A mais nova (em andamento) é montada ao vivo. */
+function sampleTrips() {
+  const t0 = today0().getTime(), at = (day, hm) => { const [h, m] = hm.split(':').map(Number); return t0 - day * DAY_MS + (h * 60 + m) * 60e3; };
+  const early = new Date().getHours() < 9 ? 1 : 0;  // a viagem das 08:12 só é "Hoje" depois que passou
+  return [
+    [early, '08:12', '08:47', 23, 6, 98, 92, 1.9, 12.4, false],
+    [1, '18:20', '18:58', 21, 9, 76, 93, 2.0, 10.5, true],
+    [1 + early, '07:55', '08:31', 22, 5, 91, 91, 1.8, 12.2, false],
+    [2, '12:10', '12:24', 6.4, 2, 58, 84, 0.7, 9.1, false],
+    [3, '19:02', '20:15', 74, 4, 112, 94, 5.3, 14.0, true],
+    [5, '09:30', '09:41', 3.8, 1, 47, 78, 0.5, 7.6, false],
+    [8, '16:40', '17:22', 31, 8, 104, 92, 2.6, 11.9, false]
+  ].map(([d, a, b, km, idle, max, cool, l, kml, partial]) => ({ start: at(d, a), end: at(d, b), km, idle: idle * 60, max, cool, l, kml, partial }))
+    .sort((x, y) => y.start - x.start);
+}
+const car = {
+  view: 'now', scanner: 'OBDII', link: 'live', searching: false, found: [], factor: clamp(+store.get('fuelFactor', 1) || 1, 0.5, 2),
+  km: 5.8, l: 0.6,                       // conta do consumo (Zerar a viagem)
+  liveStart: Date.now() - 14 * 60e3, dKm: 5.8, dL: 0.6,   // viagem em andamento no diário
+  panelKm: 44000, odo: 0,                // km do painel informado + o que andou depois (PID 31)
+  oil: loadOil(), oilEdit: null, trips: sampleTrips(), cleared: false
+};
+const carLive = () => !!car.scanner && car.link === 'live';
+const odometer = () => car.panelKm == null ? null : car.panelKm + car.odo;
+
+function oilStatus(p) {
+  const odo = odometer(), next = addMonths(fromIso(p.date), p.months);
+  const kmLeft = odo == null ? null : p.lastKm + p.km - Math.round(odo);
+  const days = Math.round((next - today0()) / DAY_MS);
+  const due = (kmLeft != null && kmLeft <= 0) || days <= 0;
+  const soon = !due && ((kmLeft != null && kmLeft <= SOON_KM) || days <= SOON_DAYS);
+  return { kmLeft, days, due, soon, next };
+}
+function oilText(s) {
+  const time = s.days < 0 ? `há ${-s.days} dias` : s.days < 45 ? `${s.days} dias` : `${Math.floor(s.days / 30)} meses`;
+  if (s.due && s.kmLeft != null && s.kmLeft <= 0) return `Vencida há ${NF0.format(-s.kmLeft)} km`;
+  if (s.due) return `Vencida ${time}`;
+  return s.kmLeft == null ? `Faltam ${time}` : `Faltam ${NF0.format(s.kmLeft)} km ou ${time}`;
+}
+
+/* Leitura simulada a partir da velocidade (o consumo do app é estimado pelo MAF, com o ajuste do dono) */
+function obdNow() {
+  const v = state.speed, t = performance.now() / 1000, moving = v > 3;
+  const kml = moving ? clamp(6 + v / 7 + Math.sin(t * 0.7) * 1.2, 5, 18) / car.factor : null;
+  const lph = moving ? v / kml : 0.8 * car.factor;
+  return {
+    rpm: moving ? 1100 + v * 24 + Math.sin(t * 1.3) * 60 : 830 + Math.sin(t * 2.1) * 12,
+    speed: Math.round(v * 1.03), load: moving ? 28 + v / 4 : 21, cool: 91 + Math.round(Math.sin(t / 20)), iat: 32,
+    map: moving ? 45 + v / 3 : 32, maf: lph / car.factor * 3.04, tank: clamp(62 - car.dL * 100 / 45, 0, 100),
+    volt: moving ? 14.1 : 14.2, thr: moving ? 14 + v / 6 : 12.5, kml, lph,
+    run: (Date.now() - car.liveStart) / 1000
+  };
+}
+/* Chamado pela simulação a cada passo: km e litros da viagem e o km do painel */
+function carTick(ds, dt) {
+  if (!carLive()) return;
+  const km = ds / 1000, dl = obdNow().lph * dt * SPEEDUP / 3600;
+  car.km += km; car.dKm += km; car.odo += km;
+  car.l += dl; car.dL += dl;
+}
+function carStatusLine() {
+  if (!car.scanner) return 'Nenhum scanner OBD2 escolhido';
+  if (car.link === 'connecting') return `Conectando no ${car.scanner}…`;
+  return `Lendo o carro pelo ${car.scanner} · bateria ${fmt1.format(state.speed > 3 ? 14.1 : 14.2)} V`;
+}
+const READINGS = [
+  ['Motor', [['Rotação', 'rpm'], ['Velocidade do carro', 'spd'], ['Carga do motor', 'load'], ['Temperatura do motor', 'cool'],
+    ['Temperatura do ar de admissão', 'iat'], ['Pressão do coletor (MAP)', 'map'], ['Fluxo de ar (MAF)', 'maf'], ['Pressão atmosférica', 'baro']]],
+  ['Combustível', [['Nível do tanque', 'tank'], ['Correção de combustível curta', 'stft'], ['Correção de combustível longa', 'ltft'], ['Sensor de oxigênio 1 (lambda)', 'o2']]],
+  ['Acelerador', [['Posição do acelerador', 'thr'], ['Pedal do acelerador D', 'ped']]],
+  ['Sensores e elétrica', [['Bateria (pelo scanner)', 'volt'], ['Tensão da central (ECU)', 'ecu']]],
+  ['Manutenção', [['Tempo desde a partida', 'run'], ['Distância com a luz de injeção acesa', 'mild'], ['Distância desde apagar as falhas', 'clrd']]]
+];
+/* Textos que mudam ao vivo, por chave (data-o="…") */
+function carValues() {
+  const o = carLive() ? obdNow() : null, dash = '--', n0 = v => NF0.format(Math.round(v));
+  const tkml = car.l > 0.05 ? car.km / car.l : null, odo = odometer();
+  const f = {
+    status: carStatusLine(),
+    big: o ? fmt1.format(o.kml ?? o.lph) : dash, bigU: o && o.kml == null ? 'L/h' : 'km/L',
+    avg: tkml != null ? `média ${fmt1.format(tkml)} km/L` : '',
+    rpm: o ? n0(o.rpm) : dash, cool: o ? `${o.cool} °C` : dash, volt: o ? `${fmt1.format(o.volt)} V` : dash, tank: o ? `${n0(o.tank)} %` : dash,
+    kml: o && o.kml != null ? `${fmt1.format(o.kml)} km/L` : dash, lph: o ? `${fmt1.format(o.lph)} L/h` : dash,
+    tkml: tkml != null ? `${fmt1.format(tkml)} km/L` : dash, tgasto: `${fmt1.format(car.l)} L · ${n0(car.km)} km`,
+    odo: odo != null ? `Painel agora: cerca de ${kmText(Math.round(odo))}` : 'Km do painel não informado: conta só pelo tempo'
+  };
+  if (car.oil) f.oil = oilText(oilStatus(car.oil));
+  const r = o ? {
+    rpm: `${n0(o.rpm)} rpm`, spd: `${o.speed} km/h`, load: `${n0(o.load)} %`, cool: `${o.cool} °C`, iat: `${o.iat} °C`, map: `${n0(o.map)} kPa`,
+    maf: `${fmt1.format(o.maf)} g/s`, baro: '101 kPa', tank: `${n0(o.tank)} %`, stft: `${fmt1.format(1.6 + Math.sin(performance.now() / 900) * 2)} %`,
+    ltft: '-3,1 %', o2: NF3.format(0.998), thr: `${n0(o.thr)} %`, ped: `${n0(o.thr + 3)} %`, volt: `${fmt1.format(o.volt)} V`,
+    ecu: `${NF2.format(o.volt - 0.08)} V`, run: `${n0(o.run)} s`, mild: '0 km', clrd: kmText(4120)
+  } : {};
+  READINGS.forEach(([, items]) => items.forEach(([, k]) => { f['r.' + k] = r[k] || dash; }));
+  return f;
+}
+function updateCarLive() {
+  const els = stage.querySelectorAll('[data-o]'); if (!els.length) return;
+  const f = carValues();
+  els.forEach(el => { const v = f[el.dataset.o]; if (v != null && el.textContent !== v) el.textContent = v; });
+}
+
+/* Cartão inteligente: abas e página Carro */
+function renderStack() {
+  const p = state.cardPage, st = car.oil ? oilStatus(car.oil) : null, dot = st && (st.due || st.soon);
+  $('#stkTabs').innerHTML = [['Viagem', 0], ['Carro', 1]].map(([l, i]) =>
+    `<button class="stk-tab press ${p === i ? 'on' : ''}" data-act="card-page" data-p="${i}" role="tab" aria-selected="${p === i}">${l}${i === 1 && dot ? '<i title="Troca de óleo perto"></i>' : ''}</button>`).join('');
+  $('#pgTrip').hidden = p !== 0;
+  $('#pgCar').hidden = p !== 1;
+  if (p === 1) $('#pgCar').innerHTML = carPageHTML();
+  $('#stackCard').setAttribute('aria-label', p ? 'Carro' : 'Viagem');
+  updateCarLive();
+}
+function carPageHTML() {
+  if (!carLive()) {
+    const title = !car.scanner ? 'Nenhum scanner OBD2 escolhido' : car.link === 'connecting' ? 'Conectando no scanner…' : 'Scanner parado';
+    const sub = !car.scanner ? 'Toque para escolher o scanner e ver os dados do carro.' : 'Toque para ver os detalhes.';
+    return `<div class="carp" data-act="car-open"><div class="carp-off"><b>${title}</b><small>${sub}</small></div></div>`;
+  }
+  return `<div class="carp" data-act="car-open" role="button" aria-label="Abrir tudo o que o carro informa">
+    <div class="carp-top"><div class="carp-big"><b data-o="big">--</b><span data-o="bigU">km/L</span></div><span class="carp-avg" data-o="avg"></span></div>
+    <div class="carp-stats">
+      <div class="stat"><b data-o="rpm">--</b><small>rpm</small></div>
+      <div class="stat"><b data-o="cool">--</b><small>motor</small></div>
+      <div class="stat"><b data-o="volt">--</b><small>bateria</small></div>
+      <div class="stat"><b data-o="tank">--</b><small>tanque</small></div>
+    </div></div>`;
+}
+
+/* Folha Carro */
+function sheetCar() {
+  const views = [['now', 'Agora'], ['diary', 'Diário']].map(([k, l]) =>
+    `<button class="press ${car.view === k ? 'on' : ''}" data-act="car-view" data-v="${k}" role="tab" aria-selected="${car.view === k}">${l}</button>`).join('');
+  return `<div class="sh-head"><div class="sh-title"><h2>Carro</h2><small data-o="status">${esc(carStatusLine())}</small></div>
+      <div class="vsw" role="tablist" aria-label="Vista">${views}</div>
+      <button class="x press" data-act="close" aria-label="Fechar">${ic('x')}</button></div>
+    ${car.view === 'diary' ? carDiaryHTML() : carNowHTML()}${car.oilEdit ? oilDialogHTML() : ''}`;
+}
+function carNowHTML() {
+  return `<div class="car-cols">
+    <div class="car-l">${scannerSecHTML()}${oilSecHTML()}${fuelSecHTML()}</div>
+    <div class="car-r">${readingsHTML()}</div></div>`;
+}
+const dis = on => on ? '' : 'disabled';
+function scannerSecHTML() {
+  const parked = isParked();
+  const found = car.found.slice().sort((a, b) => b.likely - a.likely).map(d =>
+    `<button class="dev press ${d.likely ? 'likely' : ''}" data-act="obd-choose" data-n="${esc(d.name)}"><b>${esc(d.name)}</b>${d.likely ? '<small>scanner</small>' : ''}</button>`).join('');
+  return `<div class="csec"><h3>Scanner OBD2 (Bluetooth)</h3>
+    <p>${car.scanner ? `Escolhido: ${esc(car.scanner)}` : 'Ligue o scanner na tomada do carro (com a ignição ligada) e toque em Procurar.'}</p>
+    <div class="c-row">
+      <button class="pbtn press ${car.scanner ? '' : 'primary'}" data-act="obd-search" ${dis(parked && !car.searching)}>${car.searching ? 'Procurando…' : 'Procurar'}</button>
+      ${car.scanner ? '<button class="pbtn press" data-act="obd-reconnect">Reconectar</button><button class="pbtn press" data-act="obd-forget">Esquecer</button>' : ''}
+    </div>
+    ${parked ? '' : '<p class="t3">A procura só funciona com o carro parado.</p>'}
+    ${found ? `<div class="devs">${found}</div>` : ''}</div>`;
+}
+function oilSecHTML() {
+  const parked = isParked(), p = car.oil;
+  if (!p) {
+    return `<div class="csec"><h3>Troca de óleo</h3>
+      <p>Avisa quando a troca do óleo do motor estiver perto, pelos km ou pelo tempo. Informe o óleo e a última troca.</p>
+      <div class="c-row"><button class="pbtn primary press" data-act="oil-edit" ${dis(parked)}>Configurar</button></div>
+      ${parked ? '' : '<p class="t3">Só com o carro parado.</p>'}</div>`;
+  }
+  const st = oilStatus(p), armed = state.armed === 'oil-del';
+  return `<div class="csec"><h3>Troca de óleo</h3>
+    <p class="oil-big ${st.due ? 'due' : st.soon ? 'soon' : ''}" data-o="oil">${oilText(st)}</p>
+    <p class="t2">Próxima: ${kmText(p.lastKm + p.km)} ou ${fmtDate(st.next)}</p>
+    <p class="t3">Última: ${fmtDate(fromIso(p.date))} com ${kmText(p.lastKm)} · ${OIL_TYPES[p.type].label}${p.visc ? ' ' + esc(p.visc) : ''}, a cada ${kmText(p.km)} ou ${monthsText(p.months)}</p>
+    <p class="t3" data-o="odo"></p>
+    <div class="c-row">
+      <button class="pbtn press ${st.due || st.soon ? 'primary' : ''}" data-act="oil-done" ${dis(parked && odometer() != null)}>Troquei hoje</button>
+      <button class="pbtn press" data-act="oil-edit" ${dis(parked)}>Editar</button>
+      <button class="pbtn press ${armed ? 'primary' : ''}" data-act="oil-del" ${dis(parked)}>${armed ? 'Apagar?' : 'Apagar'}</button>
+    </div>
+    ${parked ? '' : '<p class="t3">Os botões funcionam só com o carro parado.</p>'}</div>`;
+}
+function fuelSecHTML() {
+  const f = car.factor;
+  return `<div class="csec"><h3>Consumo</h3>
+    <div class="c-pair"><div class="fst"><b data-o="kml">--</b><small>agora</small></div><div class="fst"><b data-o="lph">--</b><small>taxa</small></div></div>
+    <div class="c-pair"><div class="fst"><b data-o="tkml">--</b><small>média da viagem</small></div><div class="fst"><b data-o="tgasto">--</b><small>gasto e distância</small></div></div>
+    <div class="c-row"><button class="pbtn press" data-act="obd-reset">Zerar a viagem</button></div>
+    <p class="c-sub">Ajuste do consumo</p>
+    <div class="c-row"><button class="pbtn press" data-act="obd-factor" data-d="-2" aria-label="Diminuir o ajuste" ${dis(f > 0.51)}>−</button>
+      <b class="c-factor">${Math.round(f * 100)} %</b>
+      <button class="pbtn press" data-act="obd-factor" data-d="2" aria-label="Aumentar o ajuste" ${dis(f < 1.99)}>+</button></div>
+    <p class="t4">O carro não informa o consumo: é estimado pelo ar que entra no motor e erra uns 10 %. Abasteça o tanque, rode, e se o gasto de verdade for maior que o estimado, suba o ajuste (e o contrário).</p></div>`;
+}
+function readingsHTML() {
+  if (!carLive()) return `<p class="car-empty">${car.scanner ? 'Sem leitura ainda.' : 'Escolha o scanner OBD2 ao lado para ver os dados do carro.'}</p>`;
+  const groups = READINGS.map(([g, items]) => `<div class="rg-h">${g}</div>` +
+    items.map(([l, k]) => `<div class="rdg"><b data-o="r.${k}">--</b><small>${l}</small></div>`).join('') +
+    (g === 'Manutenção' ? `<div class="rdg"><b>apagada</b><small>Luz de injeção</small></div><div class="rdg"><b>0</b><small>Falhas guardadas</small></div>
+      <div class="rdg wide"><b>Nenhum código guardado</b><small>Códigos de falha</small></div>` : '')).join('');
+  return `<div class="rgrid">${groups}</div>`;
+}
+
+/* Diário: totais da semana (desde segunda) e do mês na esquerda; as viagens, a mais nova em cima, na direita */
+function diaryTrips() {
+  if (car.cleared) return [];
+  const live = carLive() ? [{ start: car.liveStart, end: Date.now(), km: car.dKm, idle: 3 * 60, max: 64, cool: 90, l: car.dL, kml: car.dL > 0.05 ? car.dKm / car.dL : null, live: true }] : [];
+  return live.concat(car.trips);
+}
+function summaryHTML(title, list) {
+  const km = list.reduce((a, t) => a + t.km, 0), eng = list.reduce((a, t) => a + (t.end - t.start) / 1000, 0);
+  const l = list.reduce((a, t) => a + t.l, 0), read = list.reduce((a, t) => a + (t.kml || 0) * t.l, 0);
+  return `<div class="csec"><h3>${title}</h3>
+    <div class="c-pair"><div class="fst"><b>${tripKm(km)}</b><small>rodados</small></div><div class="fst"><b>${durText(eng)}</b><small>de motor ligado</small></div></div>
+    <div class="c-pair"><div class="fst"><b>${l > 0.05 ? `${fmt1.format(read / l)} km/L` : '--'}</b><small>média (trecho lido)</small></div>
+      <div class="fst"><b>${list.length === 1 ? '1 viagem' : `${list.length} viagens`}</b><small>${fmt1.format(l)} L lidos</small></div></div></div>`;
+}
+function dayLabel(ms) {
+  const d = new Date(ms); d.setHours(0, 0, 0, 0);
+  const diff = Math.round((today0() - d) / DAY_MS);
+  if (diff === 0) return 'Hoje';
+  if (diff === 1) return 'Ontem';
+  return `${d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')} ${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`;
+}
+function tripRowHTML(t) {
+  const det = [];
+  if (t.idle >= 60) det.push(`parado com o motor ligado ${durText(t.idle)}`);
+  if (t.max > 0) det.push(`máx. ${t.max} km/h`);
+  if (t.cool) det.push(`motor até ${t.cool} °C`);
+  if (t.l >= 0.05) det.push(`${fmt1.format(t.l)} L lidos`);
+  return `<div class="trow">
+    <div class="trow-h"><span>${dayLabel(t.start)} · ${hhmm(new Date(t.start))}–${hhmm(new Date(t.end))}</span>${t.live ? '<em>em andamento</em>' : ''}</div>
+    <div class="trow-n"><b>${tripKm(t.km)}</b><span>${durText((t.end - t.start) / 1000)}</span><span>${t.kml ? `${fmt1.format(t.kml)} km/L` : '--'}</span></div>
+    ${det.length ? `<small>${det.join(' · ')}</small>` : ''}
+    ${t.partial ? '<small>Parte sem leitura (Android Auto aberto): consumo só do trecho lido</small>' : ''}</div>`;
+}
+function carDiaryHTML() {
+  const trips = diaryTrips(), t0 = today0();
+  const week = addDays(t0, -((t0.getDay() + 6) % 7)).getTime(), month = new Date(t0.getFullYear(), t0.getMonth(), 1).getTime();
+  const armed = state.armed === 'diary-clear';
+  return `<div class="car-cols">
+    <div class="car-l">
+      ${summaryHTML('Esta semana', trips.filter(t => t.start >= week))}
+      ${summaryHTML('Este mês', trips.filter(t => t.start >= month))}
+      <div class="csec"><h3>Como funciona</h3>
+        <p class="t4">Cada partida do motor vira uma viagem, com o scanner lendo o carro. Com o Android Auto aberto o Rumo não lê: a distância vem do próprio carro, mas o consumo vale só para o trecho lido.</p>
+        ${trips.length ? `<div class="c-row"><button class="pbtn press ${armed ? 'primary' : ''}" data-act="diary-clear" ${dis(isParked())}>${armed ? 'Toque de novo para apagar' : 'Apagar o diário'}</button></div>` : ''}
+      </div>
+    </div>
+    <div class="car-r">${trips.length ? `<div class="trips">${trips.map(tripRowHTML).join('')}</div>`
+      : `<p class="car-empty">${car.scanner ? 'Nenhuma viagem ainda: a primeira entra quando o motor ligar com o scanner lendo.' : 'Escolha o scanner OBD2 em Agora para o diário começar.'}</p>`}</div></div>`;
+}
+
+/* Diálogo da troca de óleo: o tipo dá o intervalo padrão; intervalo, viscosidade, última troca e o km do painel hoje */
+function openOilEdit() {
+  if (!isParked()) { parkedOnly(); return; }
+  const p = car.oil || { type: 'semi', km: OIL_TYPES.semi.km, months: OIL_TYPES.semi.months, date: '', lastKm: '', visc: '' };
+  const odo = odometer();
+  car.oilEdit = {
+    type: p.type, km: p.km, months: p.months, date: p.date ? fmtDate(fromIso(p.date)) : '', last: String(p.lastKm ?? ''),
+    now: odo != null ? String(Math.round(odo)) : '', visc: p.visc || '', other: !!p.visc && !VISCOSITIES.includes(p.visc)
+  };
+  state.armed = null;
+  renderSheet(); oilCheck();
+}
+function oilDialogHTML() {
+  const e = car.oilEdit;
+  const types = Object.entries(OIL_TYPES).map(([k, t]) => `<button class="ochip press ${e.type === k ? 'on' : ''}" data-act="oil-type" data-t="${k}">${t.label}</button>`).join('');
+  const visc = VISCOSITIES.map(v => `<button class="ochip press ${!e.other && e.visc === v ? 'on' : ''}" data-act="oil-visc" data-v="${v}">${v}</button>`).join('') +
+    `<button class="ochip press ${e.other ? 'on' : ''}" data-act="oil-other">Outra</button>`;
+  const field = (k, label, hint, cls = '') => `<label class="ofield ${cls}"><span>${label}</span><input data-oil="${k}" value="${esc(e[k])}" placeholder="${hint}" ${k === 'visc' ? 'maxlength="10"' : 'inputmode="numeric"'} autocomplete="off"></label>`;
+  return `<div class="odlg" data-act="oil-cancel"><div class="odlg-box" data-act="oil-box" role="dialog" aria-label="Troca de óleo">
+    <h3>Troca de óleo</h3>
+    <div class="lb">Óleo usado (o manual do carro manda; o intervalo abaixo é o mais comum para cada tipo)</div>
+    <div class="ochips">${types}</div>
+    <div class="osteps">
+      <div class="ostep"><span>A cada</span><button class="pbtn press" data-act="oil-km" data-d="-500" aria-label="Menos 500 km" ${dis(e.km > 1000)}>−</button><output>${kmText(e.km)}</output><button class="pbtn press" data-act="oil-km" data-d="500" aria-label="Mais 500 km" ${dis(e.km < 30000)}>+</button></div>
+      <div class="ostep"><span>ou</span><button class="pbtn press" data-act="oil-months" data-d="-1" aria-label="Menos 1 mês" ${dis(e.months > 1)}>−</button><output>${monthsText(e.months)}</output><button class="pbtn press" data-act="oil-months" data-d="1" aria-label="Mais 1 mês" ${dis(e.months < 24)}>+</button></div>
+    </div>
+    <div class="lb">Viscosidade do óleo da última troca (está na embalagem; opcional)</div>
+    <div class="ochips v">${visc}</div>
+    ${e.other ? `<div>${field('visc', 'Viscosidade', 'ex.: 0W-16', 'short')}</div>` : ''}
+    <div class="ofields">${field('date', 'Data da última troca', 'dd/mm/aaaa')}${field('last', 'Km na última troca', 'ex.: 40000')}${field('now', 'Km do painel hoje', 'opcional')}</div>
+    <p class="oprob" id="oilProb"></p>
+    <div class="dlg-row"><button class="pbtn press" data-act="oil-cancel">Cancelar</button><button class="pbtn primary press" data-act="oil-save" id="oilSave">Salvar</button></div>
+  </div></div>`;
+}
+function oilProblem(e) {
+  const date = parseDate(e.date), last = parseKm(e.last), now = e.now ? parseKm(e.now) : null;
+  if (!date) return 'Informe a data da última troca (dia/mês/ano).';
+  if (date > today0()) return 'A data da última troca está no futuro.';
+  if (last == null) return 'Informe o km do painel na última troca.';
+  if (now != null && now < last) return 'O km de hoje é menor que o da última troca.';
+  if (e.other && e.visc.trim() && !parseVisc(e.visc)) return 'Escreva a viscosidade como na embalagem (ex.: 5W-30).';
+  return null;
+}
+function oilCheck() {
+  const e = car.oilEdit, el = $('#oilProb'); if (!e || !el) return;
+  const prob = oilProblem(e);
+  el.textContent = prob || 'Com o scanner ligado, o Rumo anda os km sozinho a partir do km do painel de hoje.';
+  el.classList.toggle('bad', !!prob);
+  $('#oilSave').disabled = !!prob;
+}
+/* Data só com números: as barras entram sozinhas */
+stage.addEventListener('input', ev => {
+  const k = ev.target.dataset && ev.target.dataset.oil, e = car.oilEdit;
+  if (!k || !e) return;
+  let v = ev.target.value;
+  if (k === 'date') {
+    const d = v.replace(/\D/g, '').slice(0, 8);
+    v = d.slice(0, 2) + (d.length > 2 ? '/' + d.slice(2, 4) : '') + (d.length > 4 ? '/' + d.slice(4) : '');
+  } else if (k === 'last' || k === 'now') v = v.replace(/\D/g, '').slice(0, 7);
+  else v = v.slice(0, 10);
+  if (v !== ev.target.value) ev.target.value = v;
+  e[k] = v;
+  oilCheck();
+});
+function saveOil() {
+  const e = car.oilEdit; if (!e || oilProblem(e)) return;
+  const visc = e.other ? (parseVisc(e.visc) || '') : e.visc;
+  car.oil = { type: e.type, km: e.km, months: e.months, date: isoDate(parseDate(e.date)), lastKm: parseKm(e.last), visc };
+  car.panelKm = e.now ? parseKm(e.now) : null; car.odo = 0;
+  car.oilEdit = null;
+  store.set('oil', car.oil);
+  renderSheet(); renderStack();
+  toast('Troca de óleo salva', 'check');
+}
+function setCarLink(link) {
+  car.link = link;
+  renderStack();
+  if (state.sheet === 'car') renderSheet();
+}
+let carLinkTimer = null;
+function connectScanner() {
+  clearTimeout(carLinkTimer);
+  setCarLink('connecting');
+  carLinkTimer = setTimeout(() => setCarLink('live'), 1300);
+}
+const CAR_ACT = {
+  'card-page': el => { state.cardPage = +el.dataset.p; store.set('cardPage', state.cardPage); renderStack(); },
+  'car-open': () => { car.view = 'now'; openSheet('car'); updateCarLive(); },
+  'car-view': el => { car.view = el.dataset.v; state.armed = null; renderSheet(); sheetEl.querySelectorAll('.car-l, .car-r').forEach(x => { x.scrollTop = 0; }); updateCarLive(); },
+  'obd-search': () => {
+    if (!isParked()) { parkedOnly(); return; }
+    car.searching = true; car.found = []; renderSheet();
+    setTimeout(() => {
+      car.searching = false;
+      car.found = [{ name: 'OBDII', likely: true }, { name: 'Galaxy A34', likely: false }, { name: 'JBL GO 3', likely: false }];
+      if (state.sheet === 'car') renderSheet();
+    }, 1800);
+  },
+  'obd-choose': el => { car.scanner = el.dataset.n; car.found = []; connectScanner(); toast(`Scanner escolhido: ${car.scanner}`, 'bluetooth'); },
+  'obd-reconnect': () => connectScanner(),
+  'obd-forget': () => { clearTimeout(carLinkTimer); car.scanner = null; car.found = []; setCarLink(null); },
+  'obd-reset': () => { car.km = 0; car.l = 0; updateCarLive(); },
+  'obd-factor': el => { car.factor = clamp(Math.round((car.factor * 100 + +el.dataset.d)) / 100, 0.5, 2); store.set('fuelFactor', car.factor); renderSheet(); updateCarLive(); },
+  'oil-edit': () => openOilEdit(),
+  'oil-cancel': () => { car.oilEdit = null; renderSheet(); updateCarLive(); },
+  'oil-save': () => { saveOil(); updateCarLive(); },
+  'oil-type': el => { const t = OIL_TYPES[el.dataset.t]; Object.assign(car.oilEdit, { type: el.dataset.t, km: t.km, months: t.months }); renderSheet(); oilCheck(); },
+  'oil-km': el => { const e = car.oilEdit; e.km = clamp(e.km + +el.dataset.d, 1000, 30000); renderSheet(); oilCheck(); },
+  'oil-months': el => { const e = car.oilEdit; e.months = clamp(e.months + +el.dataset.d, 1, 24); renderSheet(); oilCheck(); },
+  'oil-visc': el => { const e = car.oilEdit; e.other = false; e.visc = e.visc === el.dataset.v ? '' : el.dataset.v; renderSheet(); oilCheck(); },
+  'oil-other': () => { const e = car.oilEdit; e.other = !e.other; e.visc = ''; renderSheet(); oilCheck(); },
+  'oil-done': () => {
+    const odo = odometer(); if (odo == null || !car.oil) return;
+    car.oil = Object.assign({}, car.oil, { date: isoDate(today0()), lastKm: Math.round(odo) });
+    store.set('oil', car.oil); state.armed = null;
+    renderSheet(); renderStack(); updateCarLive();
+    toast(`Troca registrada hoje com ${kmText(Math.round(odo))}`, 'check');
+  },
+  'oil-del': () => {
+    if (state.armed !== 'oil-del') { state.armed = 'oil-del'; renderSheet(); updateCarLive(); return; }
+    car.oil = null; state.armed = null; store.set('oil', null);
+    renderSheet(); renderStack();
+  },
+  'diary-clear': () => {
+    if (state.armed !== 'diary-clear') { state.armed = 'diary-clear'; renderSheet(); return; }
+    car.cleared = true; car.trips = []; state.armed = null; renderSheet();
+  }
+};
+/* Parar ou sair andando muda o que os botões da folha permitem; andando, o diálogo do óleo fecha */
+let lastParked = true;
+function carParkedWatch() {
+  const pk = isParked(); if (pk === lastParked) return;
+  lastParked = pk;
+  if (!pk) car.oilEdit = null;
+  if (state.sheet === 'car') { renderSheet(); updateCarLive(); }
+}
+
+/* ================================================================
    Folhas (sheets)
    ================================================================ */
 const isParked = () => state.speed < 5 && !state.moving;
@@ -1765,7 +2295,7 @@ const parkedOnly = () => { toast('Disponível com o carro parado', 'lock'); };
 function openSheet(name) {
   closeMenus();
   if (state.sheet === 'radio' && name !== 'radio') stopScan(false);
-  state.sheet = name; state.armed = null; state.favMenu = null; state.rename = null;
+  state.sheet = name; state.armed = null; state.favMenu = null; state.rename = null; car.oilEdit = null;
   renderSheet();
   sheetEl.hidden = false;
   sheetEl.style.animation = 'none'; void sheetEl.offsetWidth; sheetEl.style.animation = '';
@@ -1774,7 +2304,7 @@ function openSheet(name) {
 function closeSheet() {
   if (!state.sheet) return;
   if (state.sheet === 'radio') stopScan(false);
-  state.sheet = null; state.armed = null; state.favMenu = null; state.rename = null;
+  state.sheet = null; state.armed = null; state.favMenu = null; state.rename = null; car.oilEdit = null;
   sheetEl.hidden = true; sheetEl.innerHTML = '';
   markDock();
 }
@@ -1786,11 +2316,13 @@ function markDock() {
 const head = (title, sub = '') => `<div class="sh-head"><div class="sh-title"><h2>${title}</h2>${sub ? `<small>${sub}</small>` : ''}</div><button class="x press" data-act="close" aria-label="Fechar">${ic('x')}</button></div>`;
 function renderSheet() {
   const f = { radio: sheetRadio, audio: () => sheetApps('Música', 'audio'), phone: () => sheetApps('Telefone', 'phone'), apps: () => sheetApps('Apps'),
-    settings: sheetSettings, mark: sheetMark }[state.sheet];
+    settings: sheetSettings, mark: sheetMark, car: sheetCar }[state.sheet];
   if (!f) return;
-  const body = sheetEl.querySelector('.sh-body, .plist, .mk-body'); const scroll = body ? body.scrollTop : 0;
+  const SCROLLERS = '.sh-body, .plist, .mk-body, .car-l, .car-r';
+  const scroll = [...sheetEl.querySelectorAll(SCROLLERS)].map(el => el.scrollTop);
   sheetEl.innerHTML = f();
-  const b = sheetEl.querySelector('.sh-body, .plist, .mk-body'); if (b) b.scrollTop = scroll;
+  sheetEl.querySelectorAll(SCROLLERS).forEach((el, i) => { if (scroll[i]) el.scrollTop = scroll[i]; });
+  if (state.sheet === 'car') updateCarLive();
 }
 function sheetApps(title, type) {
   const list = type ? APPS.filter(a => a.t === type) : APPS;
@@ -2029,6 +2561,7 @@ const ACT = {
   'web-prev': () => webStep(-1), 'web-next': () => webStep(1),
   'web-fm': el => { tune(+el.dataset.k, true); renderMedia(); renderSheet(); toast(`Mesma emissora no FM ${fmtFreq(+el.dataset.k)}`, 'radio'); }
 };
+Object.assign(ACT, CAR_ACT);
 /* Anterior e próxima no card: entre as favoritas, em ordem de frequência (sem favoritas, busca) */
 function mediaStep(d) {
   const fs = sortedFavs();
@@ -2111,6 +2644,7 @@ document.addEventListener('keydown', e => {
     else if (state.upd) closeUpd();
     else if (state.volOpen || state.gmenu) closeMenus();
     else if (state.aa) closeAA();
+    else if (car.oilEdit) ACT['oil-cancel']();
     else if (state.sheet) closeSheet();
     else if (document.body.classList.contains('kiosk')) toggleKiosk(false);
   }
@@ -2119,7 +2653,7 @@ document.addEventListener('keydown', e => {
 /* ================================================================
    Laços de atualização
    ================================================================ */
-setInterval(() => { alertTick(); updateSpeedUI(); updateTrip(); }, 250);
+setInterval(() => { alertTick(); updateSpeedUI(); updateTrip(); carParkedWatch(); updateCarLive(); }, 250);
 setInterval(() => { radioTick(); webTick(); updateClock(); }, 1000);
 
 /* ================================================================
@@ -2130,7 +2664,7 @@ if (location.hash === '#embed') document.body.classList.add('embed');
 state.s = 0.35 * S;
 state.heading = state.cam = headingOf(segDir(segAt(state.s)));
 applySettings(false);
-updateClock(); updateSpeedUI(); updateTrip(); renderMedia();
+updateClock(); updateSpeedUI(); updateTrip(); renderMedia(); renderStack();
 layoutStage();
 new ResizeObserver(() => layoutStage()).observe(viewport);
 new ResizeObserver(() => resizeMap()).observe($('#mapCard'));
