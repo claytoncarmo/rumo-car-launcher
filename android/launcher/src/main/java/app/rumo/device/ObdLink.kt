@@ -14,6 +14,9 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
 
+/** PIDs lidos em toda rodada: rotação, velocidade, fluxo de ar, acelerador e taxa de combustível. */
+private val EVERY_CYCLE = listOf(0x0C, 0x0D, 0x10, 0x11, 0x5E)
+
 /** Scanner OBD2 Bluetooth: nome (como o scanner se anuncia) e endereço. */
 data class ObdDevice(val name: String?, val address: String)
 
@@ -272,7 +275,8 @@ class ObdLink(
 
             // Uma rodada: o essencial toda vez; o resto, em rodízio, só com a folha do carro aberta
             val wanted = LinkedHashSet<Int>()
-            for (pid in listOf(0x0C, 0x0D, 0x10, 0x5E)) if (pid in supported) wanted += pid
+            // Rotação, velocidade, ar (consumo) e acelerador (jeito de dirigir) toda rodada
+            for (pid in EVERY_CYCLE) if (pid in supported) wanted += pid
             if (cycle % 3 == 0 && 0x05 in supported) wanted += 0x05
             if (cycle % 10 == 0 && 0x2F in supported) wanted += 0x2F
             // Distância que o carro conta (PID 31): o km do painel para a manutenção. Na primeira rodada e a cada ~30 s
@@ -281,7 +285,7 @@ class ObdLink(
             if (cycle % 30 == 0 && 0x1F in supported) wanted += 0x1F
             val inDetail = detail()
             if (inDetail) {
-                val rest = ObdPids.DEFS.map { it.pid }.filter { it in supported && it !in wanted && it !in listOf(0x0C, 0x0D, 0x10, 0x5E) }
+                val rest = ObdPids.DEFS.map { it.pid }.filter { it in supported && it !in wanted && it !in EVERY_CYCLE }
                 if (rest.isNotEmpty()) repeat(minOf(3, rest.size)) { wanted += rest[(rotate++) % rest.size] }
             }
             var silent = false

@@ -149,7 +149,7 @@ body.kiosk .frame{border-radius:0;box-shadow:none}
 .map-shade{position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(to bottom,var(--fade) 0%,var(--fade-0) 26%,var(--fade-0) 60%,var(--fade) 100%)}
 .street{position:absolute;left:22px;top:18px;right:210px;display:flex;flex-direction:column;gap:3px;min-width:0}
-.street small{font-size:14px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-2)}
+.street small{font-size:17px;font-weight:500;color:var(--text-2)}
 .street b{font-size:28px;font-weight:600;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .map-app{position:absolute;right:14px;top:14px;height:56px;border-radius:18px;padding:0 16px;display:flex;align-items:center;gap:10px;
   background:var(--surface-2);font-size:18px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.18)}
@@ -722,6 +722,37 @@ body.embed .app{padding-block:8px;gap:8px}
 .stk-tab.on{color:var(--accent-ink)}
 .stk-tab i{width:9px;height:9px;border-radius:50%;background:var(--accent)}
 /* Página Carro do cartão: consumo em grande e quatro números do carro; tocar abre a folha */
+/* Viagem: velocidade (do carro com o scanner, senão do GPS), consumo agora e da semana, distância, tempo e autonomia */
+.tv{height:100%;display:flex;flex-direction:column;gap:8px;padding:0 6px;cursor:pointer}
+.tv-top{flex:1;min-height:0;display:flex;align-items:center;gap:12px}
+.tv-speed{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px}
+.tv-speed b{font:600 96px/.9 var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.tv-speed b.hot{color:#ef4444}
+.tv-speed > span{font-size:20px;color:var(--text-2)}
+.tv-fuel{display:flex;flex-direction:column;align-items:flex-end;gap:4px;text-align:right}
+.tv-fuel b{font:600 34px/1 var(--font-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tv-fuel b i{font:500 17px/1 var(--font-ui, inherit);font-style:normal;color:var(--text-2)}
+.tv-fuel small{font-size:15px;color:var(--text-2);white-space:nowrap}
+.stat.low b{color:#ef4444}
+/* Motor: velocímetro e conta-giros pequenos, temperatura, bateria e o jeito de dirigir */
+.mt{height:100%;display:flex;flex-direction:column;gap:8px;padding:0 6px;cursor:pointer}
+.mt-gauges{flex:1;min-height:0;display:flex;gap:10px}
+.gauge{flex:1;min-width:0;position:relative;display:flex;justify-content:center}
+.gauge svg{height:100%;max-width:100%;overflow:visible}
+.gauge .g-track{fill:none;stroke:var(--surface-3);stroke-width:9;stroke-linecap:round}
+.gauge .g-red{fill:none;stroke:rgba(220,38,38,.45);stroke-width:9}
+.gauge .g-val{fill:none;stroke:var(--accent);stroke-width:9;stroke-linecap:round;transition:stroke-dasharray .35s ease-out}
+.gauge.hot .g-val{stroke:#ef4444}
+.gauge .g-num{position:absolute;left:0;right:0;top:44%;display:flex;flex-direction:column;align-items:center;gap:2px}
+.gauge .g-num b{font:600 30px/1 var(--font-num);font-variant-numeric:tabular-nums}
+.gauge .g-num small{font-size:13px;color:var(--text-2)}
+.mt-row{display:flex;gap:8px}
+.mt-row .stat{flex:0 0 auto;min-width:86px}
+.eco{flex:1;min-width:0;background:var(--surface-2);border-radius:16px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;gap:7px}
+.eco-bar{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--ok) 0 40%,var(--accent) 40% 70%,#ef4444 70% 100%)}
+.eco-bar i{position:absolute;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:var(--surface);box-shadow:0 0 0 3px var(--text);transition:left .6s ease-out}
+.eco small{font-size:14px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eco small b{color:var(--text);font-weight:600}
 .carp{height:100%;display:flex;flex-direction:column;padding:0 6px;cursor:pointer}
 .carp-top{flex:1;min-height:0;display:flex;align-items:center;gap:12px}
 .carp-big{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px}
@@ -852,7 +883,7 @@ body.embed .app{padding-block:8px;gap:8px}
             <section class="card map-card" id="mapCard" data-act="aa" aria-label="Mapa. Toque para abrir o Android Auto">
               <canvas class="map-cv" id="mapCv"></canvas>
               <div class="map-shade"></div>
-              <div class="street"><small id="streetDir">Sentido norte</small><b id="streetName"></b></div>
+              <div class="street"><b id="streetName"></b><small id="streetDir">Sentido norte</small></div>
               <button class="map-app press" data-act="aa" aria-label="Abrir Android Auto"><svg class="ic"><use href="#i-cast"/></svg><span>Android Auto</span></button>
               <button class="map-plus press" data-act="mark" aria-label="Marcar ponto aqui"><svg class="ic"><use href="#i-plus"/></svg></button>
               <div class="map-bottom">
@@ -875,13 +906,15 @@ body.embed .app{padding-block:8px;gap:8px}
             <section class="card stack-card" id="stackCard" aria-label="Viagem">
               <div class="stk-head"><div class="stk-tabs" id="stkTabs" role="tablist" aria-label="Páginas do cartão"></div></div>
               <div class="stk-body"><div class="stk-page" id="pgTrip">
-                <div class="trip">
-                  <div class="trip-speed"><b class="num" id="tvSpeed">0</b><span>km/h</span></div>
-                  <div class="trip-cmp"><div class="cmp"><i></i><b id="tvCmp">N</b></div></div>
+                <div class="tv" data-act="car-diary" role="button" aria-label="Viagem. Toque para ver o diário de viagens">
+                  <div class="tv-top">
+                    <div class="tv-speed"><b class="num" id="tvSpeed">0</b><span>km/h</span></div>
+                    <div class="tv-fuel" id="tvFuel"><b><span id="tvKml">--</span> <i id="tvKmlU">km/L</i></b><small id="tvKmlS">agora</small></div>
+                  </div>
                   <div class="trip-stats">
                     <div class="stat"><b id="tvDist">0,0 km</b><small>distância</small></div>
-                    <div class="stat"><b id="tvTime">0:00</b><small>em movimento</small></div>
-                    <div class="stat"><b id="tvAvg">0 km/h</b><small>média</small></div>
+                    <div class="stat"><b id="tvTime">0:00</b><small id="tvTimeL">tempo</small></div>
+                    <div class="stat" id="tvRangeBox"><b id="tvRange">--</b><small id="tvRangeL">autonomia</small></div>
                   </div>
                 </div>
               </div><div class="stk-page" id="pgCar" hidden></div></div>
@@ -1156,7 +1189,7 @@ const PROFILES = { '1024': { w: 1024, h: 600 }, '1280': { w: 1280, h: 720 }, '20
    ================================================================ */
 const ZONE = { min: 100, max: 1000, step: 50, def: 300 };
 const MARGIN = { min: 0, max: 10, def: 0 };
-const DEFAULTS = { theme: 'auto', profile: '1280', radarDist: ZONE.def, radarMargin: MARGIN.def };
+const DEFAULTS = { theme: 'auto', profile: '1280', radarDist: ZONE.def, radarMargin: MARGIN.def, tankL: 45 };
 const settings = Object.assign({}, DEFAULTS, store.get('settings', {}));
 settings.radarDist = clamp(Math.round(+settings.radarDist || ZONE.def), ZONE.min, ZONE.max);
 settings.radarMargin = clamp(Math.round(+settings.radarMargin || 0), MARGIN.min, MARGIN.max);
@@ -1557,14 +1590,84 @@ function updateSpeedUI() {
     $('#rdS').textContent = r.alarm ? `Reduza · ${k.name.toLowerCase()} · ${r.lim} km/h` : `${k.name}${k.enf ? ` · ${r.lim} km/h` : ''}`;
   }
 }
+/* Viagem: com o scanner lendo, a velocidade, a distância e o tempo vêm do carro (viagem desde a partida, a mesma do
+   diário); sem ele, do GPS (viagem desde que o Rumo abriu). Quem dirige não precisa saber de onde vem. */
+function weekAvg() {
+  const from = weekStart0(), list = car.trips.filter(t => t.start >= from);
+  const km = list.reduce((a, t) => a + t.km, 0) + car.dKm, l = list.reduce((a, t) => a + t.l, 0) + car.dL;
+  return l > 0.05 ? km / l : null;
+}
 function updateTrip() {
-  const ss = speedState();
-  const sp = $('#tvSpeed'); sp.textContent = ss.v; sp.classList.toggle('hot', ss.over);
-  $('#tvCmp').textContent = compassOf(state.heading);
-  $('#tvDist').textContent = `${fmt1.format(state.trip.m / 1000)} km`;
-  const t = Math.round(state.trip.t / 60);
+  const ss = speedState(), o = carLive() ? obdNow() : null;
+  const v = o ? o.speed : ss.v, over = v >= 3 && v > ss.lim;
+  const sp = $('#tvSpeed'); sp.textContent = v; sp.classList.toggle('hot', over);
+  const wk = weekAvg();
+  $('#tvFuel').hidden = !o;
+  if (o) {
+    $('#tvKml').textContent = fmt1.format(o.kml ?? o.lph);
+    $('#tvKmlU').textContent = o.kml == null ? 'L/h' : 'km/L';
+    $('#tvKmlS').textContent = wk != null ? `agora · semana ${fmt1.format(wk)}` : 'agora';
+  }
+  const km = o ? car.dKm : state.trip.m / 1000;
+  const secs = o ? (Date.now() - car.liveStart) / 1000 : state.trip.t;
+  $('#tvDist').textContent = `${km < 100 ? fmt1.format(km) : NF0.format(km)} km`;
+  const t = Math.round(secs / 60);
   $('#tvTime').textContent = `${Math.floor(t / 60)}:${pad2(t % 60)}`;
-  $('#tvAvg').textContent = `${state.trip.t > 5 ? Math.round(state.trip.m / state.trip.t * 3.6) : 0} km/h`;
+  $('#tvTimeL').textContent = o ? 'tempo' : 'em movimento';
+  const box = $('#tvRangeBox');
+  if (o) {
+    // Autonomia: o que sobra no tanque pela média da viagem atual (no começo dela, com pouco lido, a da semana);
+    // o sensor do tanque é grosso: arredonda a 10 km
+    const kml = car.dL >= 0.2 ? car.dKm / car.dL : wk;
+    const left = o.tank / 100 * (+settings.tankL || 45), range = kml != null ? Math.round(left * kml / 10) * 10 : null;
+    $('#tvRange').textContent = range != null ? `≈ ${NF0.format(range)} km` : '--';
+    $('#tvRangeL').textContent = o.tank < 12 ? 'autonomia · reserva' : 'autonomia';
+    box.classList.toggle('low', o.tank < 12);
+  } else {
+    $('#tvRange').textContent = `${secs > 5 ? Math.round(km / secs * 3600) : 0} km/h`;
+    $('#tvRangeL').textContent = 'média';
+    box.classList.remove('low');
+  }
+  updateMotor();
+}
+const weekStart0 = () => { const d = today0(); const wd = (d.getDay() + 6) % 7; return d.getTime() - wd * DAY_MS; };
+
+/* Motor: mostradores em arco (240°), sem animação contínua: só um ajuste curto a cada leitura */
+const ARC = 'M 18.4 84 A 48 48 0 1 1 101.6 84';
+function gaugeSVG(id, red) {
+  return `<svg viewBox="0 0 120 92" aria-hidden="true"><path class="g-track" d="${ARC}" pathLength="100"/>
+    ${red ? `<path class="g-red" d="${ARC}" pathLength="100" stroke-dasharray="0 ${red} ${100 - red}"/>` : ''}
+    <path class="g-val" id="${id}" d="${ARC}" pathLength="100" stroke-dasharray="0 100"/></svg>`;
+}
+/* Jeito de dirigir, numa nota de 0 (econômico) a 100 (agressivo): acelerações e freadas fortes, rotação alta e pé
+   fundo no acelerador, nos últimos minutos (média móvel), com folga para não ficar trocando de rótulo */
+const eco = { score: 15, lastV: null, label: 'econômica' };
+function ecoTick(o) {
+  const v = o.speed / 3.6, dv = eco.lastV == null ? 0 : (v - eco.lastV) / 0.25; eco.lastV = v;
+  let hit = 0;
+  if (dv > 2.5) hit += 60; else if (dv > 1.5) hit += 25;     // acelerada forte (m/s²)
+  if (dv < -3.5) hit += 70; else if (dv < -2.5) hit += 30;   // freada forte
+  if (o.rpm > 3500) hit += 50; else if (o.rpm > 2800) hit += 20;
+  if (o.thr > 60) hit += 30;
+  eco.score += (Math.min(100, hit) - eco.score) * 0.01;      // ~1 min de memória
+  const s = eco.score;
+  eco.label = eco.label === 'econômica' ? (s > 45 ? 'moderada' : 'econômica')
+    : eco.label === 'moderada' ? (s < 35 ? 'econômica' : s > 75 ? 'agressiva' : 'moderada')
+    : (s < 65 ? 'moderada' : 'agressiva');
+}
+function updateMotor() {
+  const el = $('#gSpd'); if (!el || !carLive()) return;
+  const o = obdNow(), ss = speedState();
+  ecoTick(o);
+  el.setAttribute('stroke-dasharray', `${clamp(o.speed / 160 * 100, 0, 100)} 100`);
+  $('#gSpdBox').classList.toggle('hot', o.speed >= 3 && o.speed > ss.lim);
+  $('#gSpdV').textContent = o.speed;
+  $('#gRpm').setAttribute('stroke-dasharray', `${clamp(o.rpm / 8000 * 100, 0, 100)} 100`);
+  $('#gRpmV').textContent = NF0.format(Math.round(o.rpm / 50) * 50);
+  $('#mtCool').textContent = `${o.cool} °C`;
+  $('#mtVolt').textContent = `${fmt1.format(o.volt)} V`;
+  $('#ecoDot').style.left = `${clamp(eco.score, 3, 97)}%`;
+  $('#ecoTxt').innerHTML = `Condução <b>${eco.label}</b>`;
 }
 function updateClock() {
   const d = new Date();
@@ -2017,30 +2120,33 @@ function updateCarLive() {
   els.forEach(el => { const v = f[el.dataset.o]; if (v != null && el.textContent !== v) el.textContent = v; });
 }
 
-/* Cartão inteligente: abas e página Carro */
+/* Cartão inteligente: Viagem | Motor */
 function renderStack() {
   const p = state.cardPage, st = car.oil ? oilStatus(car.oil) : null, dot = st && (st.due || st.soon);
-  $('#stkTabs').innerHTML = [['Viagem', 0], ['Carro', 1]].map(([l, i]) =>
+  $('#stkTabs').innerHTML = [['Viagem', 0], ['Motor', 1]].map(([l, i]) =>
     `<button class="stk-tab press ${p === i ? 'on' : ''}" data-act="card-page" data-p="${i}" role="tab" aria-selected="${p === i}">${l}${i === 1 && dot ? '<i title="Troca de óleo perto"></i>' : ''}</button>`).join('');
   $('#pgTrip').hidden = p !== 0;
   $('#pgCar').hidden = p !== 1;
   if (p === 1) $('#pgCar').innerHTML = carPageHTML();
-  $('#stackCard').setAttribute('aria-label', p ? 'Carro' : 'Viagem');
+  $('#stackCard').setAttribute('aria-label', p ? 'Motor' : 'Viagem');
+  updateTrip();
   updateCarLive();
 }
 function carPageHTML() {
   if (!carLive()) {
     const title = !car.scanner ? 'Nenhum scanner OBD2 escolhido' : car.link === 'connecting' ? 'Conectando no scanner…' : 'Scanner parado';
-    const sub = !car.scanner ? 'Toque para escolher o scanner e ver os dados do carro.' : 'Toque para ver os detalhes.';
+    const sub = !car.scanner ? 'Toque para escolher o scanner e ver o motor.' : 'Toque para ver os detalhes.';
     return `<div class="carp" data-act="car-open"><div class="carp-off"><b>${title}</b><small>${sub}</small></div></div>`;
   }
-  return `<div class="carp" data-act="car-open" role="button" aria-label="Abrir tudo o que o carro informa">
-    <div class="carp-top"><div class="carp-big"><b data-o="big">--</b><span data-o="bigU">km/L</span></div><span class="carp-avg" data-o="avg"></span></div>
-    <div class="carp-stats">
-      <div class="stat"><b data-o="rpm">--</b><small>rpm</small></div>
-      <div class="stat"><b data-o="cool">--</b><small>motor</small></div>
-      <div class="stat"><b data-o="volt">--</b><small>bateria</small></div>
-      <div class="stat"><b data-o="tank">--</b><small>tanque</small></div>
+  return `<div class="mt" data-act="car-open" role="button" aria-label="Motor. Toque para abrir tudo o que o carro informa">
+    <div class="mt-gauges">
+      <div class="gauge" id="gSpdBox">${gaugeSVG('gSpd', 0)}<div class="g-num"><b id="gSpdV">0</b><small>km/h</small></div></div>
+      <div class="gauge" id="gRpmBox">${gaugeSVG('gRpm', 78.125)}<div class="g-num"><b id="gRpmV">0</b><small>rpm</small></div></div>
+    </div>
+    <div class="mt-row">
+      <div class="stat"><b id="mtCool">--</b><small>motor</small></div>
+      <div class="stat"><b id="mtVolt">--</b><small>bateria</small></div>
+      <div class="eco"><div class="eco-bar"><i id="ecoDot" style="left:15%"></i></div><small id="ecoTxt">Condução <b>econômica</b></small></div>
     </div></div>`;
 }
 
@@ -2258,6 +2364,7 @@ function connectScanner() {
 const CAR_ACT = {
   'card-page': el => { state.cardPage = +el.dataset.p; store.set('cardPage', state.cardPage); renderStack(); },
   'car-open': () => { car.view = 'now'; openSheet('car'); updateCarLive(); },
+  'car-diary': () => { car.view = carLive() ? 'diary' : 'now'; openSheet('car'); updateCarLive(); },
   'car-view': el => { car.view = el.dataset.v; state.armed = null; renderSheet(); sheetEl.querySelectorAll('.car-l, .car-r').forEach(x => { x.scrollTop = 0; }); updateCarLive(); },
   'obd-search': () => {
     if (!isParked()) { parkedOnly(); return; }
@@ -2400,6 +2507,8 @@ function settingsMain() {
       <div class="srow"><div><b>Margem de velocidade</b><small>Vale só para o som: com ${m} km/h, num radar de 50 km/h os bipes começam acima de ${50 + m} km/h. O aviso em vermelho aparece assim que passa do limite.</small></div>${stepper('margin', `${m} km/h`, m > MARGIN.min, m < MARGIN.max)}</div>
       <div><button class="btn-pill press" data-act="radar-default" ${isDef ? 'disabled' : ''}>Restaurar o padrão</button></div>
       <p class="note">Padrão: ${ZONE.def} m e ${MARGIN.def} km/h de margem.</p>
+      <h3 style="margin-top:8px">Carro</h3>
+      <div class="srow"><div><b>Capacidade do tanque</b><small>Para a autonomia no cartão Viagem: o que resta no tanque (lido pelo scanner OBD2) pela média de consumo da viagem.</small></div>${stepper('tank', `${settings.tankL} L`, settings.tankL > 20, settings.tankL < 120)}</div>
     </div>
     <div class="st-col"><div class="scard"><h3>Sistema</h3>
       <div class="srow"><div><b>Reiniciar o Android</b><small>Reinicia o Android do aparelho (como desligar e ligar). Funciona só com o carro parado.</small></div>
@@ -2572,6 +2681,8 @@ const ACT = {
   'st-tab': el => { state.settingsTab = el.dataset.tab; state.armed = null; renderSheet(); },
   'zone-dec': () => { settings.radarDist = Math.max(ZONE.min, settings.radarDist - ZONE.step); applySettings(); renderSheet(); },
   'zone-inc': () => { settings.radarDist = Math.min(ZONE.max, settings.radarDist + ZONE.step); applySettings(); renderSheet(); },
+  'tank-dec': () => { settings.tankL = Math.max(20, settings.tankL - 1); applySettings(); renderSheet(); },
+  'tank-inc': () => { settings.tankL = Math.min(120, settings.tankL + 1); applySettings(); renderSheet(); },
   'margin-dec': () => { settings.radarMargin = Math.max(MARGIN.min, settings.radarMargin - 1); applySettings(); renderSheet(); },
   'margin-inc': () => { settings.radarMargin = Math.min(MARGIN.max, settings.radarMargin + 1); applySettings(); renderSheet(); },
   'radar-default': () => { settings.radarDist = ZONE.def; settings.radarMargin = MARGIN.def; applySettings(); renderSheet(); },

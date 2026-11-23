@@ -77,8 +77,6 @@ fun CarSheet(s: HomeState, a: HomeActions) {
     val o = s.obd
     val parked = (s.gps.speedKmh ?: 0) < 5
     var editingOil by remember { mutableStateOf(false) }
-    // 0 = agora (leitura ao vivo), 1 = diário de viagens
-    var view by remember { mutableStateOf(0) }
     // Andou com o diálogo aberto: fecha (o teclado não fica na tela com o carro andando)
     LaunchedEffect(parked) { if (!parked) editingOil = false }
     Box(Modifier.fillMaxSize()) {
@@ -91,7 +89,7 @@ fun CarSheet(s: HomeState, a: HomeActions) {
                 Txt("Carro", 30, weight = FontWeight.SemiBold)
                 Txt(statusLine(s), 16, color = p.text2)
             }
-            ViewSwitch(view) { view = it }
+            ViewSwitch(s.carView) { s.carView = it }
             Spacer(Modifier.width(16.dp))
             Box(
                 Modifier.size(76.dp, 64.dp).clip(RoundedCornerShape(20.dp)).background(p.surface2).clickable { s.sheet = Sheet.NONE },
@@ -100,7 +98,7 @@ fun CarSheet(s: HomeState, a: HomeActions) {
                 Ico(Icons.x, 30.dp, p.text)
             }
         }
-        if (view == 1) DiaryView(s, a, parked) else Row(
+        if (s.carView == 1) DiaryView(s, a, parked) else Row(
             Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, bottom = 22.dp),
             horizontalArrangement = Arrangement.spacedBy(20.dp),
         ) {

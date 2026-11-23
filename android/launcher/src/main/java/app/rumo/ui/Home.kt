@@ -53,6 +53,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Brush
@@ -82,7 +84,6 @@ import app.rumo.core.RadarSettings
 import app.rumo.core.radarLabel
 import app.rumo.core.RoadMatch
 import app.rumo.core.UserPoint
-import app.rumo.core.compassOf
 import app.rumo.core.directionOf
 import app.rumo.core.formatDistance
 import app.rumo.core.formatDuration
@@ -94,10 +95,11 @@ import app.rumo.device.GpsInfo
 import app.rumo.device.ObdDevice
 import app.rumo.device.ObdSnapshot
 import app.rumo.device.ObdStatus
-import app.rumo.core.ObdPids
 import app.rumo.core.Maintenance
 import app.rumo.core.OilPlan
 import app.rumo.core.OilType
+import app.rumo.core.DrivingLabel
+import app.rumo.core.TripDiary
 import app.rumo.device.GpsStatus
 import app.rumo.device.Satellites
 import app.rumo.device.RadioNow
@@ -216,6 +218,13 @@ class HomeState {
     /** Troca de óleo (null: ainda não configurada) e o km do painel estimado pelo contador do carro (null: desconhecido). */
     var oilPlan by mutableStateOf<OilPlan?>(null)
     var odometerKm by mutableStateOf<Double?>(null)
+    /** Vista da folha Carro: 0 = agora, 1 = diário. */
+    var carView by mutableStateOf(0)
+    /** Capacidade do tanque, em litros (para a autonomia). */
+    var tankLiters by mutableStateOf(45)
+    /** Jeito de dirigir: nota de 0 (econômico) a 100 (agressivo) e o rótulo. */
+    var drivingScore by mutableStateOf(0.0)
+    var drivingLabel by mutableStateOf(DrivingLabel.ECONOMIC)
     /** Diário de viagens, da mais antiga à mais nova (a última pode estar em andamento). */
     var trips by mutableStateOf<List<app.rumo.core.Trip>>(emptyList())
     /** Backup das configurações: os achados (memória interna e pendrive), o resultado da última ação e se há uma em curso. */
@@ -276,7 +285,10 @@ interface HomeActions {
     /** Diagnóstico: procura ganchos de reinício do fabricante (reboot-test.txt). */
     fun probeReboot()
     /** Página Carro: abre a folha com tudo o que o scanner OBD2 lê. */
-    fun openCar()
+    /** Abre a folha Carro: [view] 0 = agora, 1 = diário. */
+    fun openCar(view: Int = 0)
+    /** Capacidade do tanque, em litros. */
+    fun setTankLiters(liters: Int)
     fun carSearch()
     fun carChoose(device: ObdDevice)
     fun carForget()
@@ -700,7 +712,6 @@ private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, mapAllowed: Bo
                 g.bearing != null && (g.speedKmh ?: 0) > 0 -> "Sentido ${directionOf(g.bearing)}"
                 else -> "Parado"
             }
-            Txt(heading, 14, color = p.text2, weight = FontWeight.SemiBold, caps = true)
             when {
                 s.mapStatus == MapStatus.NO_PERMISSION ->
                     Txt(
@@ -716,6 +727,8 @@ private fun MapCard(s: HomeState, a: HomeActions, night: Boolean, mapAllowed: Bo
                 g.status == GpsStatus.OK && s.mapStatus == MapStatus.READY ->
                     Txt("Fora das vias do mapa", 22, color = p.text2, weight = FontWeight.SemiBold)
             }
+            // O sentido fica embaixo do nome da rua (saiu do cartão Viagem)
+            Txt(heading, 17, color = p.text2)
         }
         Row(
             Modifier
@@ -957,11 +970,11 @@ private fun TripCard(s: HomeState, a: HomeActions, modifier: Modifier) {
     Column(modifier.card(p).padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
         Row(Modifier.height(48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             CardTab("Viagem", s.cardPage == 0) { a.cardPage(0) }
-            // Ponto no "Carro" quando a troca de óleo venceu ou está perto
+            // Ponto no "Motor" quando a troca de óleo venceu ou está perto
             val oil = s.oilPlan?.let { Maintenance.status(it, s.odometerKm, java.time.LocalDate.now()) }
-            CardTab("Carro", s.cardPage == 1, dot = oil != null && (oil.due || oil.soon)) { a.cardPage(1) }
+            CardTab("Motor", s.cardPage == 1, dot = oil != null && (oil.due || oil.soon)) { a.cardPage(1) }
         }
-        if (s.cardPage == 1) CarPage(s, a) else TripPage(s.gps, s.over)
+        if (s.cardPage == 1) MotorPage(s, a) else TripPage(s, a)
     }
 }
 
@@ -978,39 +991,84 @@ private fun CardTab(label: String, on: Boolean, dot: Boolean = false, onClick: (
     }
 }
 
-/** Página "Viagem" do cartão: velocidade do GPS, rumo e a conta da viagem. */
+/**
+ * Página "Viagem" do cartão. A velocidade é a do carro com o scanner lendo, senão a do GPS (quem dirige não precisa
+ * saber de onde vem). Com o scanner: consumo agora e média da semana, e a viagem desde a partida do motor (a mesma do
+ * diário, que conta também o trecho com o Android Auto aberto) com a autonomia. Sem ele: a viagem pelo GPS e a média.
+ * Tocar abre o diário de viagens.
+ */
 @Composable
-private fun ColumnScope.TripPage(g: GpsInfo, over: Boolean) {
+private fun ColumnScope.TripPage(s: HomeState, a: HomeActions) {
     val p = LocalPalette.current
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Txt(
-                g.speedKmh?.toString() ?: "--", 96, color = if (over) p.danger else p.text,
-                weight = FontWeight.SemiBold, numeric = true, lineHeight = 1f,
-            )
-            Txt("km/h", 20, color = p.text2, modifier = Modifier.padding(bottom = 14.dp))
-        }
-        Box(Modifier.size(72.dp).border(3.dp, p.surface3, CircleShape), contentAlignment = Alignment.Center) {
-            Txt(g.bearing?.let { compassOf(it) } ?: "--", 24, weight = FontWeight.Bold)
-        }
+    val g = s.gps
+    val o = s.obd
+    val live = o.status == ObdStatus.LIVE
+    val trip = if (live) s.trips.lastOrNull()?.takeIf { System.currentTimeMillis() - it.end < LIVE_TRIP_MS } else null
+    val week = remember(s.trips) {
+        TripDiary.summary(s.trips, TripDiary.weekStart(java.time.LocalDate.now(), java.time.ZoneId.systemDefault()), Long.MAX_VALUE).kmPerLiter
     }
-    Spacer(Modifier.weight(1f))
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Stat(formatKm(g.tripMeters), "distância", Modifier.weight(1f))
-        Stat(formatDuration(g.tripMovingMs), "em movimento", Modifier.weight(1f))
-        Stat(g.tripAverageKmh?.let { "$it km/h" } ?: "--", "média", Modifier.weight(1f))
+    Column(Modifier.weight(1f).fillMaxWidth().clickable { a.openCar(1) }) {
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Txt(
+                    g.speedKmh?.toString() ?: "--", 96, color = if (s.over) p.danger else p.text,
+                    weight = FontWeight.SemiBold, numeric = true, lineHeight = 1f,
+                )
+                Txt("km/h", 20, color = p.text2, modifier = Modifier.padding(bottom = 14.dp))
+            }
+            if (live) {
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        val now = o.kmPerLiter ?: o.litersPerHour
+                        Txt(now?.let { String.format(PT_BR, "%.1f", it) } ?: "--", 34, weight = FontWeight.SemiBold, numeric = true, lineHeight = 1f)
+                        Txt(if (o.kmPerLiter != null || now == null) "km/L" else "L/h", 17, color = p.text2, modifier = Modifier.padding(bottom = 3.dp))
+                    }
+                    Txt(week?.let { String.format(PT_BR, "agora · semana %.1f", it) } ?: "agora", 15, color = p.text2)
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (live) {
+                Stat(trip?.let { formatKm(it.km * 1000) } ?: "--", "distância", Modifier.weight(1f))
+                Stat(trip?.let { formatDuration(it.engineSeconds * 1000L) } ?: "--", "tempo", Modifier.weight(1f))
+                // Autonomia: o que resta no tanque pela média da viagem atual (no começo dela, com pouco lido, a da
+                // semana). O sensor do tanque é grosso: arredonda a 10 km
+                val tank = o.number(0x2F)
+                val kml = trip?.takeIf { it.liters >= MIN_TRIP_LITERS }?.kmPerLiter ?: week
+                val range = if (tank != null && kml != null) Math.round(tank / 100 * s.tankLiters * kml / 10) * 10 else null
+                val low = tank != null && tank < LOW_TANK_PCT
+                Stat(
+                    range?.let { String.format(PT_BR, "≈ %,d km", it) } ?: "--", if (low) "autonomia · reserva" else "autonomia",
+                    Modifier.weight(1f), valueColor = if (low) p.danger else p.text,
+                )
+            } else {
+                Stat(formatKm(g.tripMeters), "distância", Modifier.weight(1f))
+                Stat(formatDuration(g.tripMovingMs), "em movimento", Modifier.weight(1f))
+                Stat(g.tripAverageKmh?.let { "$it km/h" } ?: "--", "média", Modifier.weight(1f))
+            }
+        }
     }
 }
 
+/** A última viagem do diário ainda está em andamento se teve leitura há menos que isto. */
+private const val LIVE_TRIP_MS = 120_000L
+/** Com menos combustível lido que isto na viagem, a autonomia usa a média da semana. */
+private const val MIN_TRIP_LITERS = 0.2
+private const val LOW_TANK_PCT = 12.0
+/** Mostradores: velocidade até 160 km/h; rotação até 8.000, com a faixa vermelha a partir de 6.250. */
+private const val GAUGE_MAX_KMH = 160f
+private const val GAUGE_MAX_RPM = 8_000f
+private const val REDLINE_RPM = 6_250f
+
 /**
- * Página "Carro" do cartão: o consumo agora em grande e quatro números do carro (rotação, temperatura do motor,
- * bateria, tanque), lidos pelo scanner OBD2. Tocar abre a folha com tudo o que o carro informa.
+ * Página "Motor" do cartão: velocímetro e conta-giros pequenos, temperatura do motor, bateria e o jeito de dirigir.
+ * Tocar abre a folha com tudo o que o carro informa.
  */
 @Composable
-private fun ColumnScope.CarPage(s: HomeState, a: HomeActions) {
+private fun ColumnScope.MotorPage(s: HomeState, a: HomeActions) {
     val p = LocalPalette.current
     val o = s.obd
-    Column(Modifier.weight(1f).fillMaxWidth().clickable { a.openCar() }) {
+    Column(Modifier.weight(1f).fillMaxWidth().clickable { a.openCar(0) }) {
         if (o.status != ObdStatus.LIVE) {
             Spacer(Modifier.weight(1f))
             Txt(
@@ -1024,37 +1082,91 @@ private fun ColumnScope.CarPage(s: HomeState, a: HomeActions) {
                 26, weight = FontWeight.SemiBold, maxLines = 2,
             )
             Txt(
-                if (s.obdScanner == null) "Toque para escolher o scanner e ver os dados do carro." else o.message ?: "Toque para ver os detalhes.",
+                if (s.obdScanner == null) "Toque para escolher o scanner e ver o motor." else o.message ?: "Toque para ver os detalhes.",
                 17, color = p.text2, maxLines = 3,
             )
             Spacer(Modifier.weight(1f))
             return@Column
         }
-        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val big = o.kmPerLiter?.let { String.format(PT_BR, "%.1f", it) } ?: o.litersPerHour?.let { String.format(PT_BR, "%.1f", it) } ?: "--"
-                Txt(big, 72, weight = FontWeight.SemiBold, numeric = true, lineHeight = 1f)
-                Txt(if (o.kmPerLiter != null) "km/L" else "L/h", 20, color = p.text2, modifier = Modifier.padding(bottom = 10.dp))
-            }
-            Txt(
-                o.tripKmPerLiter?.let { String.format(PT_BR, "média %.1f km/L", it) } ?: "",
-                17, color = p.text2, maxLines = 1,
+        Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            val speed = s.gps.speedKmh ?: 0
+            Gauge(speed / GAUGE_MAX_KMH, speed.toString(), "km/h", hot = s.over, redFrom = null, Modifier.weight(1f).fillMaxHeight())
+            val rpm = o.number(0x0C) ?: 0.0
+            Gauge(
+                (rpm / GAUGE_MAX_RPM).toFloat(), String.format(PT_BR, "%,d", Math.round(rpm / 50) * 50), "rpm",
+                hot = false, redFrom = REDLINE_RPM / GAUGE_MAX_RPM, Modifier.weight(1f).fillMaxHeight(),
             )
         }
+        Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Stat(o.values[0x0C]?.let { ObdPids.value(0x0C, it) }?.let { String.format(PT_BR, "%,d", Math.round(it)) } ?: "--", "rpm", Modifier.weight(1f))
-            Stat(o.number(0x05)?.let { "${Math.round(it)} °C" } ?: "--", "motor", Modifier.weight(1f))
-            Stat(o.voltage?.let { String.format(PT_BR, "%.1f V", it) } ?: "--", "bateria", Modifier.weight(1f))
-            Stat(o.number(0x2F)?.let { "${Math.round(it)} %" } ?: "--", "tanque", Modifier.weight(1f))
+            Stat(o.number(0x05)?.let { "${Math.round(it)} °C" } ?: "--", "motor", Modifier)
+            Stat(o.voltage?.let { String.format(PT_BR, "%.1f V", it) } ?: "--", "bateria", Modifier)
+            DrivingBox(s.drivingScore, s.drivingLabel, Modifier.weight(1f))
         }
     }
 }
 
+/** Mostrador em arco de 240° (de embaixo à esquerda a embaixo à direita), com o valor no meio. Sem animação. */
 @Composable
-private fun Stat(value: String, label: String, modifier: Modifier) {
+private fun Gauge(fraction: Float, value: String, unit: String, hot: Boolean, redFrom: Float?, modifier: Modifier) {
+    val p = LocalPalette.current
+    Box(modifier, contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val stroke = 9.dp.toPx()
+            // O arco ocupa 1,5 raio de altura (o topo e os pontos a 30° abaixo do centro)
+            val r = minOf(size.width / 2f, size.height / 1.5f) - stroke
+            val cx = size.width / 2f
+            val cy = (size.height - 1.5f * r) / 2f + r
+            val topLeft = Offset(cx - r, cy - r)
+            val box = androidx.compose.ui.geometry.Size(2 * r, 2 * r)
+            drawArc(p.surface3, 150f, 240f, false, topLeft, box, style = Stroke(stroke, cap = StrokeCap.Round))
+            redFrom?.let { drawArc(p.danger.copy(alpha = 0.45f), 150f + 240f * it, 240f * (1 - it), false, topLeft, box, style = Stroke(stroke)) }
+            val f = fraction.coerceIn(0f, 1f)
+            if (f > 0f) drawArc(if (hot) p.danger else p.accent, 150f, 240f * f, false, topLeft, box, style = Stroke(stroke, cap = StrokeCap.Round))
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Txt(value, 30, weight = FontWeight.SemiBold, numeric = true, lineHeight = 1f)
+            Txt(unit, 13, color = p.text2)
+        }
+    }
+}
+
+/** Jeito de dirigir: barra verde, amarela e vermelha com o marcador na nota, e o rótulo. */
+@Composable
+private fun DrivingBox(score: Double, label: DrivingLabel, modifier: Modifier) {
+    val p = LocalPalette.current
+    Column(
+        modifier.clip(RoundedCornerShape(16.dp)).background(p.surface2).padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        Box(Modifier.fillMaxWidth().height(18.dp), contentAlignment = Alignment.CenterStart) {
+            Canvas(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp))) {
+                val w = size.width
+                drawRect(ECO_GREEN, Offset.Zero, androidx.compose.ui.geometry.Size(w * 0.4f, size.height))
+                drawRect(p.accent, Offset(w * 0.4f, 0f), androidx.compose.ui.geometry.Size(w * 0.3f, size.height))
+                drawRect(p.danger, Offset(w * 0.7f, 0f), androidx.compose.ui.geometry.Size(w * 0.3f, size.height))
+            }
+            Canvas(Modifier.fillMaxSize()) {
+                val x = (score / 100).coerceIn(0.03, 0.97).toFloat() * size.width
+                val c = Offset(x, size.height / 2)
+                drawCircle(p.surface, radius = 7.dp.toPx(), center = c)
+                drawCircle(p.text, radius = 7.dp.toPx(), center = c, style = Stroke(3.dp.toPx()))
+            }
+        }
+        Row {
+            Txt("Condução ", 14, color = p.text2)
+            Txt(label.text, 14, weight = FontWeight.SemiBold)
+        }
+    }
+}
+
+private val ECO_GREEN = Color(0xFF16A34A)
+
+@Composable
+private fun Stat(value: String, label: String, modifier: Modifier, valueColor: Color = LocalPalette.current.text) {
     val p = LocalPalette.current
     Column(modifier.clip(RoundedCornerShape(16.dp)).background(p.surface2).padding(horizontal = 12.dp, vertical = 10.dp)) {
-        Txt(value, 24, weight = FontWeight.SemiBold, numeric = true)
+        Txt(value, 24, color = valueColor, weight = FontWeight.SemiBold, numeric = true)
         Txt(label, 14, color = p.text2)
     }
 }

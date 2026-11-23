@@ -134,7 +134,16 @@ fun SettingsSheet(s: HomeState, a: HomeActions) {
             Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, bottom = 22.dp),
             horizontalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            TabColumn { if (tab == SettingsTab.SETTINGS) RadarSection(s, a) else if (tab == SettingsTab.UPDATES) AppSection(s, a) else DiagnosticsSection(s, a) }
+            TabColumn {
+                if (tab == SettingsTab.SETTINGS) {
+                    RadarSection(s, a)
+                    CarSettingsSection(s, a)
+                } else if (tab == SettingsTab.UPDATES) {
+                    AppSection(s, a)
+                } else {
+                    DiagnosticsSection(s, a)
+                }
+            }
             TabColumn {
                 if (tab == SettingsTab.SETTINGS) {
                     SystemSection(a)
@@ -353,6 +362,22 @@ private fun DiagnosticsSection(s: HomeState, a: HomeActions) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PillButton("Teste do Bluetooth (OBD2)", enabled = true, primary = false) { a.probeBluetooth() }
         }
+    }
+}
+
+/** O carro: capacidade do tanque, para a autonomia no cartão Viagem. */
+@Composable
+private fun CarSettingsSection(s: HomeState, a: HomeActions) {
+    SectionCard("Carro") {
+        StepperRow(
+            title = "Capacidade do tanque",
+            detail = "Para a autonomia no cartão Viagem: o que resta no tanque (lido pelo scanner OBD2) pela média de consumo da viagem.",
+            value = "${s.tankLiters} L",
+            canDecrease = s.tankLiters > 20,
+            canIncrease = s.tankLiters < 120,
+            onDecrease = { a.setTankLiters(s.tankLiters - 1) },
+            onIncrease = { a.setTankLiters(s.tankLiters + 1) },
+        )
     }
 }
 

@@ -60,6 +60,7 @@ import app.rumo.core.Odometer
 import app.rumo.core.OilPlan
 import app.rumo.core.OilType
 import app.rumo.core.TripDiary
+import app.rumo.core.DrivingStyle
 import app.rumo.core.TripReading
 import app.rumo.device.ObdLink
 import app.rumo.device.ObdScan
@@ -338,6 +339,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         obd.fuelFactor = state.obdFuelFactor
         state.cardPage = prefs.getInt(PREF_CARD_PAGE, 0).coerceIn(0, 1)
         state.alertsViaRumo = prefs.getBoolean(PREF_ALERTS_VIA_RUMO, false)
+        state.tankLiters = prefs.getInt(PREF_TANK_LITERS, TANK_DEFAULT_L).coerceIn(TANK_MIN_L, TANK_MAX_L)
         state.oilPlan = loadOilPlan()
         odometerKnown = prefs.contains(PREF_ODO_KM)
         odometer = Odometer(
@@ -1623,9 +1625,15 @@ class HomeActivity : ComponentActivity(), HomeActions {
         obd.start(scanner.address)
     }
 
-    override fun openCar() {
+    override fun openCar(view: Int) {
+        state.carView = view
         state.sheet = Sheet.CAR
         startObd()
+    }
+
+    override fun setTankLiters(liters: Int) {
+        state.tankLiters = liters.coerceIn(TANK_MIN_L, TANK_MAX_L)
+        prefs.edit().putInt(PREF_TANK_LITERS, state.tankLiters).apply()
     }
 
     override fun carSearch() {
@@ -1754,9 +1762,39 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }
     }
 
+    // ---- velocidade do carro (OBD) no lugar da do GPS, e o jeito de dirigir ----
+
+    private var carSpeed: Int? = null
+    private var carSpeedAt = 0L
+    private val drivingStyle = DrivingStyle()
+    private var drivingAt = 0L
+
+    /** A velocidade do carro, se o scanner a leu há pouco; senão null (vale a do GPS). */
+    private fun carSpeedFresh(): Int? = carSpeed?.takeIf { SystemClock.elapsedRealtime() - carSpeedAt < CAR_SPEED_FRESH_MS }
+
+    private fun withCarSpeed(info: GpsInfo): GpsInfo = carSpeedFresh()?.let { if (it != info.speedKmh) info.copy(speedKmh = it) else info } ?: info
+
+    /** Cada leitura do carro: a velocidade passa a valer na hora (sem esperar o GPS) e a nota do jeito de dirigir anda. */
+    private fun onCarSpeed(snap: app.rumo.device.ObdSnapshot) {
+        val now = SystemClock.elapsedRealtime()
+        val v = snap.number(0x0D) ?: return
+        carSpeed = v.toInt()
+        carSpeedAt = now
+        if (state.gps.speedKmh != carSpeed) {
+            state.gps = state.gps.copy(speedKmh = carSpeed)
+            state.over = overSpeed.update(carSpeed, state.road?.limit)
+        }
+        val dt = if (drivingAt == 0L) 0.0 else (now - drivingAt) / 1000.0
+        drivingAt = now
+        drivingStyle.update(dt, v, snap.number(0x0C), snap.number(0x11))
+        state.drivingScore = drivingStyle.score
+        state.drivingLabel = drivingStyle.label
+    }
+
     private fun onObdSnapshot(snap: app.rumo.device.ObdSnapshot) {
         logObd(snap)
         if (snap.status == app.rumo.device.ObdStatus.LIVE) {
+            onCarSpeed(snap)
             val now = System.currentTimeMillis()
             val closed = diary.onReading(
                 TripReading(
@@ -2218,7 +2256,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
      * Mudanças só de estado ([fix] falso) não refazem a conta. Se a conta anterior ainda não acabou, a posição fica
      * guardada e é a próxima a ser calculada (as do meio são puladas, nunca a última).
      */
-    private fun onGps(info: GpsInfo, fix: Boolean) {
+    private fun onGps(raw: GpsInfo, fix: Boolean) {
+        // Com o scanner lendo, a velocidade é a do carro em todo o app (cartão, vermelho, avisos de radar, parado)
+        val info = withCarSpeed(raw)
         state.gps = info
         val lat = info.lat
         val lon = info.lon
@@ -2564,6 +2604,12 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_OIL_LAST_DATE = "oil_last_date"
         const val PREF_OIL_LAST_KM = "oil_last_km"
         const val PREF_OIL_VISCOSITY = "oil_viscosity"
+        const val PREF_TANK_LITERS = "tank_liters"
+        const val TANK_DEFAULT_L = 45
+        const val TANK_MIN_L = 20
+        const val TANK_MAX_L = 120
+        /** A velocidade lida do carro vale por este tempo; depois volta a valer a do GPS. */
+        const val CAR_SPEED_FRESH_MS = 3_000L
         /** Com o carro lido, grava o diário a cada tanto (e ao sair da tela ou começar outra viagem). */
         const val DIARY_SAVE_MS = 60_000L
         /** Registro do scanner: batida fora de leitura e cópia no pendrive. */

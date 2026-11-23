@@ -30,6 +30,7 @@ object Backup {
         "favorites", "radio_names", "radio_muted", "radio_goto_unit", "radio_band", "web_favorites", "web_last",
         "obd_address", "obd_name", "obd_fuel_factor",
         "oil_type", "oil_interval_km", "oil_interval_months", "oil_last_date", "oil_last_km", "oil_viscosity", "odometer_km",
+        "tank_liters",
     )
 
     /** Arquivos do dono que entram (pontos marcados e diário de viagens). */
