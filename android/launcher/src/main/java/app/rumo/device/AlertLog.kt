@@ -13,7 +13,7 @@ import java.util.concurrent.Executors
  * ligados e desligados, e o que o áudio respondeu a cada um. Só eventos (nunca um por posição do GPS). Vai para
  * Rumo/alertas.log na memória interna; passando de [MAX_BYTES] o arquivo vira alertas-anterior.log.
  */
-class AlertLog {
+class AlertLog(private val fileName: String = "alertas.log", private val oldFileName: String = "alertas-anterior.log") {
     private val io = Executors.newSingleThreadExecutor { Thread(it, "rumo-registro").apply { isDaemon = true } }
     private val stamp = DateTimeFormatter.ofPattern("dd/MM HH:mm:ss")
 
@@ -25,9 +25,9 @@ class AlertLog {
         io.execute {
             try {
                 dir.mkdirs()
-                val file = File(dir, FILE)
+                val file = File(dir, fileName)
                 if (file.length() > MAX_BYTES) {
-                    val old = File(dir, FILE_OLD)
+                    val old = File(dir, oldFileName)
                     old.delete()
                     file.renameTo(old)
                 }
@@ -46,17 +46,15 @@ class AlertLog {
     fun copyTo(context: Context, dirs: List<File>) {
         val app = context.applicationContext
         io.execute {
-            val file = File(dir, FILE)
+            val file = File(dir, fileName)
             if (!file.exists()) return@execute
             MediaScannerConnection.scanFile(app, arrayOf(file.path), null, null)
-            for (d in dirs) SavedFiles.copy(app, file, File(d, FILE))
+            for (d in dirs) SavedFiles.copy(app, file, File(d, fileName))
         }
     }
 
     private companion object {
         const val FOLDER = "Rumo"
-        const val FILE = "alertas.log"
-        const val FILE_OLD = "alertas-anterior.log"
         const val MAX_BYTES = 200_000L
     }
 }

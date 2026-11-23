@@ -58,7 +58,13 @@ class ObdSnapshot(
  * Cai e liga de novo sozinha. Uma thread só; [onSnapshot] chega na thread principal. [detail] verdadeiro (a folha do
  * carro aberta): pergunta tudo o que o carro tem; falso: só o que o cartão mostra.
  */
-class ObdLink(context: Context, private val detail: () -> Boolean, private val onSnapshot: (ObdSnapshot) -> Unit) {
+class ObdLink(
+    context: Context,
+    private val detail: () -> Boolean,
+    private val onSnapshot: (ObdSnapshot) -> Unit,
+    /** Eventos da ligação (conectou, caiu, carro parou de responder…) para o registro; chega em qualquer thread. */
+    private val onEvent: (String) -> Unit = {},
+) {
     private val ctx = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
 
@@ -131,6 +137,7 @@ class ObdLink(context: Context, private val detail: () -> Boolean, private val o
 
     private fun run(address: String, me: Thread) {
         var backoff = 3_000L
+        var failures = 0
         while (alive(me)) {
             post(snapshot.copyWith(ObdStatus.CONNECTING, "Conectando no scanner…"))
             val adapter = BluetoothAdapter.getDefaultAdapter()
@@ -149,17 +156,23 @@ class ObdLink(context: Context, private val detail: () -> Boolean, private val o
             val sock = if (adapter.isEnabled) open(adapter, adapter.getRemoteDevice(address), me) else null
             if (sock == null) {
                 if (!alive(me)) return
+                // Só o começo de cada série de falhas (e a cada 10ª): o scanner desligado tentaria sem parar
+                if (failures++ % 10 == 0) onEvent("scanner: não conectou (${if (adapter.isEnabled) "não encontrado" else "Bluetooth desligado"}), tentativa ${failures}")
                 post(snapshot.copyWith(ObdStatus.ERROR, if (adapter.isEnabled) "Scanner não encontrado: ligado na tomada do carro?" else "Bluetooth desligado"))
                 if (!nap(backoff, me)) return
                 backoff = minOf(backoff * 2, 20_000L)
                 continue
             }
             backoff = 3_000L
+            failures = 0
             socket = sock
+            onEvent("scanner: conectado")
             try {
                 session(sock, me)
+                if (alive(me)) onEvent("scanner: sem resposta, enlace encerrado")
             } catch (e: Exception) {
                 // O enlace caiu: liga de novo
+                if (alive(me)) onEvent("scanner: enlace caiu (${e.javaClass.simpleName})")
             } finally {
                 closeSocket()
             }
@@ -194,6 +207,7 @@ class ObdLink(context: Context, private val detail: () -> Boolean, private val o
         var cycle = 0
         var rotate = 0
         var dead = 0
+        var carSilent = false
 
         fun publish(status: ObdStatus, message: String?) {
             val mafPid = values[0x10]?.let { ObdPids.value(0x10, it) }
@@ -217,6 +231,7 @@ class ObdLink(context: Context, private val detail: () -> Boolean, private val o
                 lastVoltageAt = now
                 val r = send(input, output, "ATRV", 2_000)
                 if (r.isBlank()) {
+                    onEvent("scanner: sem resposta à tensão ($dead de 3 já perdidas)")
                     if (++dead >= 3) return
                 } else {
                     dead = 0
@@ -230,12 +245,20 @@ class ObdLink(context: Context, private val detail: () -> Boolean, private val o
                 val p = Elm327.payload(r, 1, 0x00)
                 if (p == null) {
                     if (r.isBlank() && ++dead >= 3) return
+                    if (!carSilent) {
+                        carSilent = true
+                        onEvent("carro: não responde (ignição desligada?), tensão ${voltage?.let { String.format("%.1f", it) } ?: "--"} V")
+                    }
                     values.clear()
                     publish(ObdStatus.CAR_OFF, "Scanner conectado. Ligue a ignição para ler o carro.")
                     if (!nap(3_000, me)) return
                     continue
                 }
                 dead = 0
+                if (carSilent) {
+                    carSilent = false
+                    onEvent("carro: voltou a responder, tensão ${voltage?.let { String.format("%.1f", it) } ?: "--"} V")
+                }
                 val pids = ArrayList<Int>(Elm327.supportedPids(p, 0x00))
                 for (base in listOf(0x20, 0x40, 0x60)) {
                     if (base !in pids) break
@@ -280,6 +303,10 @@ class ObdLink(context: Context, private val detail: () -> Boolean, private val o
                 // Ignição desligada (ou o motor parou): zera as leituras e pergunta de novo o que o carro tem
                 values.clear()
                 supported = emptyList()
+                if (!carSilent) {
+                    carSilent = true
+                    onEvent("carro: parou de responder (ignição desligada?), tensão ${voltage?.let { String.format("%.1f", it) } ?: "--"} V")
+                }
                 publish(ObdStatus.CAR_OFF, "Scanner conectado. Ligue a ignição para ler o carro.")
                 if (!nap(3_000, me)) return
                 continue

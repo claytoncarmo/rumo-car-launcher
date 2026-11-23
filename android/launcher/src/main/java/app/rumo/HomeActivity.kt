@@ -158,6 +158,11 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private lateinit var gps: Gps
     private lateinit var alerts: Alerts
     private val alertLog = AlertLog()
+    // Registro do scanner com a chave desligada (Rumo/obd-ignicao.log): quando o carro e o scanner deixam de responder
+    private val obdLog = AlertLog("obd-ignicao.log", "obd-ignicao-anterior.log")
+    private var obdLogStatus: app.rumo.device.ObdStatus? = null
+    private var obdLogBeatAt = 0L
+    private var obdLogCopyAt = 0L
     // Para o registro dos alertas: só as mudanças (radar que entrou ou saiu, bipes pedidos ou não, GPS que caiu ou voltou)
     private var loggedRadar: Long? = null
     private var loggedBeeps = false
@@ -243,7 +248,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     @Volatile private var previousRadioLog: List<String> = emptyList()
     // Scanner OBD2 (Bluetooth): a ligação com o carro. A leitura completa só roda com a folha do carro aberta.
     private val obd by lazy {
-        ObdLink(this, detail = { state.sheet == Sheet.CAR }, onSnapshot = { snap ->
+        ObdLink(this, detail = { state.sheet == Sheet.CAR }, onEvent = { obdLog.add(it) }, onSnapshot = { snap ->
             state.obd = snap
             onObdSnapshot(snap)
         })
@@ -489,6 +494,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         // Fora da tela, o Rumo larga o scanner (nada em segundo plano); a viagem do consumo fica na memória
         obd.stop()
         saveDiary()
+        obdLog.copyTo(this, getExternalFilesDirs(null).drop(1).filterNotNull())
         cancelObdSearch?.invoke()
         state.radar = null
         loggedGps = null
@@ -1715,7 +1721,31 @@ class HomeActivity : ComponentActivity(), HomeActions {
     }
 
     /** Cada leitura do contador do carro anda o km do painel (e grava quando muda). */
+    /** Registra as mudanças de estado do scanner e, fora de leitura (carro mudo, sem conexão), uma batida a cada 30 s. */
+    private fun logObd(snap: app.rumo.device.ObdSnapshot) {
+        val now = SystemClock.elapsedRealtime()
+        val changed = snap.status != obdLogStatus
+        if (!changed && (snap.status == app.rumo.device.ObdStatus.LIVE || now - obdLogBeatAt < OBD_BEAT_MS)) return
+        obdLogStatus = snap.status
+        obdLogBeatAt = now
+        val volts = snap.voltage?.let { String.format(PT_BR, "%.1f V", it) } ?: "sem tensão"
+        val what = when (snap.status) {
+            app.rumo.device.ObdStatus.LIVE -> "carro respondendo, rotação ${snap.number(0x0C)?.toInt() ?: "--"}, $volts"
+            app.rumo.device.ObdStatus.CAR_OFF -> "scanner responde, carro mudo (ignição desligada), $volts"
+            app.rumo.device.ObdStatus.CONNECTING -> "conectando (${snap.message ?: "--"}), último $volts"
+            app.rumo.device.ObdStatus.ERROR -> "scanner sem conexão (${snap.message ?: "--"}), último $volts"
+            app.rumo.device.ObdStatus.OFF -> "parado (Rumo fora da tela ou sem scanner)"
+        }
+        obdLog.add("${if (changed) "estado" else "batida"}: $what")
+        // Uma cópia no pendrive a cada mudança e a cada 5 min: o multimídia pode desligar sem aviso
+        if (changed || now - obdLogCopyAt > OBD_COPY_MS) {
+            obdLogCopyAt = now
+            obdLog.copyTo(this, getExternalFilesDirs(null).drop(1).filterNotNull())
+        }
+    }
+
     private fun onObdSnapshot(snap: app.rumo.device.ObdSnapshot) {
+        logObd(snap)
         if (snap.status == app.rumo.device.ObdStatus.LIVE) {
             val now = System.currentTimeMillis()
             val closed = diary.onReading(
@@ -2413,6 +2443,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_OIL_VISCOSITY = "oil_viscosity"
         /** Com o carro lido, grava o diário a cada tanto (e ao sair da tela ou começar outra viagem). */
         const val DIARY_SAVE_MS = 60_000L
+        /** Registro do scanner: batida fora de leitura e cópia no pendrive. */
+        const val OBD_BEAT_MS = 30_000L
+        const val OBD_COPY_MS = 5 * 60_000L
         const val PREF_ODO_KM = "odometer_km"
         const val PREF_ODO_COUNTER = "odometer_counter"
         const val PREF_MAINT_NOTICE_DAY = "maint_notice_day"
