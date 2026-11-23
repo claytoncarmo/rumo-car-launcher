@@ -20,6 +20,8 @@ data class OilPlan(
     val intervalMonths: Int,
     val lastDate: LocalDate,
     val lastKm: Int,
+    /** Viscosidade do óleo usado na última troca (ex. "5W-30"); null se não informada. */
+    val viscosity: String? = null,
 ) {
     val nextKm: Int get() = lastKm + intervalKm
     val nextDate: LocalDate get() = lastDate.plusMonths(intervalMonths.toLong())
@@ -76,6 +78,17 @@ object Maintenance {
 
     /** "45.300", "45300", "45 300 km" → 45300; null se não for um número de km razoável. */
     fun parseKm(text: String): Int? = text.filter { it.isDigit() }.takeIf { it.isNotEmpty() && it.length <= 7 }?.toInt()
+
+    /** Viscosidades mais vendidas (as dos carros recentes primeiro). */
+    val VISCOSITIES = listOf("0W-20", "5W-30", "5W-40", "10W-30", "10W-40", "15W-40", "20W-50")
+
+    /** "5w30", "5W 30", "sae 5w-30" → "5W-30"; "40" → "SAE 40"; null se não parecer uma viscosidade. */
+    fun parseViscosity(text: String): String? {
+        val t = text.uppercase().replace("SAE", "").trim()
+        Regex("""^(\d{1,2})\s*W\s*-?\s*(\d{2})$""").find(t)?.let { return "${it.groupValues[1]}W-${it.groupValues[2]}" }
+        Regex("""^(\d{2})$""").find(t)?.let { return "SAE ${it.groupValues[1]}" }
+        return null
+    }
 }
 
 /**
@@ -105,9 +118,13 @@ class Odometer(km: Double, lastCounter: Int?) {
         return add != 0
     }
 
-    /** O dono informou o km do painel: passa a valer este. */
-    fun set(km: Double) {
+    /**
+     * O dono informou o km do painel: passa a valer este, contando a partir de [counter] (a leitura do carro agora; null
+     * sem leitura: a próxima vira o ponto de partida, para não somar de novo o que já está no painel).
+     */
+    fun set(km: Double, counter: Int?) {
         this.km = km
+        lastCounter = counter
     }
 
     companion object {

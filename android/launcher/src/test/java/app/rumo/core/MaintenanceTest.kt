@@ -73,8 +73,22 @@ class MaintenanceTest {
         assertEquals(45_042.0, o.km, 0.0)
         assertTrue(o.onCounter(40_010))
         assertEquals(45_052.0, o.km, 0.0)
-        o.set(46_000.0)                       // corrigido pelo painel
+        o.set(46_000.0, 40_015)               // corrigido pelo painel, com o carro lido agora
         assertEquals(46_000.0, o.km, 0.0)
-        assertEquals(40_010, o.lastCounter)
+        assertTrue(o.onCounter(40_020))
+        assertEquals(46_005.0, o.km, 0.0)
+        o.set(47_000.0, null)                 // sem leitura agora: a próxima só marca o ponto de partida
+        assertTrue(o.onCounter(41_000))
+        assertEquals(47_000.0, o.km, 0.0)
+    }
+
+    @Test
+    fun viscosity() {
+        assertEquals("5W-30", Maintenance.parseViscosity("5w30"))
+        assertEquals("0W-20", Maintenance.parseViscosity(" sae 0W-20 "))
+        assertEquals("10W-40", Maintenance.parseViscosity("10 w 40"))
+        assertEquals("SAE 40", Maintenance.parseViscosity("40"))
+        assertNull(Maintenance.parseViscosity("sintético"))
+        assertNull(plan.viscosity)
     }
 }

@@ -213,6 +213,8 @@ class HomeState {
     /** Troca de óleo (null: ainda não configurada) e o km do painel estimado pelo contador do carro (null: desconhecido). */
     var oilPlan by mutableStateOf<OilPlan?>(null)
     var odometerKm by mutableStateOf<Double?>(null)
+    /** Diário de viagens, da mais antiga à mais nova (a última pode estar em andamento). */
+    var trips by mutableStateOf<List<app.rumo.core.Trip>>(emptyList())
     /** Teste: com o FM (o rádio online parado), os avisos de radar saem pelo próprio Rumo, como na 0.2.0. */
     var alertsViaRumo by mutableStateOf(false)
     /** Página do cartão inteligente: 0 = Viagem, 1 = Carro. */
@@ -279,11 +281,13 @@ interface HomeActions {
      * Configura a troca de óleo: tipo, intervalo, a última troca (data e km) e, se informado, o km atual do painel
      * (ponto de partida do contador do carro).
      */
-    fun maintSave(type: OilType, intervalKm: Int, intervalMonths: Int, lastDate: java.time.LocalDate, lastKm: Int, currentKm: Int?)
+    fun maintSave(type: OilType, intervalKm: Int, intervalMonths: Int, lastDate: java.time.LocalDate, lastKm: Int, currentKm: Int?, viscosity: String?)
     /** Registra a troca de óleo hoje, no km atual. */
     fun maintDone()
     /** Apaga a configuração da troca de óleo. */
     fun maintForget()
+    /** Apaga o diário de viagens. */
+    fun diaryClear()
     /** Teste dos avisos com o FM pelo Rumo (ligado/desligado; fica guardado). */
     fun setAlertsViaRumo(on: Boolean)
     /** Página do cartão inteligente (0 = Viagem, 1 = Carro); fica guardada. */

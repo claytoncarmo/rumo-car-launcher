@@ -21,6 +21,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
@@ -38,6 +40,12 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.sp
 import app.rumo.core.Maintenance
 import app.rumo.core.OilType
+import app.rumo.core.Trip
+import app.rumo.core.TripDiary
+import app.rumo.core.TripSummary
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,6 +70,8 @@ fun CarSheet(s: HomeState, a: HomeActions) {
     val o = s.obd
     val parked = (s.gps.speedKmh ?: 0) < 5
     var editingOil by remember { mutableStateOf(false) }
+    // 0 = agora (leitura ao vivo), 1 = diário de viagens
+    var view by remember { mutableStateOf(0) }
     // Andou com o diálogo aberto: fecha (o teclado não fica na tela com o carro andando)
     LaunchedEffect(parked) { if (!parked) editingOil = false }
     Box(Modifier.fillMaxSize()) {
@@ -74,6 +84,8 @@ fun CarSheet(s: HomeState, a: HomeActions) {
                 Txt("Carro", 30, weight = FontWeight.SemiBold)
                 Txt(statusLine(s), 16, color = p.text2)
             }
+            ViewSwitch(view) { view = it }
+            Spacer(Modifier.width(16.dp))
             Box(
                 Modifier.size(76.dp, 64.dp).clip(RoundedCornerShape(20.dp)).background(p.surface2).clickable { s.sheet = Sheet.NONE },
                 contentAlignment = Alignment.Center,
@@ -81,7 +93,7 @@ fun CarSheet(s: HomeState, a: HomeActions) {
                 Ico(Icons.x, 30.dp, p.text)
             }
         }
-        Row(
+        if (view == 1) DiaryView(s, a, parked) else Row(
             Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, bottom = 22.dp),
             horizontalArrangement = Arrangement.spacedBy(20.dp),
         ) {
@@ -205,7 +217,8 @@ private fun OilStatusBody(s: HomeState, a: HomeActions, plan: app.rumo.core.OilP
             16, color = p.text2, maxLines = 2,
         )
         Txt(
-            "Última: ${Maintenance.formatDate(plan.lastDate)} com ${kmText(plan.lastKm)} · ${plan.type.label}, " +
+            "Última: ${Maintenance.formatDate(plan.lastDate)} com ${kmText(plan.lastKm)} · ${plan.type.label}" +
+                (plan.viscosity?.let { " $it" } ?: "") + ", " +
                 "a cada ${kmText(plan.intervalKm)} ou ${monthsText(plan.intervalMonths)}",
             15, color = p.text3, maxLines = 3,
         )
@@ -247,6 +260,9 @@ private fun OilDialog(s: HomeState, a: HomeActions, onClose: () -> Unit) {
     var date by remember { mutableStateOf(dateField(plan?.let { Maintenance.formatDate(it.lastDate).filter(Char::isDigit) } ?: "")) }
     var lastKm by remember { mutableStateOf(plan?.lastKm?.toString() ?: "") }
     var nowKm by remember { mutableStateOf(s.odometerKm?.let { Math.round(it).toString() } ?: "") }
+    var visc by remember { mutableStateOf(plan?.viscosity ?: "") }
+    var otherVisc by remember { mutableStateOf(plan?.viscosity != null && plan.viscosity !in Maintenance.VISCOSITIES) }
+    val parsedVisc = if (otherVisc) Maintenance.parseViscosity(visc) else visc.ifBlank { null }
 
     val parsedDate = Maintenance.parseDate(date.text)
     val parsedLast = Maintenance.parseKm(lastKm)
@@ -258,6 +274,7 @@ private fun OilDialog(s: HomeState, a: HomeActions, onClose: () -> Unit) {
         parsedLast == null -> "Informe o km do painel na última troca."
         nowKm.isNotBlank() && parsedNow == null -> "O km do painel hoje não é um número."
         parsedNow != null && parsedNow < parsedLast -> "O km de hoje é menor que o da última troca."
+        otherVisc && visc.isNotBlank() && parsedVisc == null -> "Escreva a viscosidade como na embalagem (ex.: 5W-30)."
         else -> null
     }
 
@@ -290,6 +307,22 @@ private fun OilDialog(s: HomeState, a: HomeActions, onClose: () -> Unit) {
                 SmallStepper("ou", monthsText(intervalMonths), Modifier.weight(1f), intervalMonths > 1, intervalMonths < 24,
                     { intervalMonths -= 1 }, { intervalMonths += 1 })
             }
+            Txt("Viscosidade do óleo da última troca (está na embalagem; opcional)", 16, color = p.text2, maxLines = 2)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Maintenance.VISCOSITIES.forEach { v ->
+                    Chip(v, on = !otherVisc && visc == v, enabled = true, modifier = Modifier.weight(1f)) {
+                        otherVisc = false
+                        visc = if (visc == v) "" else v
+                    }
+                }
+                Chip("Outra", on = otherVisc, enabled = true, modifier = Modifier.weight(1f)) {
+                    otherVisc = !otherVisc
+                    visc = ""
+                }
+            }
+            if (otherVisc) {
+                NumberField("Viscosidade", visc, "ex.: 0W-16", Modifier.width(260.dp), KeyboardType.Ascii) { visc = it.take(10) }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 NumberField("Data da última troca", date, "dd/mm/aaaa", Modifier.weight(1f)) { date = it }
                 NumberField("Km na última troca", lastKm, "ex.: 40000", Modifier.weight(1f)) { lastKm = it.filter(Char::isDigit).take(7) }
@@ -303,7 +336,7 @@ private fun OilDialog(s: HomeState, a: HomeActions, onClose: () -> Unit) {
                 Spacer(Modifier.weight(1f))
                 PillButton("Cancelar", enabled = true, primary = false, onClick = onClose)
                 PillButton("Salvar", enabled = problem == null, primary = true) {
-                    a.maintSave(type, intervalKm, intervalMonths, parsedDate!!, parsedLast!!, parsedNow)
+                    a.maintSave(type, intervalKm, intervalMonths, parsedDate!!, parsedLast!!, parsedNow, parsedVisc)
                     onClose()
                 }
             }
@@ -323,12 +356,19 @@ private fun SmallStepper(label: String, value: String, modifier: Modifier, canDe
 }
 
 @Composable
-private fun NumberField(label: String, value: String, hint: String, modifier: Modifier, onChange: (String) -> Unit) {
+private fun NumberField(
+    label: String,
+    value: String,
+    hint: String,
+    modifier: Modifier,
+    keyboard: KeyboardType = KeyboardType.Number,
+    onChange: (String) -> Unit,
+) {
     NumberFieldBox(label, hint, value.isEmpty(), modifier) { style ->
         BasicTextField(
             value = value, onValueChange = onChange, singleLine = true, textStyle = style,
             cursorBrush = SolidColor(LocalPalette.current.accent),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboard),
             modifier = Modifier.fillMaxWidth(),
         )
     }
@@ -374,6 +414,147 @@ private fun dateField(digits: String): TextFieldValue {
         if (digits.length > 4) append('/').append(digits.substring(4))
     }
     return TextFieldValue(t, TextRange(t.length))
+}
+
+/** Agora (o carro ao vivo) | Diário (as viagens). */
+@Composable
+private fun ViewSwitch(view: Int, onChange: (Int) -> Unit) {
+    val p = LocalPalette.current
+    Row(
+        Modifier.clip(RoundedCornerShape(20.dp)).background(p.surface2).padding(5.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        listOf("Agora", "Diário").forEachIndexed { i, label ->
+            val on = view == i
+            Box(
+                Modifier.height(54.dp).clip(RoundedCornerShape(16.dp)).background(if (on) p.accent else Color.Transparent)
+                    .clickable { onChange(i) }.padding(horizontal = 22.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Txt(label, 18, color = if (on) p.onAccent else p.text, weight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+/**
+ * Diário de viagens: na esquerda, os totais da semana e do mês; na direita, cada viagem (a mais nova em cima). Monta-se
+ * sozinho com o scanner lendo o carro; o trecho com o Android Auto aberto entra só na distância.
+ */
+@Composable
+private fun DiaryView(s: HomeState, a: HomeActions, parked: Boolean) {
+    val p = LocalPalette.current
+    val zone = ZoneId.systemDefault()
+    val today = LocalDate.now()
+    val trips = s.trips
+    var confirmClear by remember { mutableStateOf(false) }
+    LaunchedEffect(confirmClear) {
+        if (confirmClear) {
+            delay(5_000)
+            confirmClear = false
+        }
+    }
+    Row(
+        Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, bottom = 22.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        Column(Modifier.weight(0.9f).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            SummarySection("Esta semana", TripDiary.summary(trips, TripDiary.weekStart(today, zone), Long.MAX_VALUE))
+            SummarySection("Este mês", TripDiary.summary(trips, TripDiary.monthStart(today, zone), Long.MAX_VALUE))
+            SectionCard("Como funciona") {
+                Txt(
+                    "Cada partida do motor vira uma viagem, com o scanner lendo o carro. Com o Android Auto aberto o Rumo não " +
+                        "lê: a distância vem do próprio carro, mas o consumo vale só para o trecho lido.",
+                    14, color = p.text3, maxLines = 6,
+                )
+                if (trips.isNotEmpty()) {
+                    Row {
+                        PillButton(if (confirmClear) "Toque de novo para apagar" else "Apagar o diário", enabled = parked, primary = confirmClear) {
+                            if (confirmClear) {
+                                confirmClear = false
+                                a.diaryClear()
+                            } else {
+                                confirmClear = true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Box(Modifier.weight(1.3f).fillMaxHeight()) {
+            if (trips.isEmpty()) {
+                Txt(
+                    if (s.obdScanner == null) "Escolha o scanner OBD2 em Agora para o diário começar."
+                    else "Nenhuma viagem ainda: a primeira entra quando o motor ligar com o scanner lendo.",
+                    18, color = p.text2, maxLines = 3,
+                )
+            } else {
+                val now = System.currentTimeMillis()
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
+                    items(trips.asReversed()) { t -> TripRow(t, today, zone, live = now - t.end < 120_000) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummarySection(title: String, sum: TripSummary) {
+    val p = LocalPalette.current
+    SectionCard(title) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FuelStat(tripKm(sum.km), "rodados", Modifier.weight(1f))
+            FuelStat(duration(sum.engineSeconds), "de motor ligado", Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FuelStat(fuelText(sum.kmPerLiter, "km/L"), "média (trecho lido)", Modifier.weight(1f))
+            FuelStat(if (sum.trips == 1) "1 viagem" else "${sum.trips} viagens", String.format(PT_BR, "%.1f L lidos", sum.liters), Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun TripRow(t: Trip, today: LocalDate, zone: ZoneId, live: Boolean) {
+    val p = LocalPalette.current
+    val hm = DateTimeFormatter.ofPattern("HH:mm")
+    val startAt = java.time.Instant.ofEpochMilli(t.start).atZone(zone)
+    val endAt = java.time.Instant.ofEpochMilli(t.end).atZone(zone)
+    val day = when (val d = startAt.toLocalDate()) {
+        today -> "Hoje"
+        today.minusDays(1) -> "Ontem"
+        else -> DateTimeFormatter.ofPattern("EEE dd/MM", PT_BR).format(d).replace(".", "")
+    }
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.surface2).padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Txt("$day · ${hm.format(startAt)}–${hm.format(endAt)}", 16, color = p.text2, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            if (live) Txt("em andamento", 14, color = p.accentInk, weight = FontWeight.SemiBold)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(22.dp), verticalAlignment = Alignment.Bottom) {
+            Txt(tripKm(t.km), 26, weight = FontWeight.SemiBold, numeric = true)
+            Txt(duration(t.engineSeconds.toLong()), 20, numeric = true)
+            Txt(fuelText(t.kmPerLiter, "km/L"), 20, numeric = true)
+        }
+        val details = buildList {
+            if (t.idleSeconds >= 60) add("parado com o motor ligado ${duration(t.idleSeconds.toLong())}")
+            t.maxSpeed?.takeIf { it > 0 }?.let { add("máx. $it km/h") }
+            t.maxCoolant?.let { add("motor até $it °C") }
+            if (t.liters >= 0.05) add(String.format(PT_BR, "%.1f L lidos", t.liters))
+        }
+        if (details.isNotEmpty()) Txt(details.joinToString(" · "), 14, color = p.text3, maxLines = 2)
+        if (t.partial) Txt("Parte sem leitura (Android Auto aberto): consumo só do trecho lido", 14, color = p.text3, maxLines = 2)
+    }
+}
+
+/** "8,4 km" abaixo de 10 km; "123 km" acima. */
+private fun tripKm(km: Double): String = if (km < 10) String.format(PT_BR, "%.1f km", km) else String.format(PT_BR, "%,.0f km", km)
+
+/** "35 min", "1 h 05 min". */
+private fun duration(seconds: Long): String {
+    val m = seconds / 60
+    return if (m < 60) "$m min" else String.format(PT_BR, "%d h %02d min", m / 60, m % 60)
 }
 
 @Composable

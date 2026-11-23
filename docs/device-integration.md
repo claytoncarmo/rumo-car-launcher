@@ -123,6 +123,7 @@ O aparelho esconde o menu de Bluetooth, mas o Android oferece o adaptador ("Car 
 - **Protocolo do carro (Honda):** detectado sozinho (`ATDPN` = `A7`). PIDs do modo 01 que este carro informa: 01 03 04 05 06 0B 0C 0D 0E 0F 10 11 13 15 1F 21 2E 2F 30 31 33 34 42 43 44 45 47 49 4A 4C (e blocos 20/40). Não informa taxa de combustível (5E), temperatura do óleo (5C) nem ambiente (46).
 - **Consumo:** só pelo fluxo de ar (MAF, PID 10): litros/hora = MAF × 3600 / (13,2 × 750); erra uns 10 % e o "ajuste do consumo" corrige.
 - **Km do painel:** o carro não informa o hodômetro pelo OBD2 genérico. O lembrete de troca de óleo usa a "distância desde que as falhas foram apagadas" (PID 31, lida a cada 30 ciclos): a central conta mesmo com o Rumo desligado, e o Rumo soma a diferença entre leituras ao km do painel que o dono informou. O contador zera ao apagar falhas ou desligar a bateria (aí a soma recomeça do zero).
+- **Viagens:** o "tempo desde a partida" (PID 1F, lido a cada 30 ciclos junto com o 31) dá a hora em que o motor ligou; uma hora de partida diferente (mais de 3 min) é viagem nova. Como o Rumo só lê com ele na tela, os km que o contador andou entre a última leitura de uma viagem e a primeira da seguinte vão para a anterior quando a nova tem até 3 min de motor, e para a nova quando não.
 - **Só leitura:** o Rumo nunca apaga falhas (modo 04) nem manda comandos que alterem o carro. Ignição desligada: o scanner responde, o carro não (`UNABLE TO CONNECT`/`NO DATA`); o Rumo espera.
 
 ## Diagnósticos embutidos no launcher

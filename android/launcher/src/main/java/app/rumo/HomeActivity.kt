@@ -59,6 +59,8 @@ import app.rumo.core.Maintenance
 import app.rumo.core.Odometer
 import app.rumo.core.OilPlan
 import app.rumo.core.OilType
+import app.rumo.core.TripDiary
+import app.rumo.core.TripReading
 import app.rumo.device.ObdLink
 import app.rumo.device.ObdScan
 import app.rumo.device.SavedFiles
@@ -248,6 +250,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
     }
     // Km do painel pelo contador do carro (PID 31); o km só vale depois de o dono informar o do painel
     private lateinit var odometer: Odometer
+    // Diário de viagens (arquivo interno, uma viagem por linha)
+    private val diaryFile by lazy { File(filesDir, "trips.csv") }
+    private lateinit var diary: TripDiary
+    private var diarySavedAt = 0L
     private var odometerKnown = false
     private var cancelObdSearch: (() -> Unit)? = null
     @Volatile private var scanCancelled = false
@@ -325,6 +331,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
             prefs.getInt(PREF_ODO_COUNTER, -1).takeIf { it >= 0 },
         )
         state.odometerKm = if (odometerKnown) odometer.km else null
+        diary = TripDiary(TripDiary.decode(runCatching { diaryFile.takeIf { it.exists() }?.readText() }.getOrNull()))
+        state.trips = diary.trips.toList()
         state.webFavorites = WebRadio.decode(prefs.getString(PREF_WEB_FAVORITES, null))
         state.web = WebNow(WebRadio.decode(prefs.getString(PREF_WEB_LAST, null)).firstOrNull())
         if (prefs.getString(PREF_RADIO_BAND, null) == RadioBand.WEB.name) {
@@ -480,6 +488,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         webPlayerOrNull?.detach()
         // Fora da tela, o Rumo larga o scanner (nada em segundo plano); a viagem do consumo fica na memória
         obd.stop()
+        saveDiary()
         cancelObdSearch?.invoke()
         state.radar = null
         loggedGps = null
@@ -1684,6 +1693,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
             prefs.getInt(PREF_OIL_INTERVAL_MONTHS, type.intervalMonths),
             date,
             prefs.getInt(PREF_OIL_LAST_KM, 0),
+            prefs.getString(PREF_OIL_VISCOSITY, null),
         )
     }
 
@@ -1692,18 +1702,31 @@ class HomeActivity : ComponentActivity(), HomeActions {
         val e = prefs.edit()
         if (plan == null) {
             e.remove(PREF_OIL_TYPE).remove(PREF_OIL_INTERVAL_KM).remove(PREF_OIL_INTERVAL_MONTHS).remove(PREF_OIL_LAST_DATE).remove(PREF_OIL_LAST_KM)
+                .remove(PREF_OIL_VISCOSITY)
         } else {
             e.putString(PREF_OIL_TYPE, plan.type.name)
                 .putInt(PREF_OIL_INTERVAL_KM, plan.intervalKm)
                 .putInt(PREF_OIL_INTERVAL_MONTHS, plan.intervalMonths)
                 .putString(PREF_OIL_LAST_DATE, plan.lastDate.toString())
                 .putInt(PREF_OIL_LAST_KM, plan.lastKm)
+                .putString(PREF_OIL_VISCOSITY, plan.viscosity)
         }
         e.apply()
     }
 
     /** Cada leitura do contador do carro anda o km do painel (e grava quando muda). */
     private fun onObdSnapshot(snap: app.rumo.device.ObdSnapshot) {
+        if (snap.status == app.rumo.device.ObdStatus.LIVE) {
+            val now = System.currentTimeMillis()
+            val closed = diary.onReading(
+                TripReading(
+                    now, snap.number(0x0C), snap.number(0x0D), snap.litersPerHour, snap.number(0x05),
+                    snap.number(0x1F)?.toInt(), snap.number(0x31)?.toInt(),
+                ),
+            )
+            state.trips = diary.trips.toList()
+            if (closed || now - diarySavedAt > DIARY_SAVE_MS) saveDiary()
+        }
         val counter = snap.number(0x31)?.toInt() ?: return
         if (counter == odometer.lastCounter) return
         val moved = odometer.onCounter(counter)
@@ -1715,8 +1738,26 @@ class HomeActivity : ComponentActivity(), HomeActions {
         e.apply()
     }
 
+    /** Grava o diário fora da thread principal (a última viagem vai junto, mesmo em andamento). */
+    private fun saveDiary() {
+        if (!::diary.isInitialized) return
+        diarySavedAt = System.currentTimeMillis()
+        val text = TripDiary.encode(diary.trips)
+        logWriter.execute { SavedFiles.write(null, diaryFile, text) }
+    }
+
+    override fun diaryClear() {
+        diary.clear()
+        state.trips = emptyList()
+        saveDiary()
+        state.toast = "Diário de viagens apagado"
+    }
+
     private fun setOdometer(km: Int) {
-        odometer.set(km.toDouble())
+        // Conta a partir da leitura do carro agora (se o scanner está lendo), para não somar de novo o que já está no painel
+        val counter = state.obd.takeIf { it.status == app.rumo.device.ObdStatus.LIVE }?.number(0x31)?.toInt()
+        odometer.set(km.toDouble(), counter)
+        prefs.edit().putInt(PREF_ODO_COUNTER, counter ?: -1).apply()
         odometerKnown = true
         state.odometerKm = odometer.km
         prefs.edit().putString(PREF_ODO_KM, odometer.km.toString()).apply()
@@ -1733,9 +1774,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.toast = "Troca de óleo: ${Maintenance.text(st).replaceFirstChar { it.lowercase() }}"
     }
 
-    override fun maintSave(type: OilType, intervalKm: Int, intervalMonths: Int, lastDate: java.time.LocalDate, lastKm: Int, currentKm: Int?) {
+    override fun maintSave(type: OilType, intervalKm: Int, intervalMonths: Int, lastDate: java.time.LocalDate, lastKm: Int, currentKm: Int?, viscosity: String?) {
         currentKm?.let { setOdometer(it) }
-        saveOilPlan(OilPlan(type, intervalKm.coerceIn(1_000, 30_000), intervalMonths.coerceIn(1, 24), lastDate, lastKm))
+        saveOilPlan(OilPlan(type, intervalKm.coerceIn(1_000, 30_000), intervalMonths.coerceIn(1, 24), lastDate, lastKm, viscosity))
         state.toast = "Troca de óleo configurada"
     }
 
@@ -2369,6 +2410,9 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_OIL_INTERVAL_MONTHS = "oil_interval_months"
         const val PREF_OIL_LAST_DATE = "oil_last_date"
         const val PREF_OIL_LAST_KM = "oil_last_km"
+        const val PREF_OIL_VISCOSITY = "oil_viscosity"
+        /** Com o carro lido, grava o diário a cada tanto (e ao sair da tela ou começar outra viagem). */
+        const val DIARY_SAVE_MS = 60_000L
         const val PREF_ODO_KM = "odometer_km"
         const val PREF_ODO_COUNTER = "odometer_counter"
         const val PREF_MAINT_NOTICE_DAY = "maint_notice_day"
