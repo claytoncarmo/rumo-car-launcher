@@ -784,10 +784,17 @@ body.embed .app{padding-block:8px;gap:8px}
 .odlg-box{width:min(820px,94%);background:var(--surface);border-radius:26px;padding:24px;display:flex;flex-direction:column;gap:14px}
 .odlg-box h3{margin:0;font-size:26px;font-weight:600}
 .odlg-box .lb{font-size:16px;color:var(--text-2)}
-.ochips{display:flex;gap:10px}
-.ochips.v{gap:8px}
-.ochip{flex:1;min-width:0;height:56px;padding:0 10px;border-radius:18px;background:var(--surface-2);font-size:18px;font-weight:600;text-align:center;white-space:nowrap}
-.ochip.on{background:var(--accent);color:var(--on-accent)}
+.odlg-box .lb.t3{font-size:14px;color:var(--text-3)}
+.osels{display:flex;gap:16px;align-items:flex-end}
+.osel{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;position:relative}
+.osel > span{font-size:15px;color:var(--text-2)}
+.osel-f{height:60px;width:100%;display:flex;align-items:center;gap:8px;padding:0 14px;border-radius:16px;background:var(--surface-2);font-size:22px;font-weight:600;text-align:left}
+.osel-f b{flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.osel-f svg{width:26px;height:26px;color:var(--text-2);flex:none}
+.osel-l{position:absolute;left:0;top:calc(100% + 4px);z-index:2;min-width:100%;max-height:340px;overflow:auto;scrollbar-width:none;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:6px}
+.osel-l button{display:flex;align-items:center;width:100%;height:56px;padding:0 14px;border-radius:12px;font-size:19px;white-space:nowrap;text-align:left}
+.osel-l button.on{background:var(--accent-soft);font-weight:600}
+.ofield.third{flex:.7}
 .osteps{display:flex;gap:24px}
 .ostep{flex:1;min-width:0;display:flex;align-items:center;gap:10px}
 .ostep > span{font-size:18px;color:var(--text-2)}
@@ -2162,23 +2169,29 @@ function openOilEdit() {
   state.armed = null;
   renderSheet(); oilCheck();
 }
+const oilViscOptions = () => ['Não informada', ...VISCOSITIES, 'Outra…'];
 function oilDialogHTML() {
   const e = car.oilEdit;
-  const types = Object.entries(OIL_TYPES).map(([k, t]) => `<button class="ochip press ${e.type === k ? 'on' : ''}" data-act="oil-type" data-t="${k}">${t.label}</button>`).join('');
-  const visc = VISCOSITIES.map(v => `<button class="ochip press ${!e.other && e.visc === v ? 'on' : ''}" data-act="oil-visc" data-v="${v}">${v}</button>`).join('') +
-    `<button class="ochip press ${e.other ? 'on' : ''}" data-act="oil-other">Outra</button>`;
+  // Tipo e viscosidade lado a lado, em listas (menu suspenso)
+  const typeKeys = Object.keys(OIL_TYPES);
+  const viscOpts = oilViscOptions();
+  const viscSel = e.other ? viscOpts.length - 1 : e.visc ? viscOpts.indexOf(e.visc) : 0;
+  const sel = (m, label, value, opts, on) => `<div class="osel"><span>${label}</span>
+      <button class="osel-f press" data-act="oil-menu" data-m="${m}"><b>${esc(value)}</b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg></button>
+      ${e.menu === m ? `<div class="osel-l">${opts.map((o, i) => `<button class="press ${i === on ? 'on' : ''}" data-act="oil-pick" data-m="${m}" data-i="${i}">${esc(o)}</button>`).join('')}</div>` : ''}
+    </div>`;
+  const types = sel('type', 'Tipo do óleo', OIL_TYPES[e.type].label,
+    typeKeys.map(k => `${OIL_TYPES[k].label} · ${kmText(OIL_TYPES[k].km)} ou ${monthsText(OIL_TYPES[k].months)}`), typeKeys.indexOf(e.type));
+  const visc = sel('visc', 'Viscosidade (opcional)', e.other ? 'Outra' : e.visc || 'Não informada', viscOpts, viscSel);
   const field = (k, label, hint, cls = '') => `<label class="ofield ${cls}"><span>${label}</span><input data-oil="${k}" value="${esc(e[k])}" placeholder="${hint}" ${k === 'visc' ? 'maxlength="10"' : 'inputmode="numeric"'} autocomplete="off"></label>`;
   return `<div class="odlg" data-act="oil-cancel"><div class="odlg-box" data-act="oil-box" role="dialog" aria-label="Troca de óleo">
     <h3>Troca de óleo</h3>
-    <div class="lb">Óleo usado (o manual do carro manda; o intervalo abaixo é o mais comum para cada tipo)</div>
-    <div class="ochips">${types}</div>
+    <div class="osels">${types}${visc}${e.other ? field('visc', 'Qual viscosidade', 'ex.: 0W-16', 'third') : ''}</div>
     <div class="osteps">
       <div class="ostep"><span>A cada</span><button class="pbtn press" data-act="oil-km" data-d="-500" aria-label="Menos 500 km" ${dis(e.km > 1000)}>−</button><output>${kmText(e.km)}</output><button class="pbtn press" data-act="oil-km" data-d="500" aria-label="Mais 500 km" ${dis(e.km < 30000)}>+</button></div>
       <div class="ostep"><span>ou</span><button class="pbtn press" data-act="oil-months" data-d="-1" aria-label="Menos 1 mês" ${dis(e.months > 1)}>−</button><output>${monthsText(e.months)}</output><button class="pbtn press" data-act="oil-months" data-d="1" aria-label="Mais 1 mês" ${dis(e.months < 24)}>+</button></div>
     </div>
-    <div class="lb">Viscosidade do óleo da última troca (está na embalagem; opcional)</div>
-    <div class="ochips v">${visc}</div>
-    ${e.other ? `<div>${field('visc', 'Viscosidade', 'ex.: 0W-16', 'short')}</div>` : ''}
+    <div class="lb t3">O intervalo é o mais comum para o tipo do óleo; o manual do carro manda. A viscosidade está na embalagem.</div>
     <div class="ofields">${field('date', 'Data da última troca', 'dd/mm/aaaa')}${field('last', 'Km na última troca', 'ex.: 40000')}${field('now', 'Km do painel hoje', 'opcional')}</div>
     <p class="oprob" id="oilProb"></p>
     <div class="dlg-row"><button class="pbtn press" data-act="oil-cancel">Cancelar</button><button class="pbtn primary press" data-act="oil-save" id="oilSave">Salvar</button></div>
@@ -2256,11 +2269,23 @@ const CAR_ACT = {
   'oil-edit': () => openOilEdit(),
   'oil-cancel': () => { car.oilEdit = null; renderSheet(); updateCarLive(); },
   'oil-save': () => { saveOil(); updateCarLive(); },
-  'oil-type': el => { const t = OIL_TYPES[el.dataset.t]; Object.assign(car.oilEdit, { type: el.dataset.t, km: t.km, months: t.months }); renderSheet(); oilCheck(); },
+  'oil-menu': el => { const e = car.oilEdit; e.menu = e.menu === el.dataset.m ? null : el.dataset.m; renderSheet(); oilCheck(); },
+  'oil-box': () => { const e = car.oilEdit; if (e && e.menu) { e.menu = null; renderSheet(); oilCheck(); } },
+  'oil-pick': el => {
+    const e = car.oilEdit, i = +el.dataset.i; e.menu = null;
+    if (el.dataset.m === 'type') {
+      const k = Object.keys(OIL_TYPES)[i], t = OIL_TYPES[k];
+      Object.assign(e, { type: k, km: t.km, months: t.months });
+    } else {
+      const opts = oilViscOptions();
+      if (i === 0) Object.assign(e, { other: false, visc: '' });
+      else if (i === opts.length - 1) { if (!e.other) e.visc = ''; e.other = true; }
+      else Object.assign(e, { other: false, visc: opts[i] });
+    }
+    renderSheet(); oilCheck();
+  },
   'oil-km': el => { const e = car.oilEdit; e.km = clamp(e.km + +el.dataset.d, 1000, 30000); renderSheet(); oilCheck(); },
   'oil-months': el => { const e = car.oilEdit; e.months = clamp(e.months + +el.dataset.d, 1, 24); renderSheet(); oilCheck(); },
-  'oil-visc': el => { const e = car.oilEdit; e.other = false; e.visc = e.visc === el.dataset.v ? '' : el.dataset.v; renderSheet(); oilCheck(); },
-  'oil-other': () => { const e = car.oilEdit; e.other = !e.other; e.visc = ''; renderSheet(); oilCheck(); },
   'oil-done': () => {
     const odo = odometer(); if (odo == null || !car.oil) return;
     car.oil = Object.assign({}, car.oil, { date: isoDate(today0()), lastKm: Math.round(odo) });

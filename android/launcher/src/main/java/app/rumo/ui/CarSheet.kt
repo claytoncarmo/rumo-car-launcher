@@ -23,7 +23,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -291,14 +298,42 @@ private fun OilDialog(s: HomeState, a: HomeActions, onClose: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Txt("Troca de óleo", 26, weight = FontWeight.SemiBold)
-            Txt("Óleo usado (o manual do carro manda; o intervalo abaixo é o mais comum para cada tipo)", 16, color = p.text2, maxLines = 2)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OilType.entries.forEach { t ->
-                    Chip(t.label, on = t == type, enabled = true, modifier = Modifier.weight(1f)) {
-                        type = t
-                        intervalKm = t.intervalKm
-                        intervalMonths = t.intervalMonths
+            // Tipo e viscosidade lado a lado, em listas
+            val viscOptions = listOf("Não informada") + Maintenance.VISCOSITIES + "Outra…"
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Bottom) {
+                Dropdown(
+                    "Tipo do óleo", type.label,
+                    OilType.entries.map { "${it.label} · ${kmText(it.intervalKm)} ou ${monthsText(it.intervalMonths)}" },
+                    OilType.entries.indexOf(type), Modifier.weight(1f),
+                ) { i ->
+                    val t = OilType.entries[i]
+                    type = t
+                    intervalKm = t.intervalKm
+                    intervalMonths = t.intervalMonths
+                }
+                Dropdown(
+                    "Viscosidade (opcional)",
+                    when {
+                        otherVisc -> "Outra"
+                        visc.isBlank() -> "Não informada"
+                        else -> visc
+                    },
+                    viscOptions,
+                    when {
+                        otherVisc -> viscOptions.size - 1
+                        visc.isBlank() -> 0
+                        else -> viscOptions.indexOf(visc)
+                    },
+                    Modifier.weight(1f),
+                ) { i ->
+                    when (i) {
+                        0 -> { otherVisc = false; visc = "" }
+                        viscOptions.size - 1 -> { if (!otherVisc) visc = ""; otherVisc = true }
+                        else -> { otherVisc = false; visc = viscOptions[i] }
                     }
+                }
+                if (otherVisc) {
+                    NumberField("Qual viscosidade", visc, "ex.: 0W-16", Modifier.weight(0.7f), KeyboardType.Ascii) { visc = it.take(10) }
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -307,22 +342,7 @@ private fun OilDialog(s: HomeState, a: HomeActions, onClose: () -> Unit) {
                 SmallStepper("ou", monthsText(intervalMonths), Modifier.weight(1f), intervalMonths > 1, intervalMonths < 24,
                     { intervalMonths -= 1 }, { intervalMonths += 1 })
             }
-            Txt("Viscosidade do óleo da última troca (está na embalagem; opcional)", 16, color = p.text2, maxLines = 2)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Maintenance.VISCOSITIES.forEach { v ->
-                    Chip(v, on = !otherVisc && visc == v, enabled = true, modifier = Modifier.weight(1f)) {
-                        otherVisc = false
-                        visc = if (visc == v) "" else v
-                    }
-                }
-                Chip("Outra", on = otherVisc, enabled = true, modifier = Modifier.weight(1f)) {
-                    otherVisc = !otherVisc
-                    visc = ""
-                }
-            }
-            if (otherVisc) {
-                NumberField("Viscosidade", visc, "ex.: 0W-16", Modifier.width(260.dp), KeyboardType.Ascii) { visc = it.take(10) }
-            }
+            Txt("O intervalo é o mais comum para o tipo do óleo; o manual do carro manda. A viscosidade está na embalagem.", 14, color = p.text3, maxLines = 2)
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 NumberField("Data da última troca", date, "dd/mm/aaaa", Modifier.weight(1f)) { date = it }
                 NumberField("Km na última troca", lastKm, "ex.: 40000", Modifier.weight(1f)) { lastKm = it.filter(Char::isDigit).take(7) }
@@ -338,6 +358,64 @@ private fun OilDialog(s: HomeState, a: HomeActions, onClose: () -> Unit) {
                 PillButton("Salvar", enabled = problem == null, primary = true) {
                     a.maintSave(type, intervalKm, intervalMonths, parsedDate!!, parsedLast!!, parsedNow, parsedVisc)
                     onClose()
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Campo com lista (menu suspenso): mostra o valor escolhido; o toque abre as opções logo abaixo, com rolagem se não
+ * couberem. [selected] fica destacado.
+ */
+@Composable
+private fun Dropdown(label: String, value: String, options: List<String>, selected: Int, modifier: Modifier, onPick: (Int) -> Unit) {
+    val p = LocalPalette.current
+    val density = LocalDensity.current
+    var open by remember { mutableStateOf(false) }
+    // Tocar no campo com a lista aberta: o toque fora já fechou a lista; não abre de novo na mesma hora
+    var closedAt by remember { mutableStateOf(0L) }
+    var fieldWidth by remember { mutableStateOf(0) }
+    val shape = RoundedCornerShape(16.dp)
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Txt(label, 15, color = p.text2, maxLines = 1)
+        Box {
+            Row(
+                Modifier.fillMaxWidth().height(60.dp).onSizeChanged { fieldWidth = it.width }.clip(shape).background(p.surface2)
+                    .clickable { if (System.currentTimeMillis() - closedAt > 300) open = !open }.padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Txt(value, 22, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Ico(Icons.chevronDown, 26.dp, p.text2)
+            }
+            if (open) {
+                Popup(
+                    alignment = Alignment.TopStart,
+                    offset = IntOffset(0, with(density) { 64.dp.roundToPx() }),
+                    onDismissRequest = {
+                        open = false
+                        closedAt = System.currentTimeMillis()
+                    },
+                    properties = PopupProperties(focusable = false, dismissOnClickOutside = true),
+                ) {
+                    Column(
+                        Modifier.width(with(density) { fieldWidth.toDp() }.coerceAtLeast(240.dp)).heightIn(max = 340.dp).clip(shape)
+                            .background(p.surface).border(1.dp, p.line, shape).verticalScroll(rememberScrollState()).padding(6.dp),
+                    ) {
+                        options.forEachIndexed { i, o ->
+                            Box(
+                                Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(12.dp))
+                                    .background(if (i == selected) p.accentSoft else Color.Transparent)
+                                    .clickable {
+                                        open = false
+                                        onPick(i)
+                                    }.padding(horizontal = 14.dp),
+                                contentAlignment = Alignment.CenterStart,
+                            ) {
+                                Txt(o, 19, weight = if (i == selected) FontWeight.SemiBold else FontWeight.Medium)
+                            }
+                        }
+                    }
                 }
             }
         }

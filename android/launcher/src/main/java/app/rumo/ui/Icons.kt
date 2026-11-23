@@ -70,6 +70,7 @@ object Icons {
     val starFill = icon("star-fill", f(STAR))
     val chevronLeft = icon("chevron-left", s("M15 5l-7 7 7 7", 2.6f))
     val chevronRight = icon("chevron-right", s("M9 5l7 7-7 7", 2.6f))
+    val chevronDown = icon("chevron-down", s("M5 9l7 7 7-7", 2.6f))
     val search = icon("search", s(circle(11f, 11f, 7f)), s("M20 20l-4-4"))
     val info = icon("info", s(circle(12f, 12f, 10f)), s("M12 16v-4M12 8h.01"))
     val trash = icon("trash", s("M3 6h18"), s("M8 6V4h8v2"), s("M19 6l-1 14H6L5 6"), s("M10 11v6M14 11v6"))
