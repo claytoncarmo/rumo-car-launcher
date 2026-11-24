@@ -2491,10 +2491,14 @@ class HomeActivity : ComponentActivity(), HomeActions {
             state.road = road
             state.radar = radar
             state.over = overSpeed.update(info.speedKmh, road?.limit)
+            // Bipes de um radar ainda tocando: o aviso de entrada do seguinte tocaria por cima deles
+            val wasBeeping = loggedBeeps
             logRadar(radar, entered, speed)
             // Durante o teste do som, a posição do GPS não pode calar os bipes de mentira
             if (!soundTesting) {
-                if (entered && radar?.radar?.chimes == true) chime()
+                if (entered && radar?.radar?.chimes == true) {
+                    if (wasBeeping) alertLog.add("aviso: não tocou (bipes do radar anterior tocando)") else chime()
+                }
                 alarm(radar?.takeIf { it.sound }?.closeness(radars.zoneM))
             }
             // Chegou uma posição enquanto esta era calculada: calcula a mais recente (se o GPS ainda estiver bom)
