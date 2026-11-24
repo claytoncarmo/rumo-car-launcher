@@ -16,8 +16,9 @@ enum class DrivingLabel(val text: String) {
  *   1 s (a velocidade vem em km/h inteiros: leitura a leitura, cada degrau pareceria um tranco);
  * - pedal do acelerador além de [PEDAL_FREE] do curso, e pisadas bruscas (o pedal anda [STAB_TRAVEL] do curso de uma
  *   leitura para a outra). O curso é aprendido: a leitura com o pé solto não é 0 % nem o pé no fundo é 100 %;
- * - carga do motor acima de [LOAD_FREE] (pé pesado; numa subida ou com o carro cheio também conta, e tudo bem);
  * - rotação acima de [RPM_FREE].
+ * A carga do motor (PID 04) não entra: no carro do Clayton ela chega a 100 % em arrancadas normais, com o pedal a 15–40 %
+ * do curso, e motor com carga alta e giro baixo é justamente o jeito econômico de usar o motor.
  * Uma arrancada forte aparece na hora e some em menos de um minuto de direção calma; velocidade constante não soma. O
  * rótulo só troca com folga, para não ficar piscando. É uma estimativa: o carro não informa a marcha nem o freio.
  */
@@ -43,7 +44,7 @@ class DrivingStyle {
     private val speeds = ArrayDeque<Pair<Double, Double>>()
 
     /** Uma leitura [dtS] segundos depois da anterior (pausas longas recomeçam a conta da aceleração). */
-    fun update(dtS: Double, speedKmh: Double?, rpm: Double?, pedalPct: Double?, loadPct: Double?) {
+    fun update(dtS: Double, speedKmh: Double?, rpm: Double?, pedalPct: Double?) {
         if (dtS <= 0.0 || dtS > MAX_STEP_S) {
             speeds.clear()
             lastTravel = null
@@ -69,7 +70,7 @@ class DrivingStyle {
         }
         val stab = travel != null && lastTravel != null && dtS <= STAB_MAX_DT_S && travel - lastTravel!! >= STAB_TRAVEL
         lastTravel = travel
-        lastRate = rate(accel, rpm ?: 0.0, travel ?: 0.0, loadPct ?: 0.0)
+        lastRate = rate(accel, rpm ?: 0.0, travel ?: 0.0)
         score = (score * exp(-dtS / MEMORY_S) + lastRate * dtS + if (stab) STAB_POINTS else 0.0).coerceIn(0.0, 100.0)
         label = when (label) {
             DrivingLabel.ECONOMIC -> if (score > 40) DrivingLabel.MODERATE else DrivingLabel.ECONOMIC
@@ -89,11 +90,10 @@ class DrivingStyle {
         const val MAX_STEP_S = 8.0
         /** A aceleração é medida contra uma leitura de pelo menos este tempo atrás. */
         const val ACCEL_WINDOW_S = 1.0
-        /** Até aqui é direção tranquila: aceleração e freada (m/s²), pedal (% do curso), carga (%) e rotação. */
+        /** Até aqui é direção tranquila: aceleração e freada (m/s²), pedal (% do curso) e rotação. */
         const val ACCEL_FREE = 1.2
-        const val BRAKE_FREE = 2.0
+        const val BRAKE_FREE = 2.5
         const val PEDAL_FREE = 60.0
-        const val LOAD_FREE = 85.0
         const val RPM_FREE = 4_000.0
         /** Pontos por segundo para cada m/s² acima do tranquilo (aceleração e freada). */
         const val ACCEL_POINTS = 12.0
@@ -106,15 +106,14 @@ class DrivingStyle {
 
         /**
          * Pontos por segundo de uma leitura. Exemplos: 0 a 50 km/h em 12 s não soma; em 8 s, cerca de 50 pontos no
-         * total (moderada); em 5 s, cerca de 95 (agressiva). Frear de 50 a 0 em 6 s soma pouco; em 3 s, cerca de 90.
-         * Pedal no fundo: 20 por segundo; carga do motor em 100 %: 15 por segundo.
+         * total (moderada); em 5 s, cerca de 95 (agressiva). Frear de 50 a 0 em 6 s não soma (2,3 m/s²); em 3 s, cerca
+         * de 75. Pedal no fundo: 20 por segundo.
          */
-        fun rate(accel: Double, rpm: Double, travelPct: Double, loadPct: Double): Double {
+        fun rate(accel: Double, rpm: Double, travelPct: Double): Double {
             var r = 0.0
             if (accel > ACCEL_FREE) r += (accel - ACCEL_FREE) * ACCEL_POINTS
             if (accel < -BRAKE_FREE) r += (-accel - BRAKE_FREE) * ACCEL_POINTS
             if (travelPct > PEDAL_FREE) r += (travelPct - PEDAL_FREE) / 2
-            if (loadPct > LOAD_FREE) r += loadPct - LOAD_FREE
             if (rpm > RPM_FREE) r += (rpm - RPM_FREE) / 100
             return r
         }

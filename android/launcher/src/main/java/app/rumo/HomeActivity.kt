@@ -1777,7 +1777,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var drivingMaxBrake = 0.0
     private var drivingMaxRpm = 0.0
     private var drivingMaxPedal = 0.0
-    private var drivingMaxLoad = 0.0
     private val fuelLevel = FuelLevel()
 
     /** A velocidade do carro, se o scanner a leu há pouco; senão null (vale a do GPS). */
@@ -1800,19 +1799,18 @@ class HomeActivity : ComponentActivity(), HomeActions {
         val rpm = snap.number(0x0C)
         // O pedal do acelerador (o pé do motorista); sem ele, a borboleta
         val pedal = snap.number(0x49) ?: snap.number(0x11)
-        val load = snap.number(0x04)
         val before = drivingStyle.label
-        drivingStyle.update(dt, v, rpm, pedal, load)
+        drivingStyle.update(dt, v, rpm, pedal)
         state.drivingScore = drivingStyle.score
         state.drivingLabel = drivingStyle.label
-        logDriving(now, dt, v, rpm, pedal, load, before)
+        logDriving(now, dt, v, rpm, pedal, before)
         // Nível do tanque suavizado (a boia balança), para a autonomia
         snap.number(0x2F)?.let { fuelLevel.update(it, dt) }
         state.tankPct = fuelLevel.percent
     }
 
     /** Registro do jeito de dirigir: cada leitura que somou pontos, a troca de rótulo e um resumo por minuto. */
-    private fun logDriving(now: Long, dt: Double, speed: Double, rpm: Double?, pedal: Double?, load: Double?, before: DrivingLabel) {
+    private fun logDriving(now: Long, dt: Double, speed: Double, rpm: Double?, pedal: Double?, before: DrivingLabel) {
         val d = drivingStyle
         if (dt > 0 && dt <= DrivingStyle.MAX_STEP_S) {
             drivingReads++
@@ -1821,14 +1819,13 @@ class HomeActivity : ComponentActivity(), HomeActions {
             drivingMaxBrake = minOf(drivingMaxBrake, d.lastAccel)
             rpm?.let { drivingMaxRpm = maxOf(drivingMaxRpm, it) }
             pedal?.let { drivingMaxPedal = maxOf(drivingMaxPedal, it) }
-            load?.let { drivingMaxLoad = maxOf(drivingMaxLoad, it) }
         }
         if (d.lastRate > 0) {
             drivingLog.add(
                 String.format(
-                    PT_BR, "pontos: %.0f km/h, aceleração %+.1f m/s², %s rpm, pedal %s (curso %s), carga %s, intervalo %.2f s → +%.0f/s, nota %.0f",
+                    PT_BR, "pontos: %.0f km/h, aceleração %+.1f m/s², %s rpm, pedal %s (curso %s), intervalo %.2f s → +%.0f/s, nota %.0f",
                     speed, d.lastAccel, rpm?.let { "%.0f".format(it) } ?: "--", pedal?.let { "%.0f %%".format(it) } ?: "--",
-                    d.lastTravel?.let { "%.0f %%".format(it) } ?: "--", load?.let { "%.0f %%".format(it) } ?: "--", dt, d.lastRate, d.score,
+                    d.lastTravel?.let { "%.0f %%".format(it) } ?: "--", dt, d.lastRate, d.score,
                 ),
             )
         }
@@ -1837,10 +1834,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
         if (now - drivingMinuteAt >= 60_000L) {
             drivingLog.add(
                 String.format(
-                    PT_BR, "minuto: nota %.0f (%s), %d leituras, intervalo médio %.2f s, maior aceleração %+.1f e freada %.1f m/s², giro até %.0f, pedal até %.0f %% (solto %s, fundo %s), carga até %.0f %%",
+                    PT_BR, "minuto: nota %.0f (%s), %d leituras, intervalo médio %.2f s, maior aceleração %+.1f e freada %.1f m/s², giro até %.0f, pedal até %.0f %% (solto %s, fundo %s)",
                     d.score, d.label.text, drivingReads, if (drivingReads > 0) drivingDtSum / drivingReads else 0.0,
                     drivingMaxAccel, drivingMaxBrake, drivingMaxRpm, drivingMaxPedal,
-                    d.pedalMin?.let { "%.0f %%".format(it) } ?: "--", d.pedalMax?.let { "%.0f %%".format(it) } ?: "--", drivingMaxLoad,
+                    d.pedalMin?.let { "%.0f %%".format(it) } ?: "--", d.pedalMax?.let { "%.0f %%".format(it) } ?: "--",
                 ),
             )
             drivingMinuteAt = now
@@ -1850,7 +1847,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
             drivingMaxBrake = 0.0
             drivingMaxRpm = 0.0
             drivingMaxPedal = 0.0
-            drivingMaxLoad = 0.0
         }
     }
 

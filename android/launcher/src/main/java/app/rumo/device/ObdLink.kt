@@ -15,10 +15,10 @@ import java.io.OutputStream
 import java.util.UUID
 
 /**
- * PIDs lidos em toda rodada: rotação, velocidade, fluxo de ar e taxa de combustível (consumo), pedal do acelerador e
- * carga do motor (jeito de dirigir). Sem o pedal, a borboleta (PID 11) no lugar.
+ * PIDs lidos em toda rodada: rotação, velocidade, fluxo de ar e taxa de combustível (consumo) e pedal do acelerador
+ * (jeito de dirigir). Sem o pedal, a borboleta (PID 11) no lugar.
  */
-private val EVERY_CYCLE = listOf(0x0C, 0x0D, 0x10, 0x5E, 0x49, 0x04)
+private val EVERY_CYCLE = listOf(0x0C, 0x0D, 0x10, 0x5E, 0x49)
 
 /** Scanner OBD2 Bluetooth: nome (como o scanner se anuncia) e endereço. */
 data class ObdDevice(val name: String?, val address: String)

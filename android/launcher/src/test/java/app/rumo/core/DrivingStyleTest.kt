@@ -5,17 +5,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DrivingStyleTest {
-    /** Acelera de [from] a [to] km/h em [seconds] s, uma leitura por segundo, pedal e carga leves. */
-    private fun DrivingStyle.ramp(from: Double, to: Double, seconds: Int, rpm: Double = 2_000.0, pedal: Double = 30.0, load: Double = 50.0) {
-        for (i in 1..seconds) update(1.0, from + (to - from) * i / seconds, rpm, pedal, load)
+    /** Acelera de [from] a [to] km/h em [seconds] s, uma leitura por segundo, pedal leve. */
+    private fun DrivingStyle.ramp(from: Double, to: Double, seconds: Int, rpm: Double = 2_000.0, pedal: Double = 30.0) {
+        for (i in 1..seconds) update(1.0, from + (to - from) * i / seconds, rpm, pedal)
     }
 
     private fun DrivingStyle.cruise(seconds: Int, speed: Double = 50.0, rpm: Double = 2_000.0) {
-        repeat(seconds) { update(1.0, speed, rpm, 22.0, 35.0) }
+        repeat(seconds) { update(1.0, speed, rpm, 22.0) }
     }
 
     /** Começa parado, com o pé solto (pedal 15 %). */
-    private fun start() = DrivingStyle().apply { update(1.0, 0.0, 800.0, 15.0, 20.0) }
+    private fun start() = DrivingStyle().apply { update(1.0, 0.0, 800.0, 15.0) }
 
     @Test
     fun calmDrivingStaysEconomic() {
@@ -44,7 +44,7 @@ class DrivingStyleTest {
         var t = 0.0
         repeat(70) {
             t += 0.2
-            d.update(0.2, Math.floor(t * 3.6), 1_800.0, 30.0, 50.0)
+            d.update(0.2, Math.floor(t * 3.6), 1_800.0, 30.0)
         }
         assertEquals(0.0, d.score, 0.0)
     }
@@ -74,10 +74,10 @@ class DrivingStyleTest {
 
     @Test
     fun heavyFootCountsEvenWithoutMuchAcceleration() {
-        // Subida com o carro cheio: pedal no fundo (80 % cru) e carga alta, quase sem ganhar velocidade
+        // Subida com o carro cheio: pedal no fundo (80 % cru), quase sem ganhar velocidade
         val d = DrivingStyle()
-        d.update(1.0, 40.0, 2_000.0, 15.0, 30.0)
-        repeat(4) { d.update(1.0, 40.0 + it, 3_000.0, 80.0, 98.0) }
+        d.update(1.0, 40.0, 2_000.0, 15.0)
+        repeat(4) { d.update(1.0, 40.0 + it, 3_000.0, 80.0) }
         assertTrue(d.label != DrivingLabel.ECONOMIC)
         // O curso aprendido: pé solto em 15 %, fundo em 80 %
         assertEquals(15.0, d.pedalMin!!, 0.0)
@@ -88,21 +88,30 @@ class DrivingStyleTest {
     fun suddenPedalStabAddsPointsAtOnce() {
         // Já andando a 50, com o pé solto em 15 %
         val d = DrivingStyle()
-        d.update(1.0, 50.0, 2_000.0, 15.0, 30.0)
+        d.update(1.0, 50.0, 2_000.0, 15.0)
         d.cruise(5)
         val before = d.score
         // Pedal de 22 % a 60 % cru numa leitura (cerca de 70 % do curso), sem tempo de acelerar ainda
-        d.update(0.5, 50.0, 2_200.0, 60.0, 60.0)
+        d.update(0.5, 50.0, 2_200.0, 60.0)
         assertTrue(d.score - before >= DrivingStyle.STAB_POINTS)
+    }
+
+    @Test
+    fun firmButOrdinaryStopsAddNothing() {
+        // Parar de 38 a 0 em 5 s (2,1 m/s²): parada firme de trânsito, não é agressiva
+        val d = DrivingStyle()
+        d.update(1.0, 38.0, 1_800.0, 18.0)
+        d.ramp(38.0, 0.0, 5, rpm = 1_000.0, pedal = 18.0)
+        assertEquals(0.0, d.score, 0.0)
     }
 
     @Test
     fun longPausesAreNotAccelerations() {
         val d = start()
         // O Rumo saiu da tela e voltou com o carro a 80: não é uma arrancada
-        d.update(30.0, 80.0, 2_000.0, 25.0, 40.0)
-        d.update(1.0, 80.0, 2_000.0, 25.0, 40.0)
-        d.update(1.0, 80.0, 2_000.0, 25.0, 40.0)
+        d.update(30.0, 80.0, 2_000.0, 25.0)
+        d.update(1.0, 80.0, 2_000.0, 25.0)
+        d.update(1.0, 80.0, 2_000.0, 25.0)
         assertEquals(0.0, d.score, 0.0)
     }
 }
