@@ -63,6 +63,7 @@ import app.rumo.core.TripDiary
 import app.rumo.core.DrivingStyle
 import app.rumo.core.DrivingLabel
 import app.rumo.core.FuelLevel
+import app.rumo.core.FuelNow
 import app.rumo.core.TripReading
 import app.rumo.device.ObdLink
 import app.rumo.device.ObdScan
@@ -1778,6 +1779,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var drivingMaxRpm = 0.0
     private var drivingMaxPedal = 0.0
     private val fuelLevel = FuelLevel()
+    private val fuelNow = FuelNow()
 
     /** A velocidade do carro, se o scanner a leu há pouco; senão null (vale a do GPS). */
     private fun carSpeedFresh(): Int? = carSpeed?.takeIf { SystemClock.elapsedRealtime() - carSpeedAt < CAR_SPEED_FRESH_MS }
@@ -1807,6 +1809,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
         // Nível do tanque suavizado (a boia balança), para a autonomia
         snap.number(0x2F)?.let { fuelLevel.update(it, dt) }
         state.tankPct = fuelLevel.percent
+        // Consumo agora pela média dos últimos 2 s (leitura a leitura, ele pula com cada toque no pedal)
+        snap.litersPerHour?.let { fuelNow.add(now, it, v) }
+        state.fuelNowKmPerLiter = fuelNow.kmPerLiter
+        state.fuelNowLitersPerHour = fuelNow.litersPerHour
     }
 
     /** Registro do jeito de dirigir: cada leitura que somou pontos, a troca de rótulo e um resumo por minuto. */

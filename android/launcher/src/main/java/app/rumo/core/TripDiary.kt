@@ -159,7 +159,7 @@ class TripDiary(trips: List<Trip> = emptyList()) {
         }
 
         /** Mínimo de km lidos para a média da autonomia. */
-        const val RANGE_MIN_KM = 10.0
+        const val RANGE_MIN_KM = 20.0
 
         /** Totais das viagens que começaram entre [from] (inclusive) e [until] (exclusive). */
         fun summary(trips: List<Trip>, from: Long, until: Long): TripSummary {

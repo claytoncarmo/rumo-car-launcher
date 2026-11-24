@@ -228,6 +228,9 @@ class HomeState {
     /** Jeito de dirigir: nota de 0 (econômico) a 100 (agressivo) e o rótulo. */
     var drivingScore by mutableStateOf(0.0)
     var drivingLabel by mutableStateOf(DrivingLabel.ECONOMIC)
+    /** Consumo agora pela média dos últimos 2 s: km/L andando (null parado) e L/h. */
+    var fuelNowKmPerLiter by mutableStateOf<Double?>(null)
+    var fuelNowLitersPerHour by mutableStateOf<Double?>(null)
     /** Nível do tanque suavizado (%), lido pelo scanner; null sem leitura. */
     var tankPct by mutableStateOf<Double?>(null)
     /** Diário de viagens, da mais antiga à mais nova (a última pode estar em andamento). */
@@ -1009,7 +1012,7 @@ private fun ColumnScope.TripPage(s: HomeState, a: HomeActions) {
     val o = s.obd
     val live = o.status == ObdStatus.LIVE
     val trip = if (live) s.trips.lastOrNull()?.takeIf { System.currentTimeMillis() - it.end < LIVE_TRIP_MS } else null
-    // Média de consumo de pelo menos os últimos 10 km lidos (a mesma da autonomia)
+    // Média de consumo de pelo menos os últimos 20 km lidos (a mesma da autonomia)
     val average = remember(s.trips) { TripDiary.rangeKmPerLiter(s.trips) }
     Column(Modifier.weight(1f).fillMaxWidth().clickable { a.openCar(1) }) {
         Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
@@ -1035,7 +1038,7 @@ private fun ColumnScope.TripPage(s: HomeState, a: HomeActions) {
             if (live) {
                 Stat(trip?.let { formatKm(it.km * 1000) } ?: "--", "distância", Modifier.weight(1f))
                 Stat(trip?.let { formatDuration(it.engineSeconds * 1000L) } ?: "--", "tempo", Modifier.weight(1f))
-                // Autonomia: o que resta no tanque (suavizado) pela média de pelo menos os últimos 10 km lidos (a viagem
+                // Autonomia: o que resta no tanque (suavizado) pela média de pelo menos os últimos 20 km lidos (a viagem
                 // atual, completada pelas anteriores enquanto ela é curta). O sensor do tanque é grosso: arredonda a 10 km
                 val tank = s.tankPct
                 val kml = average
@@ -1105,10 +1108,11 @@ private fun ColumnScope.MotorPage(s: HomeState, a: HomeActions) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Stat(o.number(0x05)?.let { "${Math.round(it)} °C" } ?: "--", "motor", Modifier.weight(1f))
             Stat(o.voltage?.let { String.format(PT_BR, "%.1f V", it) } ?: "--", "bateria", Modifier.weight(1f))
-            // Consumo agora: km/L andando, L/h parado
-            val now = o.kmPerLiter ?: o.litersPerHour
+            // Consumo agora (média dos últimos 2 s): km/L andando, L/h parado
+            val kml = s.fuelNowKmPerLiter
+            val now = kml ?: s.fuelNowLitersPerHour
             Stat(
-                now?.let { String.format(PT_BR, "%.1f", it) + if (o.kmPerLiter != null) " km/L" else " L/h" } ?: "--",
+                now?.let { String.format(PT_BR, "%.1f", it) + if (kml != null) " km/L" else " L/h" } ?: "--",
                 "consumo agora", Modifier.weight(1.3f),
             )
         }

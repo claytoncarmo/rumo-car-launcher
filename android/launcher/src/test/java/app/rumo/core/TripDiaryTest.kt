@@ -82,14 +82,15 @@ class TripDiaryTest {
     }
 
     @Test
-    fun rangeAverageUsesAtLeastTenKmRead() {
+    fun rangeAverageUsesAtLeastTwentyKmRead() {
         fun trip(km: Double, l: Double) = Trip(0, 0, 0, null, null, 0, km, l, 0, null, null)
         val older = trip(30.0, 3.0)      // 10 km/L
-        val previous = trip(7.0, 0.5)    // 14 km/L
-        // Viagem atual com 1 km lido: soma a anterior (7) e a de antes (30) até passar de 10 km
-        assertEquals((1.0 + 7 + 30) / (0.2 + 0.5 + 3), TripDiary.rangeKmPerLiter(listOf(older, previous, trip(1.0, 0.2)))!!, 1e-9)
-        // Atual com 3 km: 3 + 7 = 10, já basta
-        assertEquals(10.0 / 0.8, TripDiary.rangeKmPerLiter(listOf(older, previous, trip(3.0, 0.3)))!!, 1e-9)
+        val previous = trip(17.0, 1.0)   // 17 km/L
+        assertEquals(20.0, TripDiary.RANGE_MIN_KM, 0.0)
+        // Viagem atual com 1 km lido: soma a anterior (17) e a de antes (30) até passar de 20 km
+        assertEquals((1.0 + 17 + 30) / (0.2 + 1.0 + 3), TripDiary.rangeKmPerLiter(listOf(older, previous, trip(1.0, 0.2)))!!, 1e-9)
+        // Atual com 3 km: 3 + 17 = 20, já basta
+        assertEquals(20.0 / 1.3, TripDiary.rangeKmPerLiter(listOf(older, previous, trip(3.0, 0.3)))!!, 1e-9)
         // Atual com 25 km: só ela, inteira
         assertEquals(25.0 / 2.0, TripDiary.rangeKmPerLiter(listOf(older, previous, trip(25.0, 2.0)))!!, 1e-9)
         // Diário curto: usa o que tem; sem combustível lido, nada

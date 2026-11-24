@@ -1598,10 +1598,10 @@ function updateTrip() {
   const v = o ? o.speed : ss.v, over = v >= 3 && v > ss.lim;
   const sp = $('#tvSpeed'); sp.textContent = v; sp.classList.toggle('hot', over);
   $('#tvFuel').hidden = !o;
-  // Média de consumo de pelo menos os últimos 10 km lidos (a viagem atual, completada pelas anteriores enquanto ela é
+  // Média de consumo de pelo menos os últimos 20 km lidos (a viagem atual, completada pelas anteriores enquanto ela é
   // curta): a mesma da autonomia
   let avgKm = car.dKm, avgL = car.dL;
-  for (const t of car.trips) { if (avgKm >= 10) break; avgKm += t.km; avgL += t.l; }
+  for (const t of car.trips) { if (avgKm >= 20) break; avgKm += t.km; avgL += t.l; }
   const kml = avgL > 0.05 ? avgKm / avgL : null;
   if (o) {
     ecoTick(o);
