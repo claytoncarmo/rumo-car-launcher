@@ -108,6 +108,23 @@ class RadarsTest {
     }
 
     @Test
+    fun twoRadarsCloseTogetherChimeOnceEach() {
+        // Dois radares na mesma rua, a 200 m e a 350 m: o "radar à frente" alterna entre eles (o rumo oscila, um some e
+        // volta), mas cada um avisa uma vez só
+        val near = Radar(2, lat0, lon0 + 200 * dLon, 60, 90)
+        val far = Radar(3, lat0, lon0 + 350 * dLon, 60, 90)
+        val w = RadarWatch(500)
+        assertTrue(w.update(lat0, lon0, 90f, 50, listOf(far)))                  // só o de longe aparece primeiro
+        assertTrue(w.update(lat0, lon0 + 20 * dLon, 90f, 50, listOf(near, far)))  // o de perto, novo: avisa
+        assertFalse(w.update(lat0, lon0 + 40 * dLon, 90f, 50, listOf(far)))      // volta ao de longe: já avisado
+        assertFalse(w.update(lat0, lon0 + 60 * dLon, 90f, 50, listOf(near, far)))
+        assertEquals(2L, w.current!!.radar.id)
+        // Depois de passar dos dois e ir longe, um retorno pela mesma rua avisa de novo
+        w.update(lat0, lon0 + 1_200 * dLon, 270f, 50, listOf(near, far))
+        assertTrue(w.update(lat0, lon0 - 100 * dLon, 90f, 50, listOf(near, far)))
+    }
+
+    @Test
     fun leavesZoneAfterPassing() {
         val w = RadarWatch(500)
         w.update(lat0, lon0 + 390 * dLon, 90f, 50, listOf(radar))

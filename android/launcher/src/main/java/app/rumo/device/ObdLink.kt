@@ -83,6 +83,9 @@ class ObdLink(
     @Volatile var fuelFactor = 1.0
 
     private val trip = FuelTrip()
+
+    /** Rodada mais curta no modo rápido; dobra (até [FAST_ROUND_MAX_MS]) se o enlace cair com ele ligado. */
+    @Volatile private var fastRoundMs = FAST_ROUND_MS
     private var snapshot = ObdSnapshot()
 
     val running: Boolean get() = thread != null
@@ -182,6 +185,11 @@ class ObdLink(
                 // O enlace caiu: liga de novo
                 if (alive(me)) onEvent("scanner: enlace caiu (${e.javaClass.simpleName})")
             } finally {
+                // Caiu com o modo rápido ligado: o scanner pode não aguentar o ritmo; da próxima, mais devagar
+                if (alive(me) && fast() && fastRoundMs < FAST_ROUND_MAX_MS) {
+                    fastRoundMs = minOf(fastRoundMs * 2, FAST_ROUND_MAX_MS)
+                    onEvent("scanner: caiu no modo rápido; rodada mínima agora $fastRoundMs ms")
+                }
                 closeSocket()
             }
             if (!alive(me)) return
@@ -406,7 +414,7 @@ class ObdLink(
             // andam junto com o carro). Com a folha aberta, seguidas também. No resto, uma rodada por segundo basta
             val pause = when {
                 inDetail -> 0L
-                fast() -> FAST_ROUND_MS - (System.currentTimeMillis() - roundAt)
+                fast() -> fastRoundMs - (System.currentTimeMillis() - roundAt)
                 else -> 700L
             }
             if (pause > 0 && !nap(pause, me)) return
@@ -480,6 +488,7 @@ class ObdLink(
     private companion object {
         /** Rodada mais curta no modo rápido (aba Motor). */
         const val FAST_ROUND_MS = 200L
+        const val FAST_ROUND_MAX_MS = 800L
         val SPP: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
         const val CONNECT_MS = 12_000L
     }

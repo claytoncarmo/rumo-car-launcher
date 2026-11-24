@@ -54,6 +54,9 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
@@ -1058,6 +1061,8 @@ private const val LOW_TANK_PCT = 12.0
 private const val GAUGE_MAX_KMH = 160f
 private const val GAUGE_MAX_RPM = 8_000f
 private const val REDLINE_RPM = 6_250f
+/** Tempo da barra do mostrador até a leitura nova: cerca de uma rodada do scanner no modo rápido. */
+private const val GAUGE_SLIDE_MS = 300
 
 /**
  * Página "Motor" do cartão: velocímetro e conta-giros pequenos, temperatura do motor, bateria e o jeito de dirigir.
@@ -1110,10 +1115,14 @@ private fun ColumnScope.MotorPage(s: HomeState, a: HomeActions) {
     }
 }
 
-/** Mostrador em arco de 240° (de embaixo à esquerda a embaixo à direita), com o valor no meio. Sem animação. */
+/**
+ * Mostrador em arco de 240° (de embaixo à esquerda a embaixo à direita), com o valor no meio. A barra desliza até a
+ * leitura nova no tempo de uma rodada do scanner (só enquanto o valor muda: parado, nada se mexe).
+ */
 @Composable
 private fun Gauge(fraction: Float, value: String, unit: String, hot: Boolean, redFrom: Float?, modifier: Modifier) {
     val p = LocalPalette.current
+    val shown by animateFloatAsState(fraction.coerceIn(0f, 1f), tween(GAUGE_SLIDE_MS, easing = LinearEasing), label = "gauge")
     Box(modifier, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val stroke = 9.dp.toPx()
@@ -1125,7 +1134,7 @@ private fun Gauge(fraction: Float, value: String, unit: String, hot: Boolean, re
             val box = androidx.compose.ui.geometry.Size(2 * r, 2 * r)
             drawArc(p.surface3, 150f, 240f, false, topLeft, box, style = Stroke(stroke, cap = StrokeCap.Round))
             redFrom?.let { drawArc(p.danger.copy(alpha = 0.45f), 150f + 240f * it, 240f * (1 - it), false, topLeft, box, style = Stroke(stroke)) }
-            val f = fraction.coerceIn(0f, 1f)
+            val f = shown
             if (f > 0f) drawArc(if (hot) p.danger else p.accent, 150f, 240f * f, false, topLeft, box, style = Stroke(stroke, cap = StrokeCap.Round))
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {

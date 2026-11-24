@@ -2392,7 +2392,16 @@ class HomeActivity : ComponentActivity(), HomeActions {
      */
     private fun rumoPlaysAlerts() = state.alertsViaRumo && !(state.source == Source.WEB && webPlaying())
 
+    private var lastChimeAt = 0L
+
     private fun chime() {
+        // Dois avisos quase juntos (dois radares em sequência) se sobrepunham: soava estranho e o FM se perdia
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastChimeAt < CHIME_MIN_GAP_MS) {
+            alertLog.add("aviso: não tocou (outro há menos de ${CHIME_MIN_GAP_MS / 1000} s)")
+            return
+        }
+        lastChimeAt = now
         if (rumoPlaysAlerts()) {
             alertLog.add("aviso: pelo Rumo (teste)")
             alerts.chime()
@@ -2655,6 +2664,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val CAME_FROM_WEB_MS = 15_000L
         /** Depois do aviso de entrada (~0,7 s) e dos bipes, quanto esperar para pôr o FM de volta. */
         const val CHIME_RESUME_MS = 900L
+        /** Intervalo mínimo entre dois avisos de entrada. */
+        const val CHIME_MIN_GAP_MS = 4_000L
         // Depois que os bipes param: espera antes de devolver o FM (acima do limite, os bipes ligam e desligam; cada troca
         // do FM para o app do online e de volta é uma troca de fonte do aparelho, audível)
         const val ALARM_RESUME_MS = 1_500L

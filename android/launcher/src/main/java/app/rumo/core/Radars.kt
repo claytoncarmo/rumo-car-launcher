@@ -91,7 +91,14 @@ class RadarWatch(zoneM: Int = RadarSettings.ZONE_DEFAULT, marginKmh: Int = Radar
     var current: RadarAlert? = null
         private set
 
-    /** Devolve true quando acabou de entrar na zona de um radar novo (hora do aviso curto). */
+    /**
+     * Radares já avisados nesta passagem. Com dois radares perto um do outro (ou o mesmo no OSM e no MapaRadar), o
+     * "radar à frente" alterna entre eles; sem esta lista, cada troca tocava o aviso de novo. Um radar sai daqui só
+     * quando fica longe ([FORGET_EXTRA_M] além da zona): passou dele ou foi para outra rua.
+     */
+    private val announced = HashMap<Long, Radar>()
+
+    /** Devolve true quando acabou de entrar na zona de um radar ainda não avisado (hora do aviso curto). */
     fun update(lat: Double, lon: Double, bearing: Float?, speedKmh: Int, radars: List<Radar>): Boolean {
         val prev = current?.radar
         if (bearing == null) {
@@ -116,11 +123,15 @@ class RadarWatch(zoneM: Int = RadarSettings.ZONE_DEFAULT, marginKmh: Int = Radar
             bestD = d
         }
         current = best?.let { alertFor(it, bestD, speedKmh) }
-        return best != null && best !== prev
+        announced.values.removeAll { Geo.distanceM(lat, lon, it.lat, it.lon) > zoneOf(it) + FORGET_EXTRA_M }
+        val entered = best != null && best.id !in announced
+        if (best != null) announced[best.id] = best
+        return entered
     }
 
     fun reset() {
         current = null
+        announced.clear()
     }
 
     private fun alertFor(r: Radar, d: Double, speedKmh: Int) = RadarAlert(r, d.toInt(), r.enforcesSpeed && speedKmh > r.limit, r.enforcesSpeed && speedKmh > r.limit + marginKmh)
@@ -130,6 +141,7 @@ class RadarWatch(zoneM: Int = RadarSettings.ZONE_DEFAULT, marginKmh: Int = Radar
 
     private companion object {
         const val NEAR_M = 40.0
+        const val FORGET_EXTRA_M = 150.0
         // ~1 grau de latitude = 111 km: 0,015° (~1,7 km, em longitude ~1,5 km no Sul) cobre qualquer zona de aviso
         const val MAX_DEG = 0.015
     }
