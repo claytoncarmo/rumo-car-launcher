@@ -132,6 +132,8 @@ O aparelho esconde o menu de Bluetooth, mas o Android oferece o adaptador ("Car 
 
 Para investigar outro aparelho (ou outra versão de firmware) o Rumo traz ferramentas que gravam relatórios em texto:
 
+Os registros contínuos (`alertas.log`, `obd-ignition.log`, `driving.log`) são gravados na hora na pasta `Rumo` da memória interna e copiados para o pendrive no máximo 30 s depois de cada anotação nova (e ao sair da tela). O multimídia desliga com o Rumo na tela, sem passar pela saída da tela: a cópia só na saída deixava o pendrive sem a última viagem.
+
 | Como abrir | O que faz | Relatório |
 |---|---|---|
 | Toque longo no botão de tema (barra de cima) | Por 20 s, enquanto se acende e apaga o farol: ouve a MCU e os avisos (broadcasts) do sistema, compara os ajustes e lista as classes do fabricante e as interfaces dos serviços do carro | `headlight-test.txt` |

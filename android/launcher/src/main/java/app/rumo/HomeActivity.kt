@@ -171,7 +171,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private val drivingLog = AlertLog("driving.log", "driving-previous.log")
     private var obdLogStatus: app.rumo.device.ObdStatus? = null
     private var obdLogBeatAt = 0L
-    private var obdLogCopyAt = 0L
     // Para o registro dos alertas: só as mudanças (radar que entrou ou saiu, bipes pedidos ou não, GPS que caiu ou voltou)
     private var loggedRadar: Long? = null
     private var loggedBeeps = false
@@ -331,6 +330,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
         Aidl.packages = applicationContext.packageManager
         gps = Gps(this, ::onGps) { state.satellites = it }
         alerts = Alerts(this, alertLog::add)
+        // Os registros vão sozinhos para o pendrive (o multimídia desliga com o Rumo na tela, sem passar pela saída)
+        for (log in listOf(alertLog, obdLog, drivingLog)) log.copyEvery(this, LOG_COPY_MS) { getExternalFilesDirs(null).drop(1).filterNotNull() }
         state.favorites = Favorites.decode(prefs.getString(PREF_FAVORITES, null))
         lifecycleScope.launch { state.myPoints = withContext(drive) { minePointsLoaded() } }
         state.radarZoneM = RadarSettings.zone(prefs.getInt(PREF_RADAR_ZONE, RadarSettings.ZONE_DEFAULT))
@@ -1760,11 +1761,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
             app.rumo.device.ObdStatus.OFF -> "parado (Rumo fora da tela ou sem scanner)"
         }
         obdLog.add("${if (changed) "estado" else "batida"}: $what")
-        // Uma cópia no pendrive a cada mudança e a cada 5 min: o multimídia pode desligar sem aviso
-        if (changed || now - obdLogCopyAt > OBD_COPY_MS) {
-            obdLogCopyAt = now
-            obdLog.copyTo(this, getExternalFilesDirs(null).drop(1).filterNotNull())
-        }
     }
 
     // ---- velocidade do carro (OBD) no lugar da do GPS, e o jeito de dirigir ----
@@ -1782,7 +1778,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var drivingMaxRpm = 0.0
     private var drivingMaxPedal = 0.0
     private var drivingMaxLoad = 0.0
-    private var drivingCopyAt = 0L
     private val fuelLevel = FuelLevel()
 
     /** A velocidade do carro, se o scanner a leu há pouco; senão null (vale a do GPS). */
@@ -1856,10 +1851,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
             drivingMaxRpm = 0.0
             drivingMaxPedal = 0.0
             drivingMaxLoad = 0.0
-        }
-        if (now - drivingCopyAt > OBD_COPY_MS) {
-            drivingCopyAt = now
-            drivingLog.copyTo(this, getExternalFilesDirs(null).drop(1).filterNotNull())
         }
     }
 
@@ -2697,7 +2688,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val DIARY_SAVE_MS = 60_000L
         /** Registro do scanner: batida fora de leitura e cópia no pendrive. */
         const val OBD_BEAT_MS = 30_000L
-        const val OBD_COPY_MS = 5 * 60_000L
+        /** Os registros vão para o pendrive no máximo este tempo depois de cada anotação nova. */
+        const val LOG_COPY_MS = 30_000L
         const val PREF_ODO_KM = "odometer_km"
         const val PREF_ODO_COUNTER = "odometer_counter"
         const val PREF_MAINT_NOTICE_DAY = "maint_notice_day"
