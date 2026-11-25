@@ -184,6 +184,66 @@ class Alerts(context: Context, private val log: (String) -> Unit = {}) {
         }
     }
 
+    /**
+     * Teste dos tipos de som: o aviso de entrada e três bipes numa faixa só, com o tipo [usage] (navegação, notificação,
+     * alarme…). Cada tipo vai para um canal do Android, e o firmware pode tratar um como troca de fonte (o FM para, e
+     * cada bipe solto soa falhado) e outro só por cima do FM. O registro diz o canal e o volume dele.
+     */
+    fun probe(usage: Int) {
+        Thread({
+            val a = AudioAttributes.Builder().setUsage(usage).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
+            val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).setAudioAttributes(a).setOnAudioFocusChangeListener { }.build()
+            val pcm = probePcm
+            val got = am.requestAudioFocus(req)
+            var track: AudioTrack? = null
+            try {
+                track = AudioTrack(a, format(), pcm.size * 2, AudioTrack.MODE_STATIC, AudioManager.AUDIO_SESSION_ID_GENERATE)
+                track.write(pcm, 0, pcm.size)
+                track.play()
+                Thread.sleep(pcm.size * 1000L / RATE + 100)
+                val stream = streamOf(usage)
+                log(
+                    "sonda ${usageName(usage)}: foco=${focusName(got)}, tocou ${track.playbackHeadPosition}/${pcm.size} quadros, " +
+                        "canal $stream com volume ${am.getStreamVolume(stream)}/${am.getStreamMaxVolume(stream)} ${audioState()}",
+                )
+                track.stop()
+            } catch (e: Exception) {
+                log("sonda ${usageName(usage)}: erro $e")
+            } finally {
+                track?.release()
+                am.abandonAudioFocusRequest(req)
+            }
+        }, "rumo-sonda").start()
+    }
+
+    // Aviso de entrada e três bipes (tom do meio) numa faixa só, como seria um trecho de bipes contínuos
+    private val probePcm by lazy {
+        render(
+            listOf(
+                Seg(0.0, 988.0, 0.32, false, 0.5), Seg(0.2, 1319.0, 0.5, false, 0.5),
+                Seg(0.9, 1650.0, 0.08, true, 0.28), Seg(1.15, 1650.0, 0.08, true, 0.28), Seg(1.4, 1650.0, 0.08, true, 0.28),
+            ),
+        )
+    }
+
+    private fun streamOf(usage: Int) = when (usage) {
+        AudioAttributes.USAGE_ALARM -> AudioManager.STREAM_ALARM
+        AudioAttributes.USAGE_NOTIFICATION, AudioAttributes.USAGE_NOTIFICATION_EVENT -> AudioManager.STREAM_NOTIFICATION
+        AudioAttributes.USAGE_NOTIFICATION_RINGTONE -> AudioManager.STREAM_RING
+        AudioAttributes.USAGE_ASSISTANCE_SONIFICATION -> AudioManager.STREAM_SYSTEM
+        else -> AudioManager.STREAM_MUSIC
+    }
+
+    private fun usageName(usage: Int) = when (usage) {
+        AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE -> "navegação"
+        AudioAttributes.USAGE_ASSISTANCE_SONIFICATION -> "sistema"
+        AudioAttributes.USAGE_NOTIFICATION -> "notificação"
+        AudioAttributes.USAGE_NOTIFICATION_EVENT -> "evento"
+        AudioAttributes.USAGE_ALARM -> "alarme"
+        AudioAttributes.USAGE_NOTIFICATION_RINGTONE -> "toque"
+        else -> "uso $usage"
+    }
+
     private fun focusName(result: Int) = when (result) {
         AudioManager.AUDIOFOCUS_REQUEST_GRANTED -> "concedido"
         AudioManager.AUDIOFOCUS_REQUEST_FAILED -> "negado"

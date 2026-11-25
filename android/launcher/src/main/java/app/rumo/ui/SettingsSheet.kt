@@ -377,6 +377,14 @@ private fun DiagnosticsSection(s: HomeState, a: HomeActions) {
             }
         }
         Txt("O registro do tanque grava o nível a cada leitura em Rumo/fuel-level.log, com o Rumo na tela.", 14, color = p.text3, maxLines = 2)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            PillButton("Teste dos tipos de som", enabled = true, primary = false) { a.probeSoundTypes() }
+        }
+        Txt(
+            "Com o FM tocando: o aviso e três bipes com cada tipo de som (navegação, notificação, alarme, sistema, toque). " +
+                "Ouça qual soa limpo por cima do FM; o alertas.log diz se a fonte de áudio mudou com cada um.",
+            14, color = p.text3, maxLines = 3,
+        )
     }
 }
 

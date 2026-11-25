@@ -49,7 +49,7 @@ class WebRadioService : Service() {
 
     private val control = object : Binder() {
         override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
-            if (code !in P.TX_LISTEN..P.TX_ALARM) return super.onTransact(code, data, reply, flags)
+            if (code !in P.TX_LISTEN..P.TX_PROBE) return super.onTransact(code, data, reply, flags)
             if (!trusted()) throw SecurityException("só o Rumo comanda o rádio online")
             data.enforceInterface(P.DESCRIPTOR)
             when (code) {
@@ -64,6 +64,7 @@ class WebRadioService : Service() {
                 P.TX_STOP -> main.post { stopPlayback() }
                 P.TX_CHIME -> alerts.chime()
                 P.TX_ALARM -> data.readFloat().let { k -> alerts.alarm(k.takeUnless { it.isNaN() }) }
+                P.TX_PROBE -> alerts.probe(data.readInt())
             }
             return true
         }

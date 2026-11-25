@@ -321,7 +321,8 @@ class ObdLink(
                 wanted += 0x05
                 lastCoolantAt = roundAt
             }
-            if ((tankLog || roundAt - lastTankAt > 10_000) && 0x2F in supported) {
+            // Tanque a cada 2 s: a leitura é muito ruidosa e o nível sai da mediana de muitas (num grupo, quase não custa)
+            if ((tankLog || roundAt - lastTankAt > 2_000) && 0x2F in supported) {
                 wanted += 0x2F
                 lastTankAt = roundAt
             }

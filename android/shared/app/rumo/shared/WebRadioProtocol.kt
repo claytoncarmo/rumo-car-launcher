@@ -30,6 +30,8 @@ object WebRadioProtocol {
      */
     const val TX_CHIME = 4
     const val TX_ALARM = 5
+    /** Teste dos tipos de som: toca o aviso e três bipes com o tipo (int, um USAGE_* do Android). */
+    const val TX_PROBE = 6
 
     // Aviso (ao ouvinte)
     /** id da estação (ou vazio), estado ([STATUS_OFF]…), título que o stream manda (ou vazio). */

@@ -331,6 +331,8 @@ interface HomeActions {
     fun probeBluetooth()
     /** Liga (por 5 min) ou para o registro do nível do tanque. */
     fun fuelLogToggle()
+    /** Teste dos tipos de som: toca o aviso com cada tipo e registra se a fonte de áudio do aparelho muda. */
+    fun probeSoundTypes()
     /** Toca o aviso de radar e os bipes (do longe ao perto) por uns segundos; se o som falhar, mostra o erro. */
     fun testSound()
     /** Distância (m) em que o aviso de radar começa; guardada nas preferências. */

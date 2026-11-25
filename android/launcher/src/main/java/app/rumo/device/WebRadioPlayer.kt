@@ -178,6 +178,9 @@ class WebRadioPlayer(context: Context, private val onChange: (WebPlayback) -> Un
     /** Bipes pelo app do online: proximidade 0 a 1, null para parar. */
     fun alarm(k: Float?): Boolean = remote?.let { send(it, P.TX_ALARM) { writeFloat(k ?: Float.NaN) }; true } ?: false
 
+    /** Teste dos tipos de som pelo app do online: o aviso e três bipes com o tipo [usage] (um USAGE_* do Android). */
+    fun probe(usage: Int): Boolean = remote?.let { send(it, P.TX_PROBE) { writeInt(usage) }; true } ?: false
+
     fun stop() {
         remote?.let { send(it, P.TX_STOP) {} }
         pending.clear()

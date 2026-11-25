@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.media.AudioAttributes
 import android.media.AudioManager
 import android.os.Build
 import android.net.ConnectivityManager
@@ -221,6 +222,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
                 loggedOwner = name
                 radioLog("sourceinfo: \"$name\"")
             }
+            // Teste dos tipos de som: guarda cada troca de fonte durante o tipo que está tocando
+            probeSources?.let { if (it.lastOrNull() != name) it += name }
             applyAudioOwner(name)
         }
     }
@@ -1431,6 +1434,46 @@ class HomeActivity : ComponentActivity(), HomeActions {
     }
 
     @Volatile private var soundTesting = false
+    /** Teste dos tipos de som em andamento: as fontes que o sourceinfo informou durante o tipo atual. */
+    private var probeSources: MutableList<String>? = null
+
+    /**
+     * Teste dos tipos de som (diagnóstico): o app do online toca o aviso e três bipes com cada tipo de som do Android, um
+     * depois do outro, e o registro diz se a fonte de áudio do aparelho mudou com cada um. Com o FM tocando: o tipo que
+     * não troca a fonte é o que só soa por cima do FM (os bipes de hoje, tipo navegação, trocam a cada bipe).
+     */
+    override fun probeSoundTypes() {
+        if (soundTesting) return
+        if (!remoteAlerts()) {
+            state.toast = "O teste usa o app do rádio online: abra a aba Online uma vez e tente de novo"
+            return
+        }
+        soundTesting = true
+        lifecycleScope.launch {
+            try {
+                alertLog.add("tipos de som: início, fonte ${state.source} ${alerts.audioState()}")
+                PROBE_USAGES.forEachIndexed { i, (usage, name) ->
+                    state.toast = "Tipo ${i + 1} de ${PROBE_USAGES.size}: $name"
+                    noteAlertStart()
+                    val seen = mutableListOf<String>()
+                    probeSources = seen
+                    webPlayer.probe(usage)
+                    delay(PROBE_LISTEN_MS)
+                    probeSources = null
+                    alertLog.add(
+                        "tipos de som: $name → fonte " +
+                            if (seen.isEmpty()) "não mudou" else "mudou: " + seen.joinToString(" → ") { "\"$it\"" },
+                    )
+                    resumeFmAfterAlert(CHIME_RESUME_MS)
+                    delay(PROBE_GAP_MS)
+                }
+            } finally {
+                probeSources = null
+                soundTesting = false
+            }
+            state.toast = "Teste dos tipos de som pronto: qual soou limpo? (resultado no alertas.log)"
+        }
+    }
 
     /** Aviso de entrada e bipes do longe ao perto (a cada 0,5 s, 7 s no total), só para ouvir se o som sai. */
     override fun testSound() {
@@ -1783,7 +1826,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var drivingMaxBrake = 0.0
     private var drivingMaxRpm = 0.0
     private var drivingMaxPedal = 0.0
-    private val fuelLevel = FuelLevel()
+    // Nível do tanque (mediana das leituras e o cheio aprendido, guardado)
+    private val fuelLevel by lazy { FuelLevel(prefs.getFloat(PREF_TANK_RAW_FULL, 0f).toDouble().takeIf { it > 0 }) }
     private val fuelNow = FuelNow()
 
     /** A velocidade do carro, se o scanner a leu há pouco; senão null (vale a do GPS). */
@@ -1811,8 +1855,12 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.drivingScore = drivingStyle.score
         state.drivingLabel = drivingStyle.label
         logDriving(now, dt, v, rpm, pedal, before)
-        // Nível do tanque suavizado (a boia balança), para a autonomia
-        snap.number(0x2F)?.let { fuelLevel.update(it, dt) }
+        // Nível do tanque pela mediana das leituras novas (a leitura crua é muito ruidosa), para a autonomia
+        if (0x2F in snap.fresh) {
+            snap.number(0x2F)?.let { raw ->
+                if (fuelLevel.update(now, raw)) fuelLevel.fullRaw?.let { prefs.edit().putFloat(PREF_TANK_RAW_FULL, it.toFloat()).apply() }
+            }
+        }
         state.tankPct = fuelLevel.percent
         // Consumo agora pela média dos últimos 2 s (leitura a leitura, ele pula com cada toque no pedal)
         snap.litersPerHour?.let { fuelNow.add(now, it, v) }
@@ -2718,6 +2766,17 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val CHIME_RESUME_MS = 900L
         /** Intervalo mínimo entre dois avisos de entrada. */
         const val CHIME_MIN_GAP_MS = 4_000L
+        /** Teste dos tipos de som: cada tipo, na ordem, com o nome que aparece na tela e no registro. */
+        val PROBE_USAGES = listOf(
+            AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE to "navegação (o de hoje)",
+            AudioAttributes.USAGE_NOTIFICATION to "notificação",
+            AudioAttributes.USAGE_ALARM to "alarme",
+            AudioAttributes.USAGE_ASSISTANCE_SONIFICATION to "sistema",
+            AudioAttributes.USAGE_NOTIFICATION_RINGTONE to "toque",
+        )
+        /** Quanto ouvir a fonte depois de cada tipo, e a pausa até o próximo (o FM volta). */
+        const val PROBE_LISTEN_MS = 3_500L
+        const val PROBE_GAP_MS = 3_000L
         // Depois que os bipes param: espera antes de devolver o FM (acima do limite, os bipes ligam e desligam; cada troca
         // do FM para o app do online e de volta é uma troca de fonte do aparelho, audível)
         const val ALARM_RESUME_MS = 1_500L
@@ -2740,6 +2799,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_OIL_LAST_KM = "oil_last_km"
         const val PREF_OIL_VISCOSITY = "oil_viscosity"
         const val PREF_TANK_LITERS = "tank_liters"
+        /** Maior leitura crua do nível do tanque (o batente da boia): o "cheio" do sensor. */
+        const val PREF_TANK_RAW_FULL = "tank_raw_full"
         const val TANK_DEFAULT_L = 45
         const val TANK_MIN_L = 20
         const val TANK_MAX_L = 120
