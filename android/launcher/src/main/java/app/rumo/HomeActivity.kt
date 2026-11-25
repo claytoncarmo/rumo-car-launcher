@@ -170,6 +170,10 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private val obdLog = AlertLog("obd-ignition.log", "obd-ignition-previous.log")
     // Registro do jeito de dirigir (Rumo/driving.log): o que somou pontos e um resumo por minuto, para calibrar
     private val drivingLog = AlertLog("driving.log", "driving-previous.log")
+    // Registro do tanque (Rumo/fuel-level.log), ligado por 5 min no botão dos diagnósticos: cada leitura do nível
+    private val fuelLog = AlertLog("fuel-level.log", "fuel-level-previous.log")
+    @Volatile private var fuelLogUntil = 0L
+    private var fuelLogLastAt = 0L
     private var obdLogStatus: app.rumo.device.ObdStatus? = null
     private var obdLogBeatAt = 0L
     // Para o registro dos alertas: só as mudanças (radar que entrou ou saiu, bipes pedidos ou não, GPS que caiu ou voltou)
@@ -257,7 +261,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
     @Volatile private var previousRadioLog: List<String> = emptyList()
     // Scanner OBD2 (Bluetooth): a ligação com o carro. A leitura completa só roda com a folha do carro aberta.
     private val obd by lazy {
-        ObdLink(this, detail = { state.sheet == Sheet.CAR }, fast = { state.cardPage == 1 && state.sheet == Sheet.NONE }, onEvent = { obdLog.add(it) }, onSnapshot = { snap ->
+        ObdLink(this, detail = { state.sheet == Sheet.CAR }, fast = { state.cardPage == 1 && state.sheet == Sheet.NONE },
+            tankEveryRound = { SystemClock.elapsedRealtime() < fuelLogUntil }, onEvent = { obdLog.add(it) }, onSnapshot = { snap ->
             state.obd = snap
             onObdSnapshot(snap)
         })
@@ -332,7 +337,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         gps = Gps(this, ::onGps) { state.satellites = it }
         alerts = Alerts(this, alertLog::add)
         // Os registros vão sozinhos para o pendrive (o multimídia desliga com o Rumo na tela, sem passar pela saída)
-        for (log in listOf(alertLog, obdLog, drivingLog)) log.copyEvery(this, LOG_COPY_MS) { getExternalFilesDirs(null).drop(1).filterNotNull() }
+        for (log in listOf(alertLog, obdLog, drivingLog, fuelLog)) log.copyEvery(this, LOG_COPY_MS) { getExternalFilesDirs(null).drop(1).filterNotNull() }
         state.favorites = Favorites.decode(prefs.getString(PREF_FAVORITES, null))
         lifecycleScope.launch { state.myPoints = withContext(drive) { minePointsLoaded() } }
         state.radarZoneM = RadarSettings.zone(prefs.getInt(PREF_RADAR_ZONE, RadarSettings.ZONE_DEFAULT))
@@ -1856,10 +1861,60 @@ class HomeActivity : ComponentActivity(), HomeActions {
         }
     }
 
+    override fun fuelLogToggle() {
+        val now = SystemClock.elapsedRealtime()
+        if (now < fuelLogUntil) {
+            fuelLogUntil = 0L
+            fuelLog.add("fim: parado no botão")
+            state.fuelLogEndsAt = null
+            state.toast = "Registro do tanque parado: Rumo/fuel-level.log"
+            return
+        }
+        fuelLogUntil = now + FUEL_LOG_MS
+        fuelLogLastAt = 0L
+        state.fuelLogEndsAt = System.currentTimeMillis() + FUEL_LOG_MS
+        fuelLog.add("início: o nível do tanque em toda rodada do scanner, por ${FUEL_LOG_MS / 60_000} min (Rumo na tela)")
+        state.toast = if (state.obd.status == app.rumo.device.ObdStatus.LIVE) "Gravando o nível do tanque por 5 min"
+        else "Gravando o tanque por 5 min assim que o scanner ler o carro"
+        startObd()
+    }
+
+    /** Uma linha por leitura nova do nível do tanque, com o que pode mexer na boia (velocidade, aceleração, giro). */
+    private fun logFuelLevel(snap: app.rumo.device.ObdSnapshot) {
+        val now = SystemClock.elapsedRealtime()
+        if (fuelLogUntil == 0L) return
+        if (now >= fuelLogUntil) {
+            fuelLogUntil = 0L
+            state.fuelLogEndsAt = null
+            fuelLog.add("fim: 5 min")
+            state.toast = "Registro do tanque pronto: Rumo/fuel-level.log"
+            return
+        }
+        if (snap.status != app.rumo.device.ObdStatus.LIVE || 0x2F !in snap.fresh) return
+        val pct = snap.number(0x2F) ?: return
+        val raw = snap.values[0x2F]?.firstOrNull()
+        val gap = if (fuelLogLastAt == 0L) 0.0 else (now - fuelLogLastAt) / 1000.0
+        fuelLogLastAt = now
+        fuelLog.add(
+            String.format(
+                PT_BR, "tanque %.1f %% (bruto %s) · suavizado %s · %s km/h · aceleração %+.1f m/s² · %s rpm · intervalo %.2f s",
+                pct, raw?.toString() ?: "--", fuelLevel.percent?.let { "%.1f %%".format(it) } ?: "--",
+                snap.number(0x0D)?.let { "%.0f".format(it) } ?: "--", drivingStyle.lastAccel,
+                snap.number(0x0C)?.let { "%.0f".format(it) } ?: "--", gap,
+            ),
+        )
+    }
+
     private fun onObdSnapshot(snap: app.rumo.device.ObdSnapshot) {
         logObd(snap)
         if (snap.status == app.rumo.device.ObdStatus.LIVE) {
             onCarSpeed(snap)
+            // Depois do tanque suavizado desta leitura, para o registro mostrar os dois juntos
+            logFuelLevel(snap)
+        } else {
+            logFuelLevel(snap)
+        }
+        if (snap.status == app.rumo.device.ObdStatus.LIVE) {
             val now = System.currentTimeMillis()
             val closed = diary.onReading(
                 TripReading(
@@ -2696,6 +2751,8 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val OBD_BEAT_MS = 30_000L
         /** Os registros vão para o pendrive no máximo este tempo depois de cada anotação nova. */
         const val LOG_COPY_MS = 30_000L
+        /** Duração do registro do tanque. */
+        const val FUEL_LOG_MS = 5 * 60_000L
         const val PREF_ODO_KM = "odometer_km"
         const val PREF_ODO_COUNTER = "odometer_counter"
         const val PREF_MAINT_NOTICE_DAY = "maint_notice_day"

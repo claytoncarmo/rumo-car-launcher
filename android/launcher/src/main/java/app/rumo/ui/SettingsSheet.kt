@@ -362,6 +362,21 @@ private fun DiagnosticsSection(s: HomeState, a: HomeActions) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PillButton("Teste do Bluetooth (OBD2)", enabled = true, primary = false) { a.probeBluetooth() }
         }
+        // Registro do tanque: o nível lido em toda rodada do scanner (várias por segundo) por 5 min
+        val until = s.fuelLogEndsAt
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            PillButton(if (until != null) "Parar registro do tanque" else "Registro do tanque (5 min)", enabled = true, primary = until != null) {
+                a.fuelLogToggle()
+            }
+            if (until != null) {
+                Txt(
+                    "Gravando até " + java.time.Instant.ofEpochMilli(until).atZone(java.time.ZoneId.systemDefault())
+                        .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")),
+                    15, color = p.text2,
+                )
+            }
+        }
+        Txt("O registro do tanque grava o nível a cada leitura em Rumo/fuel-level.log, com o Rumo na tela.", 14, color = p.text3, maxLines = 2)
     }
 }
 

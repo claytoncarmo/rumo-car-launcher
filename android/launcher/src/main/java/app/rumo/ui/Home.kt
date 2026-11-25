@@ -231,6 +231,8 @@ class HomeState {
     /** Consumo agora pela média dos últimos 2 s: km/L andando (null parado) e L/h. */
     var fuelNowKmPerLiter by mutableStateOf<Double?>(null)
     var fuelNowLitersPerHour by mutableStateOf<Double?>(null)
+    /** Registro do tanque ligado: até quando (hora do relógio, ms); null desligado. */
+    var fuelLogEndsAt by mutableStateOf<Long?>(null)
     /** Nível do tanque suavizado (%), lido pelo scanner; null sem leitura. */
     var tankPct by mutableStateOf<Double?>(null)
     /** Diário de viagens, da mais antiga à mais nova (a última pode estar em andamento). */
@@ -327,6 +329,8 @@ interface HomeActions {
     fun cardPage(page: Int)
     /** Teste do Bluetooth: adaptador, procura e, com um scanner OBD2 à vista, pareamento e leitura (obd-bluetooth-test.txt). */
     fun probeBluetooth()
+    /** Liga (por 5 min) ou para o registro do nível do tanque. */
+    fun fuelLogToggle()
     /** Toca o aviso de radar e os bipes (do longe ao perto) por uns segundos; se o som falhar, mostra o erro. */
     fun testSound()
     /** Distância (m) em que o aviso de radar começa; guardada nas preferências. */

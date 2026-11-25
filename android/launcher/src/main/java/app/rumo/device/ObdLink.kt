@@ -54,6 +54,8 @@ class ObdSnapshot(
     val tripKmPerLiter: Double? = null,
     val tripLiters: Double = 0.0,
     val tripKm: Double = 0.0,
+    /** PIDs lidos nesta rodada (os outros em [values] são da última vez que foram lidos). */
+    val fresh: Set<Int> = emptySet(),
 ) {
     fun number(pid: Int): Double? = values[pid]?.let { ObdPids.value(pid, it) }
 }
@@ -69,6 +71,8 @@ class ObdLink(
     private val detail: () -> Boolean,
     /** Aba Motor na tela: rodadas seguidas (até ~5 por segundo), para os mostradores andarem junto com o carro. */
     private val fast: () -> Boolean = { false },
+    /** Registro do tanque ligado: o nível (PID 2F) em toda rodada, com rodadas seguidas. */
+    private val tankEveryRound: () -> Boolean = { false },
     private val onSnapshot: (ObdSnapshot) -> Unit,
     /** Eventos da ligação (conectou, caiu, carro parou de responder…) para o registro; chega em qualquer thread. */
     private val onEvent: (String) -> Unit = {},
@@ -214,6 +218,7 @@ class ObdLink(
         var supported = emptyList<Int>()
         var voltage = Elm327.voltage(send(input, output, "ATRV", 2_000))
         val values = HashMap<Int, List<Int>>()
+        val fresh = HashSet<Int>()
         var milOn: Boolean? = null
         var dtcCount: Int? = null
         var dtcs: List<String>? = null
@@ -245,7 +250,7 @@ class ObdLink(
                 ObdSnapshot(
                     status = status, message = message, voltage = voltage, values = HashMap(values), supported = supported,
                     milOn = milOn, dtcCount = dtcCount, dtcs = dtcs, litersPerHour = lph, kmPerLiter = kmPerL,
-                    tripKmPerLiter = trip.kmPerLiter(), tripLiters = trip.liters, tripKm = trip.km,
+                    tripKmPerLiter = trip.kmPerLiter(), tripLiters = trip.liters, tripKm = trip.km, fresh = HashSet(fresh),
                 ),
             )
         }
@@ -305,6 +310,8 @@ class ObdLink(
                 onEvent("scanner: resposta na primeira ${if (oneReply) "sim" else "não"}, vários PIDs num pedido ${if (grouped) "sim" else "não"}")
             }
             val roundAt = System.currentTimeMillis()
+            fresh.clear()
+            val tankLog = tankEveryRound()
 
             // Uma rodada: o essencial toda vez; o resto pelo tempo, ou em rodízio com a folha do carro aberta
             val wanted = LinkedHashSet<Int>()
@@ -314,7 +321,7 @@ class ObdLink(
                 wanted += 0x05
                 lastCoolantAt = roundAt
             }
-            if (roundAt - lastTankAt > 10_000 && 0x2F in supported) {
+            if ((tankLog || roundAt - lastTankAt > 10_000) && 0x2F in supported) {
                 wanted += 0x2F
                 lastTankAt = roundAt
             }
@@ -351,6 +358,7 @@ class ObdLink(
                         dead = 0
                         groupedMiss = 0
                         values.putAll(got)
+                        fresh.addAll(got.keys)
                     }
                     // O que não veio no grupo vai sozinho
                     alone += chunk.filter { it !in got }
@@ -366,6 +374,7 @@ class ObdLink(
                     val p = Elm327.payload(r, 1, pid)
                     if (p != null) {
                         values[pid] = p
+                        fresh += pid
                         dead = 0
                         oneReplyMiss = 0
                     } else if (Elm327.carSilent(r)) {
@@ -414,7 +423,7 @@ class ObdLink(
             // andam junto com o carro). Com a folha aberta, seguidas também. No resto, uma rodada por segundo basta
             val pause = when {
                 inDetail -> 0L
-                fast() -> fastRoundMs - (System.currentTimeMillis() - roundAt)
+                fast() || tankLog -> fastRoundMs - (System.currentTimeMillis() - roundAt)
                 else -> 700L
             }
             if (pause > 0 && !nap(pause, me)) return
