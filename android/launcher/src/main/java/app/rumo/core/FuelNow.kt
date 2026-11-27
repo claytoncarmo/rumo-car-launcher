@@ -28,6 +28,6 @@ class FuelNow(private val windowMs: Long = WINDOW_MS) {
         }
 
     companion object {
-        const val WINDOW_MS = 2_000L
+        const val WINDOW_MS = 3_000L
     }
 }

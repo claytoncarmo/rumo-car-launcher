@@ -519,6 +519,7 @@ class HomeActivity : ComponentActivity(), HomeActions {
         // Fora da tela, o Rumo larga o scanner (nada em segundo plano); a viagem do consumo fica na memória
         obd.stop()
         saveDiary()
+        saveTankSamples()
         obdLog.copyTo(this, getExternalFilesDirs(null).drop(1).filterNotNull())
         drivingLog.copyTo(this, getExternalFilesDirs(null).drop(1).filterNotNull())
         cancelObdSearch?.invoke()
@@ -1820,8 +1821,13 @@ class HomeActivity : ComponentActivity(), HomeActions {
     private var drivingMaxRpm = 0.0
     private var drivingMaxPedal = 0.0
     // Nível do tanque (mediana das leituras e o cheio aprendido, guardado)
-    private val fuelLevel by lazy { FuelLevel(prefs.getFloat(PREF_TANK_RAW_FULL, 0f).toDouble().takeIf { it > 0 }) }
+    private val fuelLevel by lazy {
+        FuelLevel(prefs.getFloat(PREF_TANK_RAW_FULL, 0f).toDouble().takeIf { it > 0 }, FuelLevel.decode(prefs.getString(PREF_TANK_SAMPLES, null)))
+    }
+    private var tankSampleAt = 0L
+    private var tankSavedAt = 0L
     private val fuelNow = FuelNow()
+    private var fuelNowShownAt = 0L
 
     /** A velocidade do carro, se o scanner a leu há pouco; senão null (vale a do GPS). */
     private fun carSpeedFresh(): Int? = carSpeed?.takeIf { SystemClock.elapsedRealtime() - carSpeedAt < CAR_SPEED_FRESH_MS }
@@ -1848,17 +1854,32 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.drivingScore = drivingStyle.score
         state.drivingLabel = drivingStyle.label
         logDriving(now, dt, v, rpm, pedal, before)
-        // Nível do tanque pela mediana das leituras novas (a leitura crua é muito ruidosa), para a autonomia
-        if (0x2F in snap.fresh) {
+        // Nível do tanque pela mediana das leituras novas (a leitura crua é muito ruidosa), para a autonomia. Uma leitura
+        // a cada ~2 s (no registro do tanque elas vêm várias por segundo e encurtariam a janela de 5 min)
+        if (0x2F in snap.fresh && now - tankSampleAt >= TANK_SAMPLE_MS) {
             snap.number(0x2F)?.let { raw ->
-                if (fuelLevel.update(now, raw)) fuelLevel.fullRaw?.let { prefs.edit().putFloat(PREF_TANK_RAW_FULL, it.toFloat()).apply() }
+                tankSampleAt = now
+                val refuels = fuelLevel.refuels
+                if (fuelLevel.update(raw)) fuelLevel.fullRaw?.let { prefs.edit().putFloat(PREF_TANK_RAW_FULL, it.toFloat()).apply() }
+                if (fuelLevel.refuels != refuels) obdLog.add("tanque: abastecimento (leituras antigas descartadas), agora ${"%.0f".format(fuelLevel.percent ?: 0.0)} %")
+                if (now - tankSavedAt > TANK_SAVE_MS) saveTankSamples()
             }
         }
         state.tankPct = fuelLevel.percent
-        // Consumo agora pela média dos últimos 2 s (leitura a leitura, ele pula com cada toque no pedal)
+        // Consumo agora pela média dos últimos 3 s (leitura a leitura, ele pula com cada toque no pedal); a tela muda
+        // uma vez por segundo
         snap.litersPerHour?.let { fuelNow.add(now, it, v) }
-        state.fuelNowKmPerLiter = fuelNow.kmPerLiter
-        state.fuelNowLitersPerHour = fuelNow.litersPerHour
+        if (now - fuelNowShownAt >= FUEL_NOW_SHOW_MS) {
+            fuelNowShownAt = now
+            state.fuelNowKmPerLiter = fuelNow.kmPerLiter
+            state.fuelNowLitersPerHour = fuelNow.litersPerHour
+        }
+    }
+
+    /** Guarda as leituras do tanque: ao ligar o carro de novo, o nível volta como estava. */
+    private fun saveTankSamples() {
+        tankSavedAt = SystemClock.elapsedRealtime()
+        prefs.edit().putString(PREF_TANK_SAMPLES, FuelLevel.encode(fuelLevel.saved())).apply()
     }
 
     /** Registro do jeito de dirigir: cada leitura que somou pontos, a troca de rótulo e um resumo por minuto. */
@@ -2773,6 +2794,12 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_TANK_LITERS = "tank_liters"
         /** Maior leitura crua do nível do tanque (o batente da boia): o "cheio" do sensor. */
         const val PREF_TANK_RAW_FULL = "tank_raw_full"
+        /** Leituras do tanque da janela (para voltar ao ligar o carro). */
+        const val PREF_TANK_SAMPLES = "tank_samples"
+        const val TANK_SAMPLE_MS = 1_800L
+        const val TANK_SAVE_MS = 30_000L
+        /** O consumo agora muda na tela no máximo uma vez por este tempo. */
+        const val FUEL_NOW_SHOW_MS = 1_000L
         const val TANK_DEFAULT_L = 45
         const val TANK_MIN_L = 20
         const val TANK_MAX_L = 120
