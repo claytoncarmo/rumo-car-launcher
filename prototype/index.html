@@ -2089,7 +2089,7 @@ function carStatusLine() {
 const READINGS = [
   ['Motor', [['Rotação', 'rpm'], ['Velocidade do carro', 'spd'], ['Carga do motor', 'load'], ['Temperatura do motor', 'cool'],
     ['Temperatura do ar de admissão', 'iat'], ['Pressão do coletor (MAP)', 'map'], ['Fluxo de ar (MAF)', 'maf'], ['Pressão atmosférica', 'baro']]],
-  ['Combustível', [['Nível do tanque', 'tank'], ['Correção de combustível curta', 'stft'], ['Correção de combustível longa', 'ltft'], ['Sensor de oxigênio 1 (lambda)', 'o2']]],
+  ['Combustível', [['Nível do tanque (leitura do carro)', 'tank'], ['Nível do tanque (ajustado)', 'tankadj'], ['Correção de combustível curta', 'stft'], ['Correção de combustível longa', 'ltft'], ['Sensor de oxigênio 1 (lambda)', 'o2']]],
   ['Acelerador', [['Posição do acelerador', 'thr'], ['Pedal do acelerador D', 'ped']]],
   ['Sensores e elétrica', [['Bateria (pelo scanner)', 'volt'], ['Tensão da central (ECU)', 'ecu']]],
   ['Manutenção', [['Tempo desde a partida', 'run'], ['Distância com a luz de injeção acesa', 'mild'], ['Distância desde apagar as falhas', 'clrd']]]
@@ -2110,7 +2110,7 @@ function carValues() {
   if (car.oil) f.oil = oilText(oilStatus(car.oil));
   const r = o ? {
     rpm: `${n0(o.rpm)} rpm`, spd: `${o.speed} km/h`, load: `${n0(o.load)} %`, cool: `${o.cool} °C`, iat: `${o.iat} °C`, map: `${n0(o.map)} kPa`,
-    maf: `${fmt1.format(o.maf)} g/s`, baro: '101 kPa', tank: `${n0(o.tank)} %`, stft: `${fmt1.format(1.6 + Math.sin(performance.now() / 900) * 2)} %`,
+    maf: `${fmt1.format(o.maf)} g/s`, baro: '101 kPa', tank: `${n0(clamp(o.tank * 0.925 + Math.sin(performance.now() / 170) * 12, 0, 92.5))} %`, tankadj: `${n0(o.tank)} %`, stft: `${fmt1.format(1.6 + Math.sin(performance.now() / 900) * 2)} %`,
     ltft: '-3,1 %', o2: NF3.format(0.998), thr: `${n0(o.thr)} %`, ped: `${n0(o.thr + 3)} %`, volt: `${fmt1.format(o.volt)} V`,
     ecu: `${NF2.format(o.volt - 0.08)} V`, run: `${n0(o.run)} s`, mild: '0 km', clrd: kmText(4120)
   } : {};

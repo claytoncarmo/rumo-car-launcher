@@ -694,8 +694,16 @@ private fun Readings(s: HomeState) {
             if (group == ObdPids.Group.SENSORS) {
                 item { Reading("Bateria (pelo scanner)", o.voltage?.let { String.format(PT_BR, "%.1f V", it) } ?: "--") }
             }
-            items(defs.size) { i ->
-                val d = defs[i]
+            // Nível do tanque: a leitura do carro (pula muito) e, ao lado, o ajustado que a autonomia usa (mediana dos
+            // últimos 2 min pelo cheio aprendido)
+            val tank = group == ObdPids.Group.FUEL && 0x2F in o.supported
+            if (tank) {
+                item { Reading("Nível do tanque (leitura do carro)", o.values[0x2F]?.let { ObdPids.display(0x2F, it) } ?: "--") }
+                item { Reading("Nível do tanque (ajustado)", s.tankPct?.let { String.format(PT_BR, "%.0f %%", it) } ?: "--") }
+            }
+            val rest = if (tank) defs.filter { it.pid != 0x2F } else defs
+            items(rest.size) { i ->
+                val d = rest[i]
                 Reading(d.label, o.values[d.pid]?.let { ObdPids.display(d.pid, it) } ?: "--")
             }
             if (group == ObdPids.Group.SERVICE) {
