@@ -116,7 +116,7 @@ Registrado em todos os grupos, o único tráfego observado foram eventos `onEven
 
 ### Avisos sonoros e a fonte de áudio
 
-O `sourceinfo` muda a cada som tocado com o tipo navegação (canal de música): no teste de 25/11/2026, pelo Rumo, ele alternou "app.rumo" e "" a cada bipe (duas a três vezes por segundo), o que soa falhado, e depois o firmware encerrou o Rumo. Pelo app do rádio online acontece o mesmo com "app.rumo.webradio". No teste de 27/11 os bipes soaram falhados pelos dois caminhos, e o Rumo foi encerrado a cada som tocado por ele (o interruptor de teste saiu). O Teste dos tipos de som (Configurações da home › Avisos de radar) mostra qual tipo de som o firmware só mistura por cima do FM, sem trocar a fonte.
+O `sourceinfo` muda a cada som tocado com o tipo navegação (canal de música): no teste de 25/11/2026, pelo Rumo, ele alternou "app.rumo" e "" a cada bipe (duas a três vezes por segundo), o que soa falhado, e depois o firmware encerrou o Rumo. Pelo app do rádio online acontece o mesmo com "app.rumo.webradio". No teste de 27/11 os bipes soaram falhados pelos dois caminhos, e o Rumo foi encerrado a cada som tocado por ele (o interruptor de teste saiu). O Teste dos tipos de som (Configurações da home › Avisos de radar) mostra qual tipo de som o firmware só mistura por cima do FM, sem trocar a fonte: em 27/11, alarme e sistema soaram limpos (navegação, notificação e toque, não). Os avisos usam o tipo alarme (o de sistema cala junto com os sons do sistema).
 
 ### Scanner OBD2 pelo Bluetooth (ELM327)
 

@@ -16,12 +16,15 @@ import kotlin.math.sin
 /**
  * Sons dos radares, sintetizados (os mesmos do protótipo HTML): aviso curto ao entrar na zona e,
  * acima do limite, bipes que aceleram e sobem de tom conforme o radar se aproxima. Só tocam com o Rumo na tela:
- * a tela inicial chama [stop] no onStop. No aparelho, qualquer som silencia a música enquanto toca.
+ * a tela inicial chama [stop] no onStop. Tocam no canal de alarme, que o firmware mistura por cima do FM.
  */
 class Alerts(context: Context, private val log: (String) -> Unit = {}) {
     private val am = context.applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    // Tipo alarme (canal de alarme do Android): com o tipo navegação (canal de música), o firmware tratava cada aviso e
+    // cada bipe como troca de fonte de áudio (o FM parava e voltava, e os bipes soavam falhados). No Teste dos tipos de
+    // som (27/11/2026), alarme e sistema soaram limpos por cima do FM; o de sistema cala junto com os sons do sistema.
     private val attrs = AudioAttributes.Builder()
-        .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+        .setUsage(AudioAttributes.USAGE_ALARM)
         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
         .build()
     private val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
@@ -256,7 +259,9 @@ class Alerts(context: Context, private val log: (String) -> Unit = {}) {
     /** O que o Android diz do áudio neste instante: volume e mudo da música (a faixa de aviso usa esse canal) e se há música tocando. */
     fun audioState(): String = try {
         val music = AudioManager.STREAM_MUSIC
-        "[volume=${am.getStreamVolume(music)}/${am.getStreamMaxVolume(music)} mudo=${am.isStreamMute(music)} música=${am.isMusicActive} modo=${am.mode}]"
+        val alarm = AudioManager.STREAM_ALARM
+        "[volume=${am.getStreamVolume(music)}/${am.getStreamMaxVolume(music)} mudo=${am.isStreamMute(music)} música=${am.isMusicActive} " +
+            "alarme=${am.getStreamVolume(alarm)}/${am.getStreamMaxVolume(alarm)} modo=${am.mode}]"
     } catch (e: Exception) {
         "[áudio ilegível: $e]"
     }
