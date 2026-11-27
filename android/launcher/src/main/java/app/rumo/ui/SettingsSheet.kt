@@ -377,14 +377,7 @@ private fun DiagnosticsSection(s: HomeState, a: HomeActions) {
             }
         }
         Txt("O registro do tanque grava o nível a cada leitura em Rumo/fuel-level.log, com o Rumo na tela.", 14, color = p.text3, maxLines = 2)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            PillButton("Teste dos tipos de som", enabled = true, primary = false) { a.probeSoundTypes() }
-        }
-        Txt(
-            "Com o FM tocando: o aviso e três bipes com cada tipo de som (navegação, notificação, alarme, sistema, toque). " +
-                "Ouça qual soa limpo por cima do FM; o alertas.log diz se a fonte de áudio mudou com cada um.",
-            14, color = p.text3, maxLines = 3,
-        )
+
     }
 }
 
@@ -439,17 +432,17 @@ private fun RadarSection(s: HomeState, a: HomeActions) {
             PillButton("Testar o som (7 s)", enabled = true, primary = false) { a.testSound() }
         }
         Txt("Padrão: ${RadarSettings.ZONE_DEFAULT} m e ${RadarSettings.MARGIN_DEFAULT} km/h de margem.", 14, color = p.text3)
-        // Teste: com o FM, o aviso pelo app do rádio online cala o FM; pelo Rumo (como na 0.2.0), o FM só abaixava
+        // Teste dos tipos de som: qual tipo o firmware só mistura por cima do FM (os bipes de hoje trocam a fonte a cada bipe)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f)) {
-                Txt("Teste: avisos com o FM pelo Rumo", 18, weight = FontWeight.SemiBold)
+                Txt("Teste dos tipos de som", 18, weight = FontWeight.SemiBold)
                 Txt(
-                    "Como na 0.2.0: o FM abaixa e toca junto com o aviso. Risco conhecido: tocar o rádio online logo depois de um " +
-                        "aviso pode fechar o Rumo. Com o rádio online tocando, o aviso continua saindo pelo app dele.",
+                    "Com o FM tocando: o aviso e três bipes com cinco tipos de som, um de cada vez (a tela diz qual). Diga qual " +
+                        "soou limpo por cima do FM; o alertas.log diz se a fonte de áudio mudou com cada um.",
                     14, color = p.text2, maxLines = 4,
                 )
             }
-            PillButton(if (s.alertsViaRumo) "Ligado" else "Desligado", enabled = true, primary = s.alertsViaRumo) { a.setAlertsViaRumo(!s.alertsViaRumo) }
+            PillButton("Testar tipos", enabled = true, primary = false) { a.probeSoundTypes() }
         }
     }
 }

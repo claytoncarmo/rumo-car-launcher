@@ -12,7 +12,7 @@ class BackupTest {
         val prefs = mapOf<String, Any?>(
             "radar_zone_m" to 450,
             "obd_fuel_factor" to 1.12f,
-            "alerts_via_rumo_fm" to true,
+            "radio_muted" to true,
             "theme" to "NIGHT",
             // Texto com tabulação, quebra de linha, barra e acentos: tudo volta igual
             "radio_names" to "98.5=Rádio\tUm\n99.1=a\\b",
@@ -30,7 +30,7 @@ class BackupTest {
         assertEquals("2026-11-23T12:00:00", back.at)
         assertEquals(450, back.prefs["radar_zone_m"])
         assertEquals(1.12f, back.prefs["obd_fuel_factor"])
-        assertEquals(true, back.prefs["alerts_via_rumo_fm"])
+        assertEquals(true, back.prefs["radio_muted"])
         assertEquals("NIGHT", back.prefs["theme"])
         assertEquals("98.5=Rádio\tUm\n99.1=a\\b", back.prefs["radio_names"])
         assertEquals(setOf("a", "b", "c\tx"), back.prefs["web_favorites"])

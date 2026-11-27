@@ -352,7 +352,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.obdFuelFactor = prefs.getFloat(PREF_OBD_FUEL, 1f).toDouble().coerceIn(0.5, 2.0)
         obd.fuelFactor = state.obdFuelFactor
         state.cardPage = prefs.getInt(PREF_CARD_PAGE, 0).coerceIn(0, 1)
-        state.alertsViaRumo = prefs.getBoolean(PREF_ALERTS_VIA_RUMO, false)
         state.tankLiters = prefs.getInt(PREF_TANK_LITERS, TANK_DEFAULT_L).coerceIn(TANK_MIN_L, TANK_MAX_L)
         state.oilPlan = loadOilPlan()
         odometerKnown = prefs.contains(PREF_ODO_KM)
@@ -1754,12 +1753,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
         state.toast = "Viagem do consumo zerada"
     }
 
-    override fun setAlertsViaRumo(on: Boolean) {
-        state.alertsViaRumo = on
-        prefs.edit().putBoolean(PREF_ALERTS_VIA_RUMO, on).apply()
-        alertLog.add("teste: avisos com o FM pelo Rumo ${if (on) "ligado" else "desligado"}")
-        state.toast = if (on) "Teste ligado: com o FM, os avisos saem pelo Rumo" else "Teste desligado: os avisos saem pelo app do rádio online"
-    }
 
     // ---- manutenção (troca de óleo) ----
 
@@ -2482,12 +2475,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
         pendingChimeAt = 0L
     }
 
-    /**
-     * Teste "avisos com o FM pelo Rumo": com o rádio online parado, o aviso sai do próprio Rumo, como na 0.2.0 (o FM
-     * abaixava e tocava junto). Com o online tocando, continua pelo app dele (pelo Rumo, o online parava).
-     */
-    private fun rumoPlaysAlerts() = state.alertsViaRumo && !(state.source == Source.WEB && webPlaying())
-
     private var lastChimeAt = 0L
 
     private fun chime() {
@@ -2498,11 +2485,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
             return
         }
         lastChimeAt = now
-        if (rumoPlaysAlerts()) {
-            alertLog.add("aviso: pelo Rumo (teste)")
-            alerts.chime()
-            return
-        }
         if (remoteAlerts()) noteAlertStart()
         if (remoteAlerts() && webPlayer.chime()) {
             alertLog.add("aviso: pelo app do rádio online")
@@ -2519,15 +2501,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
     }
 
     private fun alarm(k: Float?) {
-        if (rumoPlaysAlerts()) {
-            // Bipes que estavam no app do online (o teste foi ligado no meio): calam lá
-            if (remoteAlarm) {
-                webPlayerOrNull?.alarm(null)
-                remoteAlarm = false
-            }
-            alerts.alarm(k)
-            return
-        }
         // Bipes pedidos com a ligação caída: o próximo pedido (a cada posição do GPS) já sai pelo app do online
         if (k != null && waitsForCompanion()) {
             webPlayer.reconnectNow()
@@ -2791,7 +2764,6 @@ class HomeActivity : ComponentActivity(), HomeActions {
         const val PREF_OBD_NAME = "obd_name"
         const val PREF_OBD_FUEL = "obd_fuel_factor"
         const val PREF_CARD_PAGE = "card_page"
-        const val PREF_ALERTS_VIA_RUMO = "alerts_via_rumo_fm"
         const val PREF_OIL_TYPE = "oil_type"
         const val PREF_OIL_INTERVAL_KM = "oil_interval_km"
         const val PREF_OIL_INTERVAL_MONTHS = "oil_interval_months"

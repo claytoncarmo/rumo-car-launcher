@@ -25,7 +25,7 @@ object Backup {
      * Preferências que entram no backup. Configuração nova do dono: acrescentar aqui, senão ela não volta numa restauração.
      */
     val PREF_KEYS: Set<String> = setOf(
-        "radar_zone_m", "radar_margin_kmh", "alerts_via_rumo_fm",
+        "radar_zone_m", "radar_margin_kmh",
         "theme", "card_page",
         "favorites", "radio_names", "radio_muted", "radio_goto_unit", "radio_band", "web_favorites", "web_last",
         "obd_address", "obd_name", "obd_fuel_factor",

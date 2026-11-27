@@ -241,8 +241,6 @@ class HomeState {
     var backupFound by mutableStateOf<List<BackupFound>>(emptyList())
     var backupNote by mutableStateOf<String?>(null)
     var backupBusy by mutableStateOf(false)
-    /** Teste: com o FM (o rádio online parado), os avisos de radar saem pelo próprio Rumo, como na 0.2.0. */
-    var alertsViaRumo by mutableStateOf(false)
     /** Página do cartão inteligente: 0 = Viagem, 1 = Carro. */
     var cardPage by mutableIntStateOf(0)
     var update by mutableStateOf<AppRelease?>(null)
@@ -323,8 +321,6 @@ interface HomeActions {
     fun backupScan()
     /** Restaura o backup do arquivo [path] (um dos achados) e reinicia a tela inicial. */
     fun backupRestore(path: String)
-    /** Teste dos avisos com o FM pelo Rumo (ligado/desligado; fica guardado). */
-    fun setAlertsViaRumo(on: Boolean)
     /** Página do cartão inteligente (0 = Viagem, 1 = Carro); fica guardada. */
     fun cardPage(page: Int)
     /** Teste do Bluetooth: adaptador, procura e, com um scanner OBD2 à vista, pareamento e leitura (obd-bluetooth-test.txt). */
